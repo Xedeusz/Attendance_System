@@ -1,0 +1,1 @@
+<div class="brand"><span class="brand-mark"><x-icon name="check" /></span><div class="brand-copy"><div class="brand-name">BranchSync<span style="color:#70a5ff">.</span></div><div class="brand-caption">People. Presence. Connected.</div></div></div>

@@ -1,0 +1,2 @@
+# Serve Laravel through public/ (or artisan serve), never the repository root.
+Require all denied

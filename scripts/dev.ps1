@@ -1,0 +1,27 @@
+param(
+    [ValidateSet('serve', 'assets', 'build', 'test', 'provision', 'browser', 'format')]
+    [string]$Task = 'serve'
+)
+
+$ErrorActionPreference = 'Stop'
+Set-Location -LiteralPath (Split-Path -Parent $PSScriptRoot)
+$phpPath = 'C:\xampp\php\php.exe'
+if (-not (Test-Path -LiteralPath $phpPath)) {
+    $phpPath = (Get-Command php -ErrorAction Stop).Source
+}
+$localNode = Get-ChildItem -LiteralPath .tools -Directory -Filter 'node-*-win-x64' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+if ($localNode) { $env:PATH = $localNode.FullName + ';' + $env:PATH }
+$env:PATH = (Split-Path -Parent $phpPath) + ';' + $env:PATH
+$env:COMPOSER_HOME = Join-Path (Get-Location) '.tools\composer-home'
+$env:COMPOSER_CACHE_DIR = Join-Path (Get-Location) '.tools\composer-cache'
+$env:npm_config_cache = Join-Path (Get-Location) '.tools\npm-cache'
+switch ($Task) {
+    'serve' { & $phpPath artisan serve --host=127.0.0.1 --port=8000 }
+    'assets' { & npm.cmd run dev }
+    'build' { & npm.cmd run build }
+    'test' { & $phpPath artisan test --compact }
+    'provision' { & $phpPath artisan app:provision-user }
+    'browser' { & npm.cmd run test:browser }
+    'format' { & $phpPath vendor\bin\pint --dirty --format agent; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & npm.cmd run format }
+}
+exit $LASTEXITCODE

@@ -1,0 +1,1 @@
+<x-layouts.guest title="Confirm password"><h1>Confirm it's you</h1><p class="auth-subtitle">Enter your password to confirm this session.</p><x-form-errors /><form method="POST" action="{{ route('password.confirm.store') }}">@csrf<x-password /><x-button class="full" type="submit">Confirm password</x-button></form></x-layouts.guest>
