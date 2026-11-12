@@ -1,0 +1,15 @@
+<x-layouts.app title="Employee Management">
+<x-page-header title="Employee Management" description="Manage your people, work assignments, and account access."><x-button :href="route('hr.employees.create')"><x-icon name="plus" />Register employee</x-button></x-page-header>
+<section class="card"><form method="GET" class="toolbar">
+<div><label for="q" class="field-label">Search employees</label><input id="q" name="q" class="field" value="{{ request('q') }}" placeholder="Number, name or work email" maxlength="100"></div>
+<x-select name="branch_id" label="Branch" :options="$branches->pluck('branch_name', 'id')" :value="request('branch_id')" placeholder="All branches" />
+<x-select name="department_id" label="Department" :options="$departments->pluck('department_name', 'id')" :value="request('department_id')" placeholder="All departments" />
+<x-select name="employment_status" label="Employment" :options="['active' => 'Active', 'inactive' => 'Inactive']" :value="request('employment_status')" placeholder="All employment" />
+<x-select name="account_status" label="Account" :options="['active' => 'Active', 'pending_activation' => 'Pending activation', 'deactivated' => 'Deactivated']" :value="request('account_status')" placeholder="All accounts" />
+<x-select name="sort" label="Sort by" :options="['created_at' => 'Created', 'employee_number' => 'Employee number', 'last_name' => 'Last name']" :value="request('sort', 'created_at')" :placeholder="null" />
+<x-select name="direction" label="Order" :options="['desc' => 'Descending', 'asc' => 'Ascending']" :value="request('direction', 'desc')" :placeholder="null" /><x-button type="submit">Apply filters</x-button><a class="small text-blue-700" href="{{ route('hr.employees.index') }}">Reset</a></form>
+<x-table :columns="['Employee number', 'Full name', 'Work email', 'Department', 'Position', 'Assigned branch', 'Employment', 'Account', 'Actions']" caption="Employee directory">
+@forelse($employees as $employee)<tr><td>{{ $employee->employee_number }}</td><td><a class="text-blue-700 font-semibold" href="{{ route('hr.employees.show', $employee) }}">{{ $employee->full_name }}</a></td><td>{{ $employee->work_email }}</td><td>{{ $employee->department->department_name }}</td><td>{{ $employee->position_title }}</td><td>{{ $employee->currentAssignment?->branch->branch_name ?? 'Unassigned' }}</td><td><x-state :value="$employee->employment_status" /></td><td><x-state :value="$employee->user->account_status" /></td><td><a class="text-blue-700" href="{{ route('hr.employees.edit', $employee) }}">Edit</a></td></tr>
+@empty<tr><td colspan="9"><x-empty-state title="No employees match this view" description="Register an employee or adjust your filters." icon="users" /></td></tr>@endforelse
+</x-table><div class="card-body">{{ $employees->links() }}</div></section>
+</x-layouts.app>

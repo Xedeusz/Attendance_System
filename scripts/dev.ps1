@@ -12,6 +12,7 @@ if (-not (Test-Path -LiteralPath $phpPath)) {
 $localNode = Get-ChildItem -LiteralPath .tools -Directory -Filter 'node-*-win-x64' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
 if ($localNode) { $env:PATH = $localNode.FullName + ';' + $env:PATH }
 $env:PATH = (Split-Path -Parent $phpPath) + ';' + $env:PATH
+$env:PHP_INI_SCAN_DIR = Join-Path (Get-Location) 'scripts\php'
 $env:COMPOSER_HOME = Join-Path (Get-Location) '.tools\composer-home'
 $env:COMPOSER_CACHE_DIR = Join-Path (Get-Location) '.tools\composer-cache'
 $env:npm_config_cache = Join-Path (Get-Location) '.tools\npm-cache'
@@ -20,7 +21,7 @@ switch ($Task) {
     'assets' { & npm.cmd run dev }
     'build' { & npm.cmd run build }
     'test' { & $phpPath artisan test --compact }
-    'provision' { & $phpPath artisan app:provision-user }
+    'provision' { & $phpPath artisan app:bootstrap-hr }
     'browser' { & npm.cmd run test:browser }
     'format' { & $phpPath vendor\bin\pint --dirty --format agent; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & npm.cmd run format }
 }

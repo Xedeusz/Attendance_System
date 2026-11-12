@@ -1,6 +1,6 @@
 # UI Foundation and Reusable Components
 
-Phase 2: Blade + compiled Tailwind CSS 4 + Alpine.js, light theme only. Branding is provisionally **BranchSync**; the configured application name is Employee Biometric Attendance System. No external font/CDN request is necessary; the system font stack falls back from Inter to installed UI fonts.
+Blade + compiled Tailwind CSS 4 + Alpine.js, light theme only, extended through Phase 4. Branding is provisionally **BranchSync — Employee Attendance System**. No external font/CDN request is necessary; the system font stack falls back from Inter to installed UI fonts.
 
 ## Visual system
 
@@ -52,12 +52,12 @@ Example composition:
 ## Screens and honest states
 
 - `resources/views/auth/`: working Fortify login; conditional recovery views and framework password confirmation.
-- `resources/views/dashboard.blade.php`: Admin, HR, Sub-Admin and Employee **design previews**. Preview selection never grants a role or access to business data.
+- `resources/views/dashboard.blade.php`: Historical design previews; Phase 3 replaced them with actual HR and Employee dashboards. See PHASE_3_IMPLEMENTATION.md.
 - `resources/views/workspace/module.blade.php`: Employees, Attendance, Branches, Leave, Reports and Notifications foundations driven by `config/workspace.php`.
 - `resources/views/workspace/profile.blade.php`: only the authenticated user's real login name/email, read-only.
 - `resources/views/workspace/settings.blade.php`: profile link, real logout, light appearance information, disabled future administrative settings.
 
-All domain metrics are explicitly unavailable. No employee count or configured branch count is hardcoded. Employee Time In/Out buttons are native disabled controls; no success event, camera, geolocation or attendance request exists. Filters and add/export/approval actions are disabled. Notification read/unread colors are a visual key, not invented messages. The clock is labeled as display-only, in Asia/Manila; it is not an attendance timestamp.
+Phase 3 master-data and Phase 4 attendance metrics now query real records; no employee/branch/attendance count is hardcoded. The dedicated attendance page uses 64px Time In/Out controls, native and Alpine eligibility disabling, a whole-frame live camera preview, retake/switch/cancel, GPS retry and explicit review requests. `resources/js/attendance.js` owns streams, object URLs, pending bodies and status handling. See [camera lifecycle](CAMERA_IMPLEMENTATION.md). History/monitoring filters, private photos and HR review are functional; leave/report exports remain unavailable. Review updates are database-backed refresh lists, not invented read/unread state. Server-synchronized display time is informational; authoritative punch time comes from Laravel.
 
 ## Responsive and interaction behavior
 

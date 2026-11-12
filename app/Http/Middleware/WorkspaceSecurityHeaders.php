@@ -22,8 +22,8 @@ class WorkspaceSecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'same-origin');
-        // Phase 2 has no camera or location functionality. Revisit in their phases.
-        $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+        $capturePage = $request->routeIs('employee.attendance');
+        $response->headers->set('Permissions-Policy', $capturePage ? 'camera=(self), microphone=(), geolocation=(self)' : 'camera=(), microphone=(), geolocation=()');
         $response->headers->set('Cache-Control', 'no-store, private');
 
         return $response;

@@ -1,2 +1,28 @@
 @props(['title' => 'Dashboard'])
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}"><meta name="theme-color" content="#111e34"><title>{{ $title }} · BranchSync</title>@vite(['resources/css/app.css', 'resources/js/app.js'])</head><body><a class="skip-link" href="#main-content">Skip to content</a><div class="shell" x-data="workspaceShell" :class="{ 'is-collapsed': collapsed }" @keydown.escape.window="mobileOpen = false"><div class="drawer-overlay" x-show="mobileOpen" x-cloak @click="mobileOpen = false" aria-hidden="true"></div><x-sidebar /><div class="main-shell"><x-topbar :title="$title" /><main class="workspace-content" id="main-content" tabindex="-1"><x-breadcrumbs :title="$title" />{{ $slot }}<footer class="workspace-footer"><span>© {{ now()->year }} BranchSync · Employee Biometric Attendance System</span><span>Foundation · Phase 2</span></footer></main></div><x-confirm-logout /></div></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}"><meta name="theme-color" content="#111e34">
+    <title>{{ $title }} · BranchSync</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="shell" x-data="workspaceShell" :class="{ 'is-collapsed': collapsed }" @keydown.escape.window="mobileOpen = false">
+        <div class="drawer-overlay" x-show="mobileOpen" x-cloak @click="mobileOpen = false" aria-hidden="true"></div>
+        <x-sidebar />
+        <div class="main-shell">
+            <x-topbar :title="$title" />
+            <main class="workspace-content" id="main-content" tabindex="-1">
+                <x-breadcrumbs :title="$title" />
+                @if(session('status'))<div class="mt-5"><x-alert>{{ session('status') }}</x-alert></div>@endif
+                @if($errors->any())<div class="mt-5"><x-form-errors /></div>@endif
+                {{ $slot }}
+                <footer class="workspace-footer"><span>© {{ now()->year }} BranchSync · Employee Attendance System</span><span>Attendance & Employee Management</span></footer>
+            </main>
+        </div>
+        <x-confirm-logout />
+    </div>
+</body>
+</html>

@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Mail\PrivateLocalTransport;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Mail::extend('private_local', fn () => new PrivateLocalTransport);
+        URL::forceRootUrl(config('app.url'));
     }
 }

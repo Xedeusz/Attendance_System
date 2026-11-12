@@ -44,7 +44,7 @@ class AuthenticationFoundationTest extends TestCase
         $user = User::factory()->create(['email' => 'person@example.test', 'password' => 'Private!Password123']);
         $this->get('/login');
         $session = session()->getId();
-        $this->post('/login', ['email' => 'PERSON@example.test', 'password' => 'Private!Password123', 'remember' => 'on'])->assertRedirect('/dashboard');
+        $this->post('/login', ['email' => 'PERSON@example.test', 'password' => 'Private!Password123', 'remember' => 'on'])->assertRedirect(route('employee.dashboard'));
         $this->assertAuthenticatedAs($user);
         $this->assertNotSame($session, session()->getId());
         $token = csrf_token();
@@ -66,22 +66,22 @@ class AuthenticationFoundationTest extends TestCase
     public function test_all_placeholder_pages_render_with_no_functional_business_actions(): void
     {
         $this->actingAs(User::factory()->create());
-        foreach (array_keys(config('workspace.modules')) as $module) {
+        foreach (['leave'] as $module) {
             $this->get('/'.$module)->assertOk()->assertSee('structural preview')->assertSee('disabled', false);
             $this->post('/'.$module)->assertStatus(405);
         }
+        $this->get('/attendance')->assertRedirect(route('employee.attendance'));
+        $this->get('/notifications')->assertOk()->assertSee('Attendance updates');
         $this->get('/settings')->assertOk()->assertSee('not available yet');
-        $this->get('/profile')->assertOk()->assertSee('Read only');
+        $this->get('/profile')->assertOk()->assertSee('Your information');
     }
 
     public function test_dashboard_previews_do_not_report_invented_statistics(): void
     {
         $this->actingAs(User::factory()->create());
-        foreach (['admin', 'hr', 'sub-admin', 'employee'] as $preview) {
-            $this->get('/dashboard?view='.$preview)->assertOk()->assertSee('no roles assigned');
-        }
-        $this->get('/dashboard?view=employee')->assertSee('Time In')->assertSee('disabled', false)->assertSee('not available yet');
-        $this->get('/dashboard?view=invalid')->assertNotFound();
+        $this->get('/dashboard?view=hr')->assertRedirect(route('employee.dashboard'));
+        $this->get('/employee/dashboard')->assertOk()->assertSee('Time In')->assertSee('disabled', false)->assertSee('not enabled');
+        $this->get('/hr/dashboard')->assertForbidden();
     }
 
     public function test_passwords_are_hashed_and_no_default_user_is_seeded(): void
@@ -100,7 +100,7 @@ class AuthenticationFoundationTest extends TestCase
 
     public function test_development_account_command_is_disabled_outside_local(): void
     {
-        $this->artisan('app:provision-user')->expectsOutput('This development-only command is disabled outside the local environment.')->assertFailed();
+        $this->artisan('app:provision-user')->expectsOutput('Direct development login creation is disabled. Use app:bootstrap-hr for the first HR; HR creates all subsequent accounts.')->assertFailed();
     }
 
     public function test_user_content_is_escaped_in_the_workspace(): void

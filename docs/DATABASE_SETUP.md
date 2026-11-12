@@ -1,5 +1,7 @@
 # Local Database Setup
 
+Phase 3 update: the additive HR/Employee and master-data migration is applied. The database now contains 17 tables. See [implemented schema](DATABASE_SCHEMA.md) and [Phase 3 setup](PHASE_3_IMPLEMENTATION.md). Counts and scope statements below are the retained Phase 2 setup record.
+
 Phase 2 verification date: 2026-11-12. No employee, branch, attendance, leave, or biometric tables have been created.
 
 ## Verified configuration
@@ -57,7 +59,7 @@ Run from `C:\xampp\htdocs\Attendance_System`:
 & 'C:\xampp\php\php.exe' artisan config:clear
 & 'C:\xampp\php\php.exe' artisan migrate
 & 'C:\xampp\php\php.exe' artisan migrate:status
-& 'C:\xampp\php\php.exe' artisan db:show --counts
+& 'C:\xampp\php\php.exe' -d extension=intl artisan db:show --counts
 ```
 
 Migration status and `db:show` verify Laravel's PDO connection. Only framework `users`, `password_reset_tokens`, `sessions`, `cache`, `cache_locks`, `jobs`, `job_batches`, `failed_jobs`, and migration metadata belong to this phase. No default login is seeded.

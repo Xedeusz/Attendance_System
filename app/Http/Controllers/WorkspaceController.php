@@ -2,23 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceEvent;
+use App\Services\AttendanceQueries;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class WorkspaceController extends Controller
 {
-    public function dashboard(Request $request): View
+    public function notifications(Request $request, AttendanceQueries $queries): View
     {
-        $preview = $request->query('view', 'admin');
-        abort_unless(in_array($preview, ['admin', 'hr', 'sub-admin', 'employee'], true), 404);
+        $hr = $request->user()->isHr();
+        $events = AttendanceEvent::with(['record.employee', 'review'])->when($hr, fn ($query) => $query->where('review_status', 'pending'), fn ($query) => $query->where('employee_id', $request->user()->employee?->id ?? 0)->whereIn('review_status', ['pending', 'approved', 'rejected']))->latest('updated_at')->paginate(15);
 
-        // UI previews contain no domain data and grant no role or privilege.
-        return view('dashboard', ['preview' => $preview]);
+        return view('attendance.updates', ['events' => $events, 'hr' => $hr, 'stats' => $hr ? $queries->statistics() : []]);
     }
 
     public function module(string $module): View
     {
-        abort_unless(array_key_exists($module, config('workspace.modules')), 404);
+        abort_unless(in_array($module, ['leave', 'reports'], true), 404);
 
         return view('workspace.module', ['module' => $module, 'definition' => config('workspace.modules.'.$module)]);
     }

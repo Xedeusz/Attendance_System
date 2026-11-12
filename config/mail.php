@@ -36,6 +36,7 @@ return [
     */
 
     'mailers' => [
+        'private_local' => ['transport' => 'private_local'],
 
         'smtp' => [
             'transport' => 'smtp',

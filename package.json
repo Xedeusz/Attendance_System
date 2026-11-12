@@ -6,8 +6,8 @@
         "build": "vite build",
         "dev": "vite",
         "test:browser": "playwright test",
-        "format": "prettier --write resources/css/app.css resources/js/app.js vite.config.js playwright.config.js tests/Browser/*.js package.json",
-        "format:check": "prettier --check resources/css/app.css resources/js/app.js vite.config.js playwright.config.js tests/Browser/*.js package.json"
+        "format": "prettier --write resources/css/app.css resources/js/*.js vite.config.js playwright.config.js tests/Browser/*.js package.json",
+        "format:check": "prettier --check resources/css/app.css resources/js/*.js vite.config.js playwright.config.js tests/Browser/*.js package.json"
     },
     "dependencies": {
         "@alpinejs/focus": "^3.14.0",

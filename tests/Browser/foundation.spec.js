@@ -93,7 +93,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
         expect(response.status()).toBe(200);
         await noPageOverflow(page);
     }
-    await page.goto("/dashboard?view=employee");
+    await page.goto("/employee/dashboard");
     await expect(
         page.getByRole("button", { name: "Time In", exact: true }),
     ).toBeDisabled();
@@ -146,14 +146,14 @@ test("login and workspace fit mobile/tablet widths and drawer supports Escape", 
             "notifications",
             "settings",
             "profile",
-            "dashboard?view=employee",
+            "employee/dashboard",
         ]) {
             await page.goto("/" + path);
             await noPageOverflow(page);
         }
     }
     await page.setViewportSize({ width: 390, height: 900 });
-    await page.goto("/dashboard?view=employee");
+    await page.goto("/employee/dashboard");
     await page.screenshot({
         path: "test-results/screenshots/employee-mobile.png",
         fullPage: true,

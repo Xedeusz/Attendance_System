@@ -12,6 +12,55 @@
 }
 
 @source '../views/**/*.blade.php';
+
+.button.attendance-action {
+    min-height: 64px;
+    font-size: 16px;
+}
+.attendance-video {
+    display: block;
+    width: 100%;
+    max-height: 420px;
+    aspect-ratio: 4 / 3;
+    object-fit: contain;
+    background: #101c2c;
+    border-radius: 10px;
+}
+.field.attendance-textarea {
+    height: auto;
+    min-height: 90px;
+    padding: 12px;
+    resize: vertical;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 24px;
+}
+.card tbody td {
+    padding: 15px 20px;
+    border-bottom: 1px solid #edf0f6;
+    font-size: 12px;
+    color: #52637a;
+}
+.card tbody td[colspan] {
+    padding: 0;
+}
+.mail-preview {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+    line-height: 1.9;
+}
+.toolbar .form-group {
+    margin-bottom: 0;
+}
+@media (max-width: 640px) {
+    .form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
 [x-cloak] {
     display: none !important;
 }

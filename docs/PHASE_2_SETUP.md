@@ -1,5 +1,7 @@
 # Phase 2 — Installed Foundation
 
+Historical Phase 2 record. Phase 3 now provides exactly HR and Employee, real master-data administration, activation and encrypted local mail. The old direct-user provisioning command is disabled; use [current Phase 3 setup](PHASE_3_IMPLEMENTATION.md) and app:bootstrap-hr.
+
 Date: 2026-11-12. Workspace: `C:\xampp\htdocs\Attendance_System`.
 
 ## Implementation and architecture choice

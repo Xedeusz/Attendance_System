@@ -52,4 +52,17 @@ class PasswordRecoveryTest extends TestCase
         $this->travel(61)->minutes();
         $this->post('/reset-password', ['email' => $user->email, 'token' => $token, 'password' => 'New!PrivatePassword456', 'password_confirmation' => 'New!PrivatePassword456'])->assertSessionHasErrors('email');
     }
+
+    public function test_recovery_does_not_deliver_to_ineligible_accounts_or_activate_them(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['account_status' => 'pending_activation', 'email_verified_at' => null]);
+        $this->postJson('/forgot-password', ['email' => $user->email])->assertOk();
+        Notification::assertNothingSent();
+        $token = Password::broker()->createToken($user);
+        $this->post('/reset-password', ['email' => $user->email, 'token' => $token, 'password' => 'New!PrivatePassword456', 'password_confirmation' => 'New!PrivatePassword456'])->assertSessionHasNoErrors();
+        $this->assertSame('pending_activation', $user->fresh()->account_status);
+        $this->post('/login', ['email' => $user->email, 'password' => 'New!PrivatePassword456'])->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
 }

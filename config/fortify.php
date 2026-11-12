@@ -16,5 +16,8 @@ return [
     'views' => true,
     'limiters' => ['login' => 'login'],
     // Registration stays disabled. Enable recovery only after testing delivery.
-    'features' => env('AUTH_PASSWORD_RESET_ENABLED', false) ? [Features::resetPasswords()] : [],
+    'features' => array_merge([Features::updatePasswords()],
+        env('AUTH_PASSWORD_RESET_ENABLED', false)
+        && (env('MAIL_MAILER') === 'smtp' || (env('MAIL_MAILER') === 'private_local' && env('APP_ENV') === 'local'))
+            ? [Features::resetPasswords()] : []),
 ];
