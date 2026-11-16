@@ -26,6 +26,7 @@ class AttendanceService
     public function employee(User $actor): Employee
     {
         abort_unless($actor->canAuthenticate(), 403);
+        abort_if($actor->isSupervisor(), 403);
         if (! $actor->employee) {
             throw ValidationException::withMessages(['employee' => 'No employee profile is linked. Ask HR to configure attendance eligibility.']);
         }
@@ -63,7 +64,7 @@ class AttendanceService
 
     public function open(Employee $employee): ?AttendanceRecord
     {
-        return AttendanceRecord::where('employee_id', $employee->id)->whereIn('session_status', ['open', 'pending'])->first();
+        return AttendanceRecord::where('employee_id', $employee->id)->whereNull('effective_time_out_at')->whereIn('session_status', ['open', 'pending'])->first();
     }
 
     private function ensureAction(Employee $employee, string $action): ?AttendanceRecord

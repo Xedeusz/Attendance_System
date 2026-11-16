@@ -29,6 +29,7 @@ return [
     */
 
     'disks' => [
+        'leave' => ['driver' => 'local', 'root' => storage_path('app/private/leave'), 'visibility' => 'private', 'serve' => false, 'throw' => true],
         'attendance' => ['driver' => 'local', 'root' => storage_path('app/private/attendance'), 'visibility' => 'private', 'serve' => false, 'throw' => true],
 
         'local' => [

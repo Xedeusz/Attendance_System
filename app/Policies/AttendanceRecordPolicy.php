@@ -9,6 +9,6 @@ class AttendanceRecordPolicy
 {
     public function view(User $user, AttendanceRecord $record): bool
     {
-        return $user->isHr() || $user->employee?->id === $record->employee_id;
+        return ! $user->isSupervisor() && ($user->isHr() || $user->employee?->id === $record->employee_id);
     }
 }

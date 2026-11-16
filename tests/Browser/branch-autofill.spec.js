@@ -19,7 +19,7 @@ test.afterAll(() => {
         ]);
 });
 
-test("map-first form autofills suggestions, protects existing values and saves only on submission", async ({
+test("Photon selection automatically fills fields, clears stale suggestions and saves only on submission", async ({
     page,
 }) => {
     test.setTimeout(180000);
@@ -52,6 +52,12 @@ test("map-first form autofills suggestions, protects existing values and saves o
                             branch_code: "MALICIOUS",
                             status: "inactive",
                         },
+                    },
+                    {
+                        label: "Invalid coordinates",
+                        latitude: 200,
+                        longitude: 121.17,
+                        details: { city: "Must not apply" },
                     },
                     {
                         label: "Replacement Office",
@@ -104,6 +110,33 @@ test("map-first form autofills suggestions, protects existing values and saves o
     await expect(field("Street address")).toHaveValue("");
     await expect(field("City")).toHaveValue("Lipa City");
     await choose("Synthetic Cooperative Office");
+    await expect(
+        page.getByRole("list", { name: "Location search results" }),
+    ).toBeHidden();
+    await expect(
+        page.getByRole("group", { name: "Apply location details" }),
+    ).toHaveCount(0);
+    await expect(
+        page.getByRole("button", { name: "Apply Details", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+        page.getByRole("button", {
+            name: "Keep Existing Details",
+            exact: true,
+        }),
+    ).toHaveCount(0);
+    await expect(page.getByText(/^Selected:/)).toHaveCount(0);
+    await expect(page.getByText(/Search results are approximate/)).toHaveCount(
+        0,
+    );
+    await expect(page.getByText(/Search by Photon/)).toHaveCount(0);
+    await expect(page.locator(".swal2-popup")).toHaveCount(0);
+    await expect(map.locator(".leaflet-control-attribution")).toContainText(
+        "Photon",
+    );
+    await expect(map.locator(".leaflet-control-attribution")).toContainText(
+        "OpenStreetMap",
+    );
     await expect(field("Branch name")).toHaveValue(
         "Synthetic Cooperative Office",
     );
@@ -116,41 +149,39 @@ test("map-first form autofills suggestions, protects existing values and saves o
     await expect(field("Geofencing Radius (Meters)")).toHaveValue("40");
     await field("Street address").fill("Manual address to preserve");
     await choose("Replacement Office");
-    await expect(
-        page.getByRole("group", { name: "Apply location details" }),
-    ).toBeVisible();
     await expect(field("Latitude")).toHaveValue("13.9500000");
+    await expect(field("Street address")).toHaveValue("34 Test Road");
+    await expect(field("Postal code (optional)")).toHaveValue("");
+    await field("Street address").fill("Manually corrected address");
+    await field("Postal code (optional)").fill("4200");
+    await choose("Lipa City");
+    await expect(field("Branch name")).toHaveValue("");
     await expect(field("Street address")).toHaveValue(
-        "Manual address to preserve",
+        "Manually corrected address",
     );
-    await page
-        .getByRole("button", { name: "Keep Existing Details", exact: true })
-        .click();
-    await expect(field("Street address")).toHaveValue(
-        "Manual address to preserve",
-    );
+    await expect(field("Postal code (optional)")).toHaveValue("4200");
+    await expect(field("City")).toHaveValue("Lipa City");
+    await choose("Synthetic Cooperative Office");
     await choose("Replacement Office");
-    await expect(
-        page.getByRole("button", { name: "Apply Details", exact: true }),
-    ).toBeVisible();
     await page
         .getByRole("button", { name: "Reset Location", exact: true })
         .click();
-    await expect(
-        page.getByRole("group", { name: "Apply location details" }),
-    ).toBeHidden();
-    await expect(field("Street address")).toHaveValue(
-        "Manual address to preserve",
-    );
-    await choose("Replacement Office");
-    await page
-        .getByRole("button", { name: "Apply Details", exact: true })
-        .click();
+    await expect(field("Latitude")).toHaveValue("");
     await expect(field("Street address")).toHaveValue("34 Test Road");
-    await expect(field("Postal code (optional)")).toHaveValue("4217");
+    await choose("Replacement Office");
+    await expect(field("Street address")).toHaveValue("34 Test Road");
+    await expect(field("Postal code (optional)")).toHaveValue("");
     await expect(field("City")).toHaveValue("San Jose");
     await expect(field("Branch code")).toHaveValue(code);
     await expect(field("Branch status")).toHaveValue("active");
+    await expect(page.locator(".leaflet-marker-icon")).toHaveCount(1);
+    await expect(page.locator(".leaflet-overlay-pane path")).toHaveCount(1);
+    await choose("Invalid coordinates");
+    await expect(
+        page.getByText(/selected result has invalid coordinates/),
+    ).toBeVisible();
+    await expect(field("Latitude")).toHaveValue("13.9500000");
+    await expect(field("City")).toHaveValue("San Jose");
     const directory = await page.request.get(
         "/hr/branches?q=" + encodeURIComponent(code),
     );
@@ -163,13 +194,17 @@ test("map-first form autofills suggestions, protects existing values and saves o
     await expect(field("Branch name")).toHaveValue("Replacement Office");
     await expect(field("Street address")).toHaveValue("34 Test Road");
     await choose("Lipa City");
-    await expect(field("City")).toHaveValue("San Jose");
-    await page
-        .getByRole("button", { name: "Apply Details", exact: true })
-        .click();
     await expect(field("City")).toHaveValue("Lipa City");
     await expect(field("Branch name")).toHaveValue("Replacement Office");
     await expect(field("Street address")).toHaveValue("34 Test Road");
+    await choose("Synthetic Cooperative Office");
+    await expect(field("Branch name")).toHaveValue(
+        "Synthetic Cooperative Office",
+    );
+    await expect(field("Street address")).toHaveValue(
+        "12 Gen. Luna Street, Barangay 1",
+    );
+    await expect(field("Geofencing Radius (Meters)")).toHaveValue("40");
     await page.getByRole("link", { name: "Cancel", exact: true }).click();
     await page.getByRole("link", { name: "Edit branch", exact: true }).click();
     await expect(field("City")).toHaveValue("San Jose");

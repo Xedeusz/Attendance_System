@@ -1,3 +1,5 @@
+> Historical phase snapshot. Its two-role and deferred-leave/correction scope is superseded by Phase 5. Current roles and workflow: [Phase 5 implementation](PHASE_5_IMPLEMENTATION.md) and [permissions](RBAC_PERMISSIONS.md).
+
 # Phase 3 — Employee and HR Administration
 
 Date: 2026-11-12. Stack unchanged: Laravel 13.42.0, PHP 8.5.12, Fortify 1.42.0, Blade, Tailwind 4.3.5, Alpine 3.17.5 and XAMPP MariaDB 10.11.16. No new package was installed.

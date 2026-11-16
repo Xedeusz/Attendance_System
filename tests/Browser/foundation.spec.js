@@ -72,9 +72,16 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     expect(session.httpOnly).toBe(true);
     expect(session.sameSite).toBe("Lax");
     await expect(
-        page.getByRole("heading", { name: "Company Overview", exact: true }),
+        page.getByRole("heading", { name: "Workforce Overview", exact: true }),
     ).toBeVisible();
     await noPageOverflow(page);
+    await expect(page.locator(".workforce-kpi")).toHaveCount(4);
+    await expect(
+        page.locator(".workforce-attendance [data-metric]"),
+    ).toHaveCount(8);
+    await expect(
+        page.getByRole("link", { name: "Monitor attendance", exact: true }),
+    ).toHaveAttribute("href", /\/hr\/attendance$/);
     await page.screenshot({
         path: "test-results/screenshots/dashboard-desktop.png",
         fullPage: true,
@@ -126,6 +133,10 @@ test("login and workspace fit mobile/tablet widths and drawer supports Escape", 
         await page.setViewportSize({ width, height: 900 });
         await page.goto("/dashboard");
         await noPageOverflow(page);
+        await page.screenshot({
+            path: `test-results/screenshots/workforce-dashboard-${width}.png`,
+            fullPage: true,
+        });
         const toggle = page.getByRole("button", {
             name: "Toggle navigation",
             includeHidden: true,

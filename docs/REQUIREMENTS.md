@@ -1,6 +1,6 @@
 # Requirements and acceptance baseline
 
-Updated 2026-11-12 through Phase 4. This document supersedes the original facial-biometric proposal. Title: **Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing**. Approximately 27 company branches, centralized web application, exactly HR and Employee roles. HR is the administrator across all branches.
+Updated 2026-11-16 through Phase 5. This document supersedes the original facial-biometric proposal. Title: **Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing**. Approximately 27 company branches, centralized web application, exactly HR, Supervisor and Employee roles. HR is the administrator across all branches.
 
 ## Functional acceptance
 
@@ -9,7 +9,7 @@ Updated 2026-11-12 through Phase 4. This document supersedes the original facial
 | AUTH-01 | Fortify login/logout, hashed passwords, throttled/session-protected actions | Implemented and regression tested |
 | AUTH-02 | HR-created employee accounts, private activation/password choice, no public registration | Implemented Phase 3; no employee default password |
 | AUTH-03 | Account/employment deactivation and session revocation | Implemented; writes recheck fresh account state |
-| RBAC-01 | Exactly HR/Employee and backend-enforced permissions | Implemented; HR middleware and owner policies |
+| RBAC-01 | Exactly HR/Supervisor/Employee and backend-enforced permissions | Implemented; explicit HR checks, Supervisor route restrictions, current assignment and owner policies |
 | EMP-01 | Register/edit/search employees, departments, active status, primary branch/history | Implemented Phase 3 |
 | BR-01 | Real branch details/coordinates/radius and status | Implemented; no fabricated branches or geofences |
 | ATT-01 | Live-camera-only ordinary UI, preview/capture/retake/switch/cleanup | Implemented getUserMedia; no file/gallery control |
@@ -25,25 +25,18 @@ Updated 2026-11-12 through Phase 4. This document supersedes the original facial
 | PRIV-01 | Encrypted private evidence, authorized retrieval, configurable retention | Implemented technical controls; company/DPO approval and operational processes pending |
 | AUD-01 | Attendance submissions/validation/flags/reviews/assistance/purge logs | Implemented using existing audit system |
 | SCH-01 | Schedules, grace/holiday/late/absent/undertime rules | Deferred pending confirmed HR policy and instruction |
-| COR-01 | Formal missing-punch/timestamp correction with approval history | Deferred; assistance is not correction |
-| LEAVE-01 | Leave types/applications/private supporting documents/approvals | Deferred |
+| COR-01 | Formal missing-punch/timestamp correction with approval history | Implemented Employee-to-HR review; original facts retained and manual effective values labeled |
+| LEAVE-01 | Leave types/applications/private supporting documents/approvals | Implemented; assigned Supervisor is final approver, no HR second stage |
+| SUP-01 | HR-only Supervisor provisioning and explicit effective assignments | Implemented; controlled identity reuse, session revocation, overlap and self-review prevention |
+| BAL-01 | Configured leave balances and ledger | Implemented; no assumed credits; one debit on final Supervisor approval |
+| NOT-01 | Persistent leave/correction notifications | Implemented standard Laravel database channel alongside existing attendance updates |
 | RPT-01 | Daily/weekly/monthly/branch/employee reports and exports | Monitoring filters available; formal reports/exports deferred |
 
 An attempt may fail without a record. An event is an original submitted punch, including pending/rejected evidence. A record summarizes the effective accepted punches. “Location validated” means reported data passed business rules; “exception approved” records an HR decision without rewriting failed GPS. No facial/identity verification, enrollment, liveness, gallery upload, offline punch, arbitrary branch selection or client-controlled official timestamp is authorized.
 
 ## Permission matrix
 
-| Operation | Employee | HR |
-| --- | --- | --- |
-| Own profile/attendance/history/photos | Own eligible linked employee only | Own eligible linked employee using same login |
-| Submit Time In/Out | Own only | Own only, if linked/eligible |
-| View others' attendance/photos/reported coordinates | Denied | Company-wide |
-| Manage users/branches/departments | Denied | Company-wide, with existing account safeguards |
-| Review flagged attendance | Denied | Pending only; another HR must review own submission |
-| Dispose assistance request | Denied | Required remarks; no self-disposition; creates no punch |
-| Change submitted photo/original event time/location | Denied | Denied through application |
-| Audit logs | Denied | Company-wide |
-| Assign extra roles/public signup | Denied | No extra roles/public signup exist |
+The authoritative current three-role matrix is [RBAC_PERMISSIONS.md](RBAC_PERMISSIONS.md). HR administers and monitors; Supervisor decides currently assigned leave only; Employee sees own self-service. HR is not an ordinary leave approver. Attendance corrections are Employee-to-HR only, with no self-review. All roles are denied edits to original camera/GPS/event facts.
 
 ## Non-functional requirements
 
@@ -64,7 +57,7 @@ An attempt may fail without a record. An event is an original submitted punch, i
 | Q-04 | Exception eligibility, review deadlines, missing-camera/accessibility remedy, escalation and HR self-review coverage | HR/DPO; equitable usable rollout |
 | Q-05 | Transfers/open sessions, multiple punches, checkout windows, missing-punch corrections | HR; later workflow definitions |
 | Q-06 | Shift patterns, grace, overnight attribution, breaks, holidays, overtime and absence cutoffs | HR; scheduling/classification remains unimplemented |
-| Q-07 | Leave types/days/overlap/balances and approval delegation | HR; next leave phase |
+| Q-07 | Leave types/days/overlap/balances and approval delegation | HR; configuration/entitlements/schedules/retention and exceptional reversal policies remain to confirm |
 | Q-08 | Photo/location/core-record/assistance/capture/audit/backup retention, legal holds and rights requests | DPO/HR/IT; current 30/90-day defaults are not legal policy |
 | Q-09 | Lawful basis, employee notice, PIA, DPO contact, processor terms and applicable NPC duties | DPO/company advisers; real collection gate |
 | Q-10 | Recovery delivery, privileged MFA requirements, production session policy | IT/security; production auth hardening |
@@ -72,4 +65,4 @@ An attempt may fail without a record. An event is an original submitted punch, i
 | Q-12 | Actual browser/OS/device inventory and trusted HTTPS mobile test environment | IT; real-device compatibility |
 | Q-13 | Report layouts/authorized exports and notification recipients | HR; later reporting phase |
 
-MVP release includes implemented account/master-data/attendance features plus separately requested scheduling/corrections/leave/reports and verified production privacy/security operations. Payroll, advanced analytics, external notifications, mapping services, authorized off-site attendance and integrations require explicit future approval. Facial recognition is removed rather than deferred.
+MVP release includes implemented account/master-data/attendance/leave/correction features plus separately authorized scheduling/reports and verified production privacy/security operations. Payroll, advanced analytics, external notifications, mapping services, authorized off-site attendance and integrations require explicit future approval. Facial recognition is removed rather than deferred.

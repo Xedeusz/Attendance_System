@@ -6,7 +6,7 @@
 | --- | --- |
 | Login | Existing Fortify session authentication, password hashing, activation, account/session revocation, CSRF and throttling |
 | Identity | Resolve employee from authenticated account; active employment/account checked again inside the write transaction; spoofed employee/user/branch/status/punch-time fields prohibited |
-| HR access | Backend HR middleware and fresh actor validation through `Administration`; exactly two roles, HR company-wide and Employee own data |
+| HR access | Backend HR middleware and fresh actor validation through `Administration`; three roles: HR company-wide attendance, Employee own attendance; Supervisor denied all attendance/photo/GPS/correction access |
 | Capture | Random 256-bit token hashed at rest, UUID, session/password/session-version binding, 180-second expiry, action/assignment/record/version/policy binding, one consumed event |
 | Duplicates | Database unique constraints, transactions, locked employee/administration row, attendance version, request fingerprint, same-result retries and conflicting replay rejection |
 | GPS | Server range/age/accuracy/Haversine checks; no trusted client “verified” result; snapshot invalidation on policy change |

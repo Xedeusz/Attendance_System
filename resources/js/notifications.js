@@ -261,6 +261,7 @@ export function initializeNotifications() {
         }
         if (event.defaultPrevented || !form.matches("form")) return;
         const action = form.elements.namedItem("action")?.value;
+        const customTitle = form.dataset.confirmTitle;
         const inactive =
             form.elements.namedItem("status")?.value === "inactive" &&
             originalStatuses.get(form) !== "inactive" &&
@@ -273,37 +274,46 @@ export function initializeNotifications() {
             !inactive &&
             !review &&
             !deleting &&
+            !customTitle &&
             !["deactivate", "reactivate"].includes(action)
         )
             return;
         event.preventDefault();
         if (busy.has(form)) return;
         busy.add(form);
-        const title = deleting
-            ? "Delete This Record?"
-            : review
-              ? "Save Review Decision?"
-              : action === "reactivate"
-                ? "Reactivate Account?"
-                : inactive
-                  ? "Deactivate This Record?"
-                  : "Deactivate Account?";
+        const title =
+            customTitle ||
+            (deleting
+                ? "Delete This Record?"
+                : review
+                  ? "Save Review Decision?"
+                  : action === "reactivate"
+                    ? "Reactivate Account?"
+                    : inactive
+                      ? "Deactivate This Record?"
+                      : "Deactivate Account?");
         try {
             const confirmed = await notify.confirm({
                 title,
-                text: deleting
-                    ? "This action may permanently remove the selected record."
-                    : review
-                      ? "Original evidence and server timestamps will remain unchanged."
-                      : "This changes access or availability according to the existing account and assignment rules.",
-                confirmText: review
-                    ? "Save Decision"
-                    : deleting
-                      ? "Yes, Delete"
-                      : action === "reactivate"
-                        ? "Yes, Reactivate"
-                        : "Yes, Deactivate",
-                danger: !review && action !== "reactivate",
+                text:
+                    form.dataset.confirmText ||
+                    (deleting
+                        ? "This action may permanently remove the selected record."
+                        : review
+                          ? "Original evidence and server timestamps will remain unchanged."
+                          : "This changes access or availability according to the existing account and assignment rules."),
+                confirmText:
+                    form.dataset.confirmButton ||
+                    (review
+                        ? "Save Decision"
+                        : deleting
+                          ? "Yes, Delete"
+                          : action === "reactivate"
+                            ? "Yes, Reactivate"
+                            : "Yes, Deactivate"),
+                danger: customTitle
+                    ? form.dataset.confirmDanger === "true"
+                    : !review && action !== "reactivate",
             });
             if (confirmed && form.isConnected) {
                 approved.add(form);

@@ -29,7 +29,7 @@ The result contract is `{label, latitude, longitude, details}`, with at most fiv
 
 The existing LIMCOMA theme, desktop 70/30 layout and stacked mobile layout are unchanged. Location Details contains Search Location, Search/results, Fit/Reset, manual coordinates, radius, help/status/errors. Loading shows **Searching locations...** and disables duplicate searches.
 
-HR chooses a result explicitly. The existing map moves to it, the single marker and circle center follow, and coordinate inputs update to seven decimal places. **The configured radius is retained**, and the same geographic circle still resizes immediately through setRadius. Available branch details follow the safe autofill policy below; search never saves automatically. HR can refine the point by clicking, dragging or manually entering coordinates, then Save. Cancel preserves the saved location and information.
+HR chooses a result explicitly. The existing map moves to it, the single marker and circle center follow, and coordinate inputs update to seven decimal places. **The configured radius is retained**, and the same geographic circle still resizes immediately through setRadius. Available branch details are applied immediately without confirmation, following the field mapping and missing-value policy in [Branch Management](BRANCH_MANAGEMENT.md#map-first-form-and-safe-automatic-information-fill-up); search never saves automatically. HR can refine the point by clicking, dragging or manually entering coordinates, then Save. Cancel preserves the saved location and information.
 
 Create/Edit reuse this one component. Read-only Details has no search editor. Wheel zoom without Ctrl, +/- controls, Fit Geofence, Reset, saved-value loading, backend validation, HR permissions and employee assignments remain intact. Search errors never clear the selected location/radius. Attendance continues using the same saved branch columns and historical snapshots; no schema change or new dependency was needed.
 
@@ -94,3 +94,17 @@ Executed results for this replacement:
 - Asset build, Pint, Prettier and whitespace checks: passed. The provider-budget test fixture was corrected to use the installed Laravel rate limiter's increment method when preloading multiple attempts.
 
 The remaining test limitation is an observed timing-sensitive camera assertion in the existing browser suite; its rerun passed. Physical Android/iPhone testing and production-hosted Photon availability remain unverified. No further development phase was started.
+
+## Automatic selection and clean search panel
+
+Clicking one result immediately updates the map, existing marker/circle and latitude/longitude, then fills the available normalized Branch Information values and closes results. Both Create and Edit use the same handler. No Apply Details, Keep Existing Details, selection confirmation, Selected paragraph, approximate-search paragraph or selection toast remains. Search stays usable and keyboard focus returns to its input. Error/no-result feedback is visible only when needed; map controls and the 70/30 desktop/stacked-mobile layout remain unchanged.
+
+Field mapping remains server-normalized: classified establishment name only; house number/street with district/locality for address; city/town/municipality for City; province-level state or supplied county for a known region label; postcode when present. No country/province is unnecessarily duplicated in Street Address. Code, Status and radius are never changed by selected address data.
+
+Reliable new values replace existing values. During the current page session, automatic field values are tracked separately from manual edits. Missing fields clear unchanged values from an earlier selection, preventing stale mixed-location suggestions. Manual corrections and values loaded from the saved record are retained when the new result supplies no replacement. No data is invented. Visible controls remain the submitted form state; input/change events support existing reactive listeners. Existing Laravel required-field and uniqueness validation remains authoritative.
+
+Old request responses are ignored after a newer selection; pending requests are aborted and their timers cleared. Selection does not write to MariaDB. Save is still explicit; Cancel or navigation away leaves stored data unchanged. Provider suggestions are approximate, not verified office coordinates; HR can adjust the marker and correct the editable fields before saving.
+
+Photon credit has moved into Leaflet's map attribution control. The existing linked Leaflet/OpenStreetMap copyright attribution remains visible there; no provider or copyright credit was discarded. Attribution is trusted static markup; result labels and field text never become HTML.
+
+Executed checks for this update: **44 backend tests passed (240 assertions)** and **6 browser tests passed (47.7 seconds)** across branch autofill, map behavior and Photon workflows. Build, Pint, Prettier and whitespace checks passed; the 320px mobile screenshot was visually reviewed. Deterministic mocked provider responses were used. The existing backend normalizer, request authorization, provider limits, cache and attendance rules were unchanged. Live public-provider availability and physical-device testing remain unverified for this update.

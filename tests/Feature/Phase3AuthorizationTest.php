@@ -16,11 +16,11 @@ class Phase3AuthorizationTest extends TestCase
 {
     use Phase3Data, RefreshDatabase;
 
-    public function test_only_two_roles_are_seeded_idempotently(): void
+    public function test_three_approved_roles_are_seeded_idempotently(): void
     {
         $this->seed();
         $this->seed();
-        $this->assertSame(['hr', 'employee'], Role::orderBy('id')->pluck('code')->all());
+        $this->assertSame(['hr', 'employee', 'supervisor'], Role::orderBy('id')->pluck('code')->all());
     }
 
     #[DataProvider('hrPages')]
@@ -54,7 +54,7 @@ class Phase3AuthorizationTest extends TestCase
         $this->assertFalse(Gate::forUser($employee->user)->allows('create', Employee::class));
         $this->assertTrue(Gate::forUser($employee->user)->allows('view', $employee));
         $this->assertFalse(Gate::forUser($employee->user)->allows('update', $employee));
-        $this->actingAs($hr)->get('/hr/dashboard')->assertOk()->assertSee('Company Overview');
+        $this->actingAs($hr)->get('/hr/dashboard')->assertOk()->assertSee('Workforce Overview');
         $this->get('/employee/dashboard')->assertOk()->assertSee('No employee profile');
     }
 

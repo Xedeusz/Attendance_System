@@ -23,6 +23,34 @@ class User extends Authenticatable
         return (int) $this->role_id === Role::HR;
     }
 
+    public function isSupervisor(): bool
+    {
+        return (int) $this->role_id === Role::SUPERVISOR;
+    }
+
+    public function isEmployee(): bool
+    {
+        return (int) $this->role_id === Role::EMPLOYEE;
+    }
+
+    public function workspaceRoute(): string
+    {
+        return match ((int) $this->role_id) {
+            Role::HR => 'hr.dashboard',
+            Role::SUPERVISOR => 'supervisor.leave.index',
+            default => 'employee.dashboard',
+        };
+    }
+
+    public function roleLabel(): string
+    {
+        return match ((int) $this->role_id) {
+            Role::HR => 'HR',
+            Role::SUPERVISOR => 'Supervisor',
+            default => 'Employee',
+        };
+    }
+
     public function employee(): HasOne
     {
         return $this->hasOne(Employee::class);
@@ -30,7 +58,7 @@ class User extends Authenticatable
 
     public function canAuthenticate(): bool
     {
-        return $this->account_status === 'active' && (! $this->employee || $this->employee->employment_status === 'active');
+        return in_array((int) $this->role_id, [Role::HR, Role::EMPLOYEE, Role::SUPERVISOR], true) && $this->account_status === 'active' && (! $this->employee || $this->employee->employment_status === 'active');
     }
 
     public function sendPasswordResetNotification($token): void

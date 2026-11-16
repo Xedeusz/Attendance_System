@@ -36,7 +36,7 @@ class EmployeeService
             if ($oldEmail !== $data['work_email']) {
                 DB::table('password_reset_tokens')->where('email', $oldEmail)->delete();
             }
-            if (! $new && $user->isHr() && $oldEmail !== $data['work_email']) {
+            if (! $new && ! $user->isEmployee() && $oldEmail !== $data['work_email']) {
                 throw ValidationException::withMessages(['work_email' => 'HR account email changes are not permitted through employee editing.']);
             }
             $oldBranchId = $employee->currentAssignment?->branch_id;

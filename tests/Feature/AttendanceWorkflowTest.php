@@ -92,7 +92,9 @@ class AttendanceWorkflowTest extends TestCase
     {
         $employee = $this->attendee();
         $this->punch($this->capture($employee))->assertOk();
-        $this->get('/employee/dashboard')->assertOk()->assertSee('Open attendance');
+        $this->get('/employee/dashboard')->assertOk()->assertSee('Open attendance')
+            ->assertSee('Your attendance session is open')
+            ->assertViewHas('open', fn ($record) => $record?->employee_id === $employee->id && $record->session_status === 'open');
         $this->get('/employee/attendance/history?to='.now()->toDateString())->assertOk()->assertSee($employee->currentAssignment->branch->branch_name);
         $this->get('/employee/attendance/history?sort=password')->assertSessionHasErrors('sort');
         $this->get('/employee/attendance/history?employee_id='.$employee->id)->assertSessionHasErrors('employee_id');

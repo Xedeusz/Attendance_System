@@ -1,16 +1,16 @@
 # System Development Blueprint
 
-**Title:** BranchSync: Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing
+**Title:** LIMCOMA: Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing
 
-**Baseline:** 2026-11-12, updated through Phase 4
+**Baseline:** 2026-11-16, updated through Phase 5
 
 **Owners:** Company sponsor, HR, IT/security and Data Protection Officer (named owners to confirm)
 
-The explicit Phase 3 instruction established exactly HR and Employee roles. Phase 4 removed facial recognition, biometric enrollment, face matching and liveness from the entire architecture. This current blueprint supersedes conflicting original proposals; old phase reports remain historical records.
+The final Phase 5 instruction establishes exactly HR, Supervisor and Employee roles; Supervisor reviews assigned leave only and makes the final leave decision. Phase 4 removed facial recognition, biometric enrollment, face matching and liveness from the entire architecture. This current blueprint supersedes conflicting original proposals; old phase reports remain historical records.
 
 ## 1. Executive summary
 
-BranchSync centralizes employee administration and attendance across approximately 27 offices through a responsive website. Employees sign in, capture a live browser camera photo, and submit a reported location when recording Time In or Time Out. Laravel checks authorization, branch assignment, geofence policy, image and transaction state and records authoritative server time. HR monitors all branches and reviews eligible exceptions. Camera/GPS evidence cannot independently attest physical presence.
+LIMCOMA centralizes employee administration and attendance across approximately 27 offices through a responsive website. Employees sign in, capture a live browser camera photo, and submit a reported location when recording Time In or Time Out. Laravel checks authorization, branch assignment, geofence policy, image and transaction state and records authoritative server time. HR monitors all branches and reviews eligible exceptions. Camera/GPS evidence cannot independently attest physical presence.
 
 ## 2. Problem and solution
 
@@ -23,7 +23,7 @@ Scattered attendance sheets and disconnected office records make timely monitori
 3. Use server decisions/time and concurrency-safe writes rather than trusting client success flags.
 4. Restrict employees to their own records; make review decisions traceable.
 5. Protect private evidence and minimize collection/retention.
-6. Build maintainable modules that can later support confirmed schedules, corrections, leave and reports.
+6. Provide final Supervisor leave decisions and HR-only attendance corrections while retaining original evidence. Schedules and reports remain future work.
 
 ## 4. Technology
 
@@ -34,7 +34,7 @@ The existing PHP 8.5/Laravel 13/Fortify/Blade/Tailwind 4/Alpine 3/MariaDB applic
 | Module | Current state |
 | --- | --- |
 | Authentication/account lifecycle | Login/logout, HR invitations/activation, recovery controls and session revocation implemented |
-| Authorization | Exactly HR/Employee; backend HR middleware and owner policies implemented |
+| Authorization | Exactly HR/Supervisor/Employee; backend role restrictions, owner/current assignment policies implemented |
 | Employees/branches/departments | Registration/edit/status, searchable listings and historical primary assignment implemented |
 | Live camera | Explicit preview/capture/retake/switch/cleanup and no gallery control implemented |
 | GPS/geofence | One-shot reported location, server distance/age/accuracy/branch checks implemented |
@@ -43,8 +43,9 @@ The existing PHP 8.5/Laravel 13/Fortify/Blade/Tailwind 4/Alpine 3/MariaDB applic
 | Assistance | Support queue/disposition implemented; creates no missing/corrected punch |
 | Dashboard/updates | Real statistics and refresh-based review updates implemented |
 | Privacy maintenance | Encrypted private evidence and bounded photo/location pruning implemented; company policies pending |
-| Scheduling/corrections | Deferred pending confirmed rules and explicit next instruction |
-| Leave | Deferred |
+| Scheduling | Deferred pending company policy and separate authorization |
+| Attendance corrections | Employee submission and HR-only manual effective correction implemented |
+| Leave | Types, private documents, explicit assignments, final Supervisor decisions, ledger balances and history implemented |
 | Formal reports/exports | Deferred; current monitoring filters are functional |
 | Production operations | Deployment, physical-device pilot, capacity/security/restore verification pending |
 
@@ -52,16 +53,9 @@ Functional acceptance and non-functional requirements are maintained in [REQUIRE
 
 ## 6. Roles and permissions
 
-| Capability | Employee | HR |
-| --- | --- | --- |
-| Personal attendance/profile/history/photos | Own linked eligible profile | Own linked eligible profile with same login |
-| Employee/master-data/account management | Denied | Company-wide |
-| Company attendance/photos/reported coordinates | Denied | Company-wide |
-| Review pending exceptions | Denied | Another HR reviews own attendance; remarks/confirmation required |
-| Edit original attendance time/photo/GPS | Denied | No application endpoint |
-| Audit access | Denied | Company-wide |
+Exactly HR, Supervisor and Employee roles are supported. HR administers users/assignments/types/balances and monitors leave; Supervisors make final decisions only within current explicit assignments; Employees use own self-service. Supervisor has no attendance, correction, HR dashboard, audit or report access. HR does not provide ordinary leave approval. HR's own correction needs another HR reviewer.
 
-No Admin/Super Admin/Sub-Admin or branch-scoped staff roles exist. Hiding UI is not authorization. [Detailed permissions](RBAC_PERMISSIONS.md).
+No public registration or additional roles are introduced. Backend middleware, policies, FormRequests, scoped queries and transactional fresh-state checks enforce this matrix. [Current detailed permissions](RBAC_PERMISSIONS.md).
 
 ## 7. Architecture
 
@@ -126,11 +120,11 @@ docs/                        Architecture, workflows, security and test evidence
 
 ## 9. Database and relationships
 
-Implemented master data: users → optional employee; employee → department and historical branch assignments; branches → assignments. Roles contain exactly HR and Employee. Existing invitations, sessions, local mail and audit entities are reused.
+Implemented master data: users → optional employee; employee → department and historical branch assignments; branches → assignments. Roles contain exactly HR, Supervisor and Employee. Existing invitations, sessions, local mail and audit entities are reused.
 
 Attendance records belong to employees/branches and contain derived accepted Time In/Out. Events preserve original receipt time, branch snapshot, geofence outcome and protected reported location. Each event consumes one capture, has one photo reference and at most one HR decision. Assistance is a separate support record. Unique active-employee/effective-action constraints and restricted FKs preserve lifecycle/history. [Schema, relationships, constraints and indexes](ATTENDANCE_DATABASE.md).
 
-Future scheduling, correction and leave tables must be designed only after their company requirements are confirmed. Do not create the original suggested schema blindly.
+Phase 5 adds dated Supervisor assignments, leave applications/reviews/types/balances/ledger/private documents, attendance correction requests and standard Laravel database notifications. See [current schema](DATABASE_SCHEMA.md). Scheduling tables remain future work.
 
 ## 10. Account readiness (replaces biometric enrollment)
 
@@ -142,9 +136,11 @@ Time In: active account/profile/assignment → capture session → fresh reporte
 
 Time Out repeats capture/GPS validation and attaches to the accepted open Time In across midnight. Duplicates, stale tokens, changed assignments and pending decisions block conflicting actions. Invalid photo/identity/session requests create no punch. Eligible valid-photo exceptions require explicit employee request and remain pending HR review. Approval preserves original time/GPS and is labelled exception approved. [Full workflow](ATTENDANCE_WORKFLOW.md), [camera](CAMERA_IMPLEMENTATION.md), [geofence](GPS_GEOFENCING.md).
 
-## 12. Future leave workflow
+## 12. Implemented leave and correction workflows
 
-Planned only: employee submits approved leave type/dates and required private document → backend validates ownership/overlap/company policy → HR other than requester reviews → immutable decision/history → employee update → schedule/attendance reconciliation preserving events. Leave balances, partial days, cancellation/delegation and document retention need HR confirmation. No leave functionality is simulated as working.
+Employee submits configured leave type/dates/requested days and any required private document → backend validates and routes to a currently assigned Supervisor → Supervisor approves or rejects with remarks → final decision/history/notification. No HR approval stage follows. Missing assignment is saved and escalated to HR for routing. HR configures verified types and ledger credits; interim chargeable days are confirmed against actual schedules rather than automatically counting calendar dates. See [leave workflow](LEAVE_APPROVAL_WORKFLOW.md).
+
+Attendance corrections follow Employee → HR decision, without Supervisor access. Original camera/GPS/timestamps stay unchanged; HR-approved effective values or supplemental manual entries remain explicitly labeled. See [corrections](ATTENDANCE_CORRECTIONS.md).
 
 ## 13. Security and privacy
 
@@ -158,7 +154,7 @@ Light corporate design with desktop sidebar, mobile drawer, reusable form/alert/
 
 ## 15. MVP and later enhancements
 
-Implemented increments cover account/master data and core attendance. A production MVP still needs confirmed scheduling/corrections, leave/report requirements and operational/privacy gates. Payroll, advanced analytics, external notifications, paid maps/integrations, off-site mode and offline/native clients require separate approval. Facial recognition is outside the approved design entirely.
+Implemented increments cover accounts/master data, camera/GPS attendance, final Supervisor leave approval and HR attendance corrections. A production MVP still needs confirmed company leave/retention policies, scheduling/report definitions and operational/privacy gates. Payroll, advanced analytics, external notifications, paid maps/integrations, off-site mode and offline/native clients require separate approval. Facial recognition is outside the approved design entirely.
 
 ## 16. Challenges and responses
 
@@ -175,4 +171,4 @@ Implemented increments cover account/master data and core attendance. A producti
 
 ## 17. Roadmap and confirmations
 
-[Development roadmap](DEVELOPMENT_ROADMAP.md) records completed Phases 1–4 and proposed scheduling/corrections, leave, reports and production pilot phases. [Company confirmation register](REQUIREMENTS.md) covers branch/policy/device/retention/hosting/approval questions. No next phase, public deployment or optional integration is authorized by this blueprint. Stop after Phase 4 and await the next instruction.
+[Development roadmap](DEVELOPMENT_ROADMAP.md) records completed Phases 1–5 and proposed reporting, confirmed policy automation and production pilot phases. [Company confirmation register](REQUIREMENTS.md) covers branch/policy/device/retention/hosting/approval questions. No next phase, public deployment or optional integration is authorized by this blueprint. Stop after Phase 5. Phase 6 requires a separate instruction.

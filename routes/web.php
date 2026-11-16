@@ -17,7 +17,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/activate-account', [ActivationController::class, 'store'])->middleware('throttle:10,1')->name('activation.store');
 });
 Route::middleware(['auth', 'auth.session'])->group(function () {
-    Route::get('/dashboard', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.dashboard' : 'employee.dashboard'))->name('dashboard');
+    Route::get('/dashboard', fn () => redirect()->route(auth()->user()->workspaceRoute()))->name('dashboard');
     Route::get('/profile', [SelfServiceController::class, 'profile'])->name('profile');
     Route::patch('/profile', [SelfServiceController::class, 'update'])->name('profile.update');
     Route::get('/settings', [SelfServiceController::class, 'settings'])->name('settings');
@@ -25,9 +25,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/employee/profile', [SelfServiceController::class, 'profile'])->name('employee.profile');
     Route::patch('/employee/profile', [SelfServiceController::class, 'update'])->name('employee.profile.update');
     Route::get('/notifications', [WorkspaceController::class, 'notifications'])->name('notifications');
-    foreach (['leave'] as $module) {
-        Route::get('/'.$module, [WorkspaceController::class, 'module'])->defaults('module', $module)->name($module);
-    }
+    Route::get('/leave', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.leave.index' : (auth()->user()->isSupervisor() ? 'supervisor.leave.index' : 'employee.leave.index')))->name('leave');
     Route::get('/attendance', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.attendance.index' : 'employee.attendance'))->name('attendance');
     Route::get('/attendance-history', fn () => redirect()->route('employee.attendance.history'))->name('attendance.history');
     Route::get('/employee/attendance', [EmployeeAttendanceController::class, 'index'])->name('employee.attendance');
@@ -66,3 +64,5 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     }
     Route::get('/reports', [WorkspaceController::class, 'module'])->defaults('module', 'reports')->middleware('hr')->name('reports');
 });
+
+require __DIR__.'/phase5.php';

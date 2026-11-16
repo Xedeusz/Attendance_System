@@ -1,3 +1,5 @@
+> Historical phase snapshot. Its two-role and deferred-leave/correction scope is superseded by Phase 5. Current roles and workflow: [Phase 5 implementation](PHASE_5_IMPLEMENTATION.md) and [permissions](RBAC_PERMISSIONS.md).
+
 # Phase 4 development report
 
 Completed 2026-11-12. Approved project: **Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing**. Phases 1–3 working features and existing local records were preserved. No Phase 5 implementation, deployment, paid API integration or new dependency was started.

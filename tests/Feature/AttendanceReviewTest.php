@@ -31,6 +31,8 @@ class AttendanceReviewTest extends TestCase
         $record = AttendanceRecord::sole();
         $this->assertNull($record->time_in_at);
         $this->assertSame('pending', $record->session_status);
+        $this->get('/employee/dashboard')->assertOk()->assertSee('Awaiting HR review')
+            ->assertViewHas('open', fn ($open) => $open?->id === $record->id);
         $this->postJson('/employee/attendance/captures', ['action' => 'time_in'])->assertUnprocessable();
         $this->get('/notifications')->assertOk()->assertSee('Awaiting HR review');
         $this->decision($event)->assertForbidden();

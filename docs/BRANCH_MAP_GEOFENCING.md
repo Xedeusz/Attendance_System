@@ -50,7 +50,7 @@ The existing administrative transaction saves all branch values and the audit to
 
 ## Authorization and audit
 
-Existing authenticated HR middleware protects all branch directory/create/detail/edit/write routes, and `BranchRequest` independently requires HR. Employees receive 403 and cannot configure geofences. CSRF remains enabled. The two-role system and account lifecycle are unchanged.
+Existing authenticated HR middleware protects all branch directory/create/detail/edit/write routes, and `BranchRequest` independently requires HR. Employees receive 403 and cannot configure geofences. CSRF remains enabled. Phase 5 has exactly HR, Supervisor and Employee roles. Only HR manages branches/geofences; Supervisor and Employee are denied. The existing account lifecycle is retained.
 
 `branch.created` records a null previous configuration and the selected current configuration. `branch.updated`/`branch.deactivated` include previous/current latitude, longitude and radius whenever a geofence field changes. Existing audit rows are retained. The existing audit record also supplies branch subject ID, actor HR ID and server change timestamp. This is official office configuration, not employee GPS evidence.
 

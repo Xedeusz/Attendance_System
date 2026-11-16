@@ -12,7 +12,7 @@ class AttendanceRecord extends Model
 
     protected function casts(): array
     {
-        return ['work_date' => 'date', 'time_in_at' => 'datetime', 'time_out_at' => 'datetime'];
+        return ['work_date' => 'date', 'time_in_at' => 'datetime', 'time_out_at' => 'datetime', 'effective_time_in_at' => 'datetime', 'effective_time_out_at' => 'datetime', 'correction_version' => 'integer'];
     }
 
     public function employee(): BelongsTo

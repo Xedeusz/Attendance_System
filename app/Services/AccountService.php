@@ -27,7 +27,7 @@ class AccountService
         $user->forceFill(['account_status' => 'deactivated'])->save();
         $this->invalidateSessions($user);
         $this->invitations->revoke($user);
-        $this->audit->record($user->isHr() ? 'hr.deactivated' : 'employee.deactivated', $user);
+        $this->audit->record($user->isHr() ? 'hr.deactivated' : ($user->isSupervisor() ? 'supervisor.deactivated' : 'employee.deactivated'), $user);
     }
 
     public function reactivate(User $user): ?array
@@ -37,7 +37,7 @@ class AccountService
         }
         $user->forceFill(['account_status' => $user->email_verified_at ? 'active' : 'pending_activation'])->save();
         $this->invalidateSessions($user);
-        $this->audit->record($user->isHr() ? 'hr.reactivated' : 'employee.reactivated', $user, ['account_status' => $user->account_status]);
+        $this->audit->record($user->isHr() ? 'hr.reactivated' : ($user->isSupervisor() ? 'supervisor.reactivated' : 'employee.reactivated'), $user, ['account_status' => $user->account_status]);
 
         return $user->account_status === 'pending_activation' ? $this->invitations->issue($user) : null;
     }

@@ -14,7 +14,7 @@ class AuthenticationFoundationTest extends TestCase
 
     public function test_login_page_contains_no_signup_or_unconfigured_recovery_link(): void
     {
-        $this->get('/login')->assertOk()->assertSee('Welcome back')->assertDontSee('Sign Up')->assertDontSee('Forgot password?');
+        $this->get('/login')->assertOk()->assertSee('Sign in')->assertDontSee('Sign Up')->assertDontSee('Forgot password?');
         $this->get('/register')->assertNotFound();
         $this->post('/register', ['email' => 'unauthorized@example.test'])->assertNotFound();
         $this->get('/forgot-password')->assertNotFound();
@@ -63,13 +63,12 @@ class AuthenticationFoundationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_all_placeholder_pages_render_with_no_functional_business_actions(): void
+    public function test_self_service_navigation_opens_the_implemented_modules(): void
     {
         $this->actingAs(User::factory()->create());
-        foreach (['leave'] as $module) {
-            $this->get('/'.$module)->assertOk()->assertSee('structural preview')->assertSee('disabled', false);
-            $this->post('/'.$module)->assertStatus(405);
-        }
+        $this->get('/leave')->assertRedirect(route('employee.leave.index'));
+        $this->get('/employee/leave')->assertOk()->assertSee('My Leave');
+        $this->post('/leave')->assertStatus(405);
         $this->get('/attendance')->assertRedirect(route('employee.attendance'));
         $this->get('/notifications')->assertOk()->assertSee('Attendance updates');
         $this->get('/settings')->assertOk()->assertSee('not available yet');
@@ -80,7 +79,7 @@ class AuthenticationFoundationTest extends TestCase
     {
         $this->actingAs(User::factory()->create());
         $this->get('/dashboard?view=hr')->assertRedirect(route('employee.dashboard'));
-        $this->get('/employee/dashboard')->assertOk()->assertSee('Time In')->assertSee('disabled', false)->assertSee('not enabled');
+        $this->get('/employee/dashboard')->assertOk()->assertSee('Time In')->assertSee('disabled', false)->assertSee('My Leave');
         $this->get('/hr/dashboard')->assertForbidden();
     }
 

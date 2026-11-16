@@ -5,7 +5,6 @@
         'longitude' => $readonly ? $branch->longitude : old('longitude', $branch->longitude),
         'radius' => $readonly ? $branch->geofence_radius_meters : old('geofence_radius_meters', $branch->geofence_radius_meters),
         'readonly' => $readonly,
-        'editing' => $branch->exists,
         'searchEnabled' => !$readonly && app(\App\Services\GeocodingService::class)->configured(),
         'searchUrl' => $readonly ? null : route('hr.branches.location-search'),
         'tileUrl' => config('maps.tile_url'),
@@ -32,28 +31,15 @@
                 <div class="space-y-3">
                     <label for="branch-location-search" class="field-label">Search Location</label>
                     <div class="flex items-stretch gap-2">
-                    <input id="branch-location-search" class="field min-w-0 flex-1" type="search" maxlength="200" x-model="searchQuery" x-bind:disabled="searchBusy" x-on:keydown.enter.prevent="searchLocation()" placeholder="Search office, street, barangay, or city..." aria-describedby="location-search-configuration location-search-feedback">
+                    <input id="branch-location-search" x-ref="searchInput" class="field min-w-0 flex-1" type="search" maxlength="200" x-model="searchQuery" x-bind:disabled="searchBusy" x-on:keydown.enter.prevent="searchLocation()" placeholder="Search office, street, barangay, or city..." aria-describedby="location-search-configuration location-search-feedback">
                     <x-button type="button" class="h-[46px] shrink-0 px-3" x-on:click="searchLocation()" x-bind:disabled="!searchEnabled || searchBusy"><span x-text="searchBusy ? 'Searching…' : 'Search'">Search</span></x-button>
                     </div>
                     <p id="location-search-configuration" class="small muted" x-show="!searchEnabled">Location search is not configured. Contact the system administrator.</p>
-                    <p id="location-search-feedback" class="small muted" role="status" x-text="searchMessage"></p>
+                    <p id="location-search-feedback" class="small muted" role="status" x-cloak x-show="searchMessage" x-text="searchMessage"></p>
                     <ul class="search-results space-y-2" x-show="searchResults.length" aria-label="Location search results" x-bind:aria-busy="searchBusy">
                         <template x-for="(result, index) in searchResults" :key="index"><li><button type="button" class="search-result" x-on:click="chooseSearchResult(result)" x-text="result.label"></button></li></template>
                     </ul>
-                    <p class="small muted" x-cloak x-show="selectedLocation" x-text="'Selected: ' + selectedLocation"></p>
-                    <p class="small muted">Search results are approximate. Refine the office position by clicking or dragging the marker.</p>
-                    <p class="small muted">Search by <a class="text-blue-700 underline" href="https://photon.komoot.io/" target="_blank" rel="noopener noreferrer">Photon</a> · <a class="text-blue-700 underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a></p>
                 </div>
-            @endif
-            @if(!$readonly)
-                <div x-cloak x-show="pendingDetails !== null" class="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3" role="group" aria-label="Apply location details" x-ref="detailsConfirmation" tabindex="-1">
-                    <p class="small">Apply the selected location details to Branch Information? Existing entered address details may be replaced.</p>
-                    <div class="flex flex-wrap gap-2">
-                        <x-button type="button" x-on:click="applyPendingDetails()">Apply Details</x-button>
-                        <x-button type="button" variant="secondary" x-on:click="pendingDetails = null">Keep Existing Details</x-button>
-                    </div>
-                </div>
-                <p class="small muted" role="status" x-cloak x-show="detailsMessage" x-text="detailsMessage"></p>
             @endif
             <div class="flex flex-wrap items-center gap-3">
                 <x-button variant="secondary" x-on:click="fitGeofence()" x-bind:disabled="!ready || !validLocation || !validRadius">Fit Geofence to View</x-button>

@@ -51,7 +51,7 @@ Camera/GPS errors, geofence warnings and uncertain attendance responses now use 
 
 ## Confirmation and loading exceptions
 
-Logout, deactivate/reactivate, inactive-status transitions, HR review decisions and existing DELETE forms retain meaningful Confirm/Cancel actions. Confirmation focuses Cancel and supports Escape and focus restoration. No 3000ms timer applies, and no action is automatically approved or canceled. Confirmations retain their compact top-right presentation without ordinary-toast slide animations. The original protected forms, submitters, acknowledgment checkboxes and duplicate-submit guards are preserved. No new deletion endpoint is introduced. The map's Apply Details/Keep Existing Details panel stays inline.
+Logout, deactivate/reactivate, inactive-status transitions, HR review decisions and existing DELETE forms retain meaningful Confirm/Cancel actions. Confirmation focuses Cancel and supports Escape and focus restoration. No 3000ms timer applies, and no action is automatically approved or canceled. Confirmations retain their compact top-right presentation without ordinary-toast slide animations. The original protected forms, submitters, acknowledgment checkboxes and duplicate-submit guards are preserved. No new deletion endpoint is introduced. Photon location selection now applies available branch details immediately, without an inline confirmation, popup or selection toast; genuine operation confirmations remain unchanged.
 
 Loading indicators have no timer and remain until the pending operation completes or fails. Ordinary messages cannot replace them. `closeLoading` closes only operation feedback; it never closes an active confirmation.
 

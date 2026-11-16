@@ -10,6 +10,8 @@ class Role extends Model
 
     public const EMPLOYEE = 2;
 
+    public const SUPERVISOR = 3;
+
     public $timestamps = false;
 
     protected $fillable = ['id', 'code'];

@@ -3,6 +3,7 @@
 use App\Models\AccountInvitation;
 use App\Models\AttendanceAssistanceRequest;
 use App\Models\AttendanceCaptureSession;
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceEvent;
 use App\Models\AttendancePhotoEvidence;
 use App\Models\AttendanceRecord;
@@ -12,10 +13,19 @@ use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeBranchAssignment;
+use App\Models\EmployeeLeaveBalance;
+use App\Models\LeaveBalanceTransaction;
+use App\Models\LeaveRequest;
+use App\Models\LeaveReview;
+use App\Models\LeaveSupportingDocument;
+use App\Models\LeaveType;
 use App\Models\LocalMailMessage;
 use App\Models\Role;
+use App\Models\SupervisorAssignment;
 use App\Models\User;
+use App\Services\LeaveService;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -46,6 +56,20 @@ if (($argv[1] ?? '') === 'create') {
     $employee = Employee::factory()->create(['user_id' => $user->id, 'employee_number' => $prefix.'-EMP', 'department_id' => $department->id]);
     $employee->assignments()->create(['branch_id' => $branch->id, 'is_primary' => true, 'effective_from' => now()->subDay()]);
     echo json_encode(['id' => $user->id, 'email' => $user->email, 'password' => $password, 'branch' => $branch->branch_name]);
+} elseif (($argv[1] ?? '') === 'phase5') {
+    $actor = User::findOrFail((int) ($argv[2] ?? 0));
+    if (! preg_match('/^browser-qa-([a-f0-9]{20})@example\.test$/', $actor->email, $matches)) {
+        throw new RuntimeException('Fixture account required.');
+    }
+    $prefix = 'QA-'.substr($matches[1], 0, 10);
+    $employee = Employee::where('employee_number', $prefix.'-EMP')->sole();
+    $password = bin2hex(random_bytes(20)).'aA!';
+    $supervisor = User::create(['name' => 'Synthetic Leave Supervisor', 'email' => strtolower($prefix).'-supervisor@example.test', 'password' => $password]);
+    $supervisor->forceFill(['role_id' => Role::SUPERVISOR, 'account_status' => 'active', 'email_verified_at' => now()])->save();
+    $type = LeaveType::factory()->create(['code' => $prefix.'-LEAVE', 'name' => $prefix.' Synthetic Leave', 'affects_balance' => true, 'requires_document' => true]);
+    Auth::login($actor);
+    app(LeaveService::class)->adjustBalance($actor, ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'policy_period' => now()->format('Y'), 'amount' => 5, 'reason' => 'Synthetic browser test credit; not company policy.']);
+    echo json_encode(['id' => $supervisor->id, 'email' => $supervisor->email, 'password' => $password, 'employee_id' => $employee->id, 'type_id' => $type->id, 'type' => $type->name, 'from' => now(config('attendance.timezone'))->addDays(4)->toDateString(), 'until' => now(config('attendance.timezone'))->addDays(5)->toDateString(), 'correction_date' => now(config('attendance.timezone'))->subDay()->toDateString()]);
 } elseif (($argv[1] ?? '') === 'cleanup') {
     $actor = User::findOrFail((int) ($argv[2] ?? 0));
     if (! preg_match('/^browser-qa-([a-f0-9]{20})@example\.test$/', $actor->email, $matches)) {
@@ -53,9 +77,26 @@ if (($argv[1] ?? '') === 'create') {
     }
     $prefix = 'QA-'.substr($matches[1], 0, 10);
     DB::transaction(function () use ($actor, $prefix) {
-        $users = User::whereKey($actor->id)->orWhereIn('email', [strtolower($prefix).'-employee@example.test', strtolower($prefix).'-hr@example.test'])->get();
+        $users = User::whereKey($actor->id)->orWhereIn('email', [strtolower($prefix).'-employee@example.test', strtolower($prefix).'-hr@example.test', strtolower($prefix).'-supervisor@example.test'])->get();
         $userIds = $users->pluck('id');
         $employees = Employee::whereIn('user_id', $userIds)->get();
+        $leaveIds = LeaveRequest::whereIn('employee_id', $employees->pluck('id'))->pluck('id');
+        $correctionIds = AttendanceCorrectionRequest::whereIn('employee_id', $employees->pluck('id'))->pluck('id');
+        DB::table('notifications')->where('data->category', 'leave')->whereIn('data->record_id', $leaveIds)->delete();
+        DB::table('notifications')->where('data->category', 'correction')->whereIn('data->record_id', $correctionIds)->delete();
+        DB::table('notifications')->where('notifiable_type', User::class)->whereIn('notifiable_id', $userIds)->delete();
+        foreach (LeaveSupportingDocument::whereIn('leave_request_id', $leaveIds)->get() as $document) {
+            Storage::disk('leave')->delete($document->storage_path);
+            $document->delete();
+        }
+        LeaveReview::whereIn('leave_request_id', $leaveIds)->delete();
+        $balanceIds = EmployeeLeaveBalance::whereIn('employee_id', $employees->pluck('id'))->pluck('id');
+        LeaveBalanceTransaction::whereIn('employee_leave_balance_id', $balanceIds)->delete();
+        EmployeeLeaveBalance::whereIn('id', $balanceIds)->delete();
+        LeaveRequest::whereIn('id', $leaveIds)->delete();
+        AttendanceCorrectionRequest::whereIn('id', $correctionIds)->delete();
+        SupervisorAssignment::whereIn('employee_id', $employees->pluck('id'))->orWhereIn('supervisor_user_id', $userIds)->delete();
+        LeaveType::where('code', $prefix.'-LEAVE')->delete();
         $eventIds = AttendanceEvent::whereIn('employee_id', $employees->pluck('id'))->pluck('id');
         $recordIds = AttendanceRecord::whereIn('employee_id', $employees->pluck('id'))->pluck('id');
         $assistanceIds = AttendanceAssistanceRequest::whereIn('employee_id', $employees->pluck('id'))->pluck('id');

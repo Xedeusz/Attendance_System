@@ -1,3 +1,5 @@
+> Historical Phase 3 test evidence. Current three-role permissions and leave/correction workflows are defined in [Phase 5](PHASE_5_IMPLEMENTATION.md); these older counts and two-role assertions describe the original phase only.
+
 # Phase 3 Test Results
 
 Date: 2026-11-12. Windows; PHP 8.5.12; Laravel 13.42.0; PHPUnit 12.5.43; MariaDB 10.11.16; Playwright 1.65.0 with installed headless Edge.

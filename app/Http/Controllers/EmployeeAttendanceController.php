@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AttendanceSubmissionRequest;
 use App\Models\AttendanceAssistanceRequest;
 use App\Models\AttendanceCaptureSession;
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceRecord;
 use App\Services\AttendanceQueries;
 use App\Services\AttendanceService;
@@ -72,7 +73,7 @@ class EmployeeAttendanceController extends Controller
     {
         $employeeId = $request->user()->employee?->id ?? 0;
 
-        return view('attendance.index', ['records' => $queries->records($request, $employeeId)->paginate(15)->withQueryString(), 'hr' => false, 'stats' => [], 'branches' => collect(), 'assistance' => AttendanceAssistanceRequest::where('employee_id', $employeeId)->latest('id')->limit(10)->get()]);
+        return view('attendance.index', ['manualEntries' => AttendanceCorrectionRequest::where('employee_id', $employeeId)->whereNull('attendance_record_id')->where('status', 'approved')->latest('id')->limit(30)->get(), 'records' => $queries->records($request, $employeeId)->paginate(15)->withQueryString(), 'hr' => false, 'stats' => [], 'branches' => collect(), 'assistance' => AttendanceAssistanceRequest::where('employee_id', $employeeId)->latest('id')->limit(10)->get()]);
     }
 
     public function show(AttendanceRecord $record): View

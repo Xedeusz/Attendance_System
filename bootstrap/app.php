@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\RequireHR;
+use App\Http\Middleware\RestrictSupervisor;
 use App\Http\Middleware\WorkspaceSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', WorkspaceSecurityHeaders::class);
         $middleware->appendToGroup('web', EnsureActiveAccount::class);
+        $middleware->appendToGroup('web', RestrictSupervisor::class);
         $middleware->alias(['hr' => RequireHR::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

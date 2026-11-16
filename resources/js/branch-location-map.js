@@ -7,21 +7,29 @@ const officeIcon = L.divIcon({
     iconSize: [26, 32],
     iconAnchor: [13, 31],
 });
+const detailLimits = {
+    branch_name: 150,
+    address: 255,
+    city: 100,
+    province: 100,
+    postal_code: 20,
+};
 
 export default function registerBranchLocationMap(Alpine) {
     Alpine.data("branchLocationMap", () => {
         let map, marker, circle, tiles, observer, form, onSubmit;
         let config;
         let searchController;
+        let searchSequence = 0;
+        let onDetailsEdited;
+        let applyingDetails = false;
+        const autofilled = new Map();
 
         return {
-            pendingDetails: null,
-            detailsMessage: "",
             searchQuery: "",
             searchResults: [],
             searchMessage: "",
             searchBusy: false,
-            selectedLocation: "",
             searchEnabled: false,
             latitude: "",
             longitude: "",
@@ -45,6 +53,16 @@ export default function registerBranchLocationMap(Alpine) {
                         this.$watch(field, () => this.syncLayers());
                     }
                     form = this.$el.closest("form");
+                    onDetailsEdited = (event) => {
+                        if (
+                            !applyingDetails &&
+                            Object.hasOwn(detailLimits, event.target.name)
+                        ) {
+                            autofilled.delete(event.target.name);
+                        }
+                    };
+                    form.addEventListener("input", onDetailsEdited);
+                    form.addEventListener("change", onDetailsEdited);
                     onSubmit = (event) => {
                         const required =
                             form.elements.status.value === "active";
@@ -78,8 +96,10 @@ export default function registerBranchLocationMap(Alpine) {
                     return;
                 }
                 this.searchBusy = true;
-                searchController = new AbortController();
-                const timer = setTimeout(() => searchController.abort(), 12000);
+                const controller = new AbortController();
+                searchController = controller;
+                const sequence = ++searchSequence;
+                const timer = setTimeout(() => controller.abort(), 12000);
                 try {
                     const response = await fetch(config.searchUrl, {
                         method: "POST",
@@ -92,9 +112,10 @@ export default function registerBranchLocationMap(Alpine) {
                         },
                         credentials: "same-origin",
                         body: JSON.stringify({ query }),
-                        signal: searchController.signal,
+                        signal: controller.signal,
                     });
                     const result = await response.json();
+                    if (sequence !== searchSequence) return;
                     if (!response.ok) {
                         notify.ajaxError(response.status);
                         this.searchMessage =
@@ -111,6 +132,7 @@ export default function registerBranchLocationMap(Alpine) {
                         this.searchMessage =
                             "No matching locations found. Try another address or select a location manually on the map.";
                 } catch (error) {
+                    if (sequence !== searchSequence) return;
                     notify.ajaxError();
                     this.searchMessage =
                         error.name === "AbortError"
@@ -118,7 +140,7 @@ export default function registerBranchLocationMap(Alpine) {
                             : "Location search is temporarily unavailable. You can still select a location directly on the map.";
                 } finally {
                     clearTimeout(timer);
-                    this.searchBusy = false;
+                    if (sequence === searchSequence) this.searchBusy = false;
                 }
             },
 
@@ -138,9 +160,11 @@ export default function registerBranchLocationMap(Alpine) {
                         "The selected result has invalid coordinates. Select another result or use the map.";
                     return;
                 }
+                searchSequence++;
+                searchController?.abort();
+                this.searchBusy = false;
                 this.selectLocation(L.latLng(latitude, longitude));
-                this.selectedLocation = String(result.label);
-                this.suggestBranchDetails(result.details);
+                this.fillBranchDetails(result.details);
                 this.searchResults = [];
                 this.searchMessage = "";
                 map.setView(
@@ -148,63 +172,49 @@ export default function registerBranchLocationMap(Alpine) {
                     Math.min(16, config.maxZoom),
                     { animate: true },
                 );
+                this.$nextTick(() =>
+                    this.$refs.searchInput.focus({ preventScroll: true }),
+                );
             },
 
-            suggestBranchDetails(details) {
-                this.pendingDetails = null;
-                this.detailsMessage = "";
-                if (!form || !details || typeof details !== "object") return;
-                const suggestions = {};
-                const limits = {
-                    branch_name: 150,
-                    address: 255,
-                    city: 100,
-                    province: 100,
-                    postal_code: 20,
-                };
-                for (const [name, limit] of Object.entries(limits)) {
-                    if (
-                        typeof details[name] === "string" &&
-                        details[name].trim()
-                    ) {
-                        suggestions[name] = details[name]
-                            .trim()
-                            .slice(0, limit);
+            fillBranchDetails(details) {
+                if (!form) return;
+                const source =
+                    details && typeof details === "object" ? details : {};
+                applyingDetails = true;
+                try {
+                    for (const [name, limit] of Object.entries(detailLimits)) {
+                        const input = form.elements.namedItem(name);
+                        if (!input) continue;
+                        const value =
+                            typeof source[name] === "string"
+                                ? Array.from(source[name].trim())
+                                      .slice(0, limit)
+                                      .join("")
+                                : "";
+                        if (value) {
+                            input.value = value;
+                            autofilled.set(name, value);
+                        } else if (
+                            autofilled.has(name) &&
+                            input.value === autofilled.get(name)
+                        ) {
+                            input.value = "";
+                            autofilled.delete(name);
+                        } else {
+                            autofilled.delete(name);
+                            continue;
+                        }
+                        input.dispatchEvent(
+                            new Event("input", { bubbles: true }),
+                        );
+                        input.dispatchEvent(
+                            new Event("change", { bubbles: true }),
+                        );
                     }
+                } finally {
+                    applyingDetails = false;
                 }
-                const names = Object.keys(suggestions);
-                if (!names.length) return;
-                const changesExisting = names.some((name) => {
-                    const value = form.elements[name].value.trim();
-                    return value !== "" && value !== suggestions[name];
-                });
-                if (changesExisting || config.editing) {
-                    this.pendingDetails = suggestions;
-                    this.$nextTick(() =>
-                        this.$refs.detailsConfirmation.focus({
-                            preventScroll: true,
-                        }),
-                    );
-                    return;
-                }
-                this.writeBranchDetails(suggestions);
-            },
-
-            writeBranchDetails(details) {
-                for (const [name, value] of Object.entries(details)) {
-                    const input = form.elements[name];
-                    input.value = value;
-                    input.dispatchEvent(new Event("input", { bubbles: true }));
-                    input.dispatchEvent(new Event("change", { bubbles: true }));
-                }
-                this.detailsMessage =
-                    "Location details applied. Review Branch Information before saving.";
-            },
-
-            applyPendingDetails() {
-                if (!this.pendingDetails) return;
-                this.writeBranchDetails(this.pendingDetails);
-                this.pendingDetails = null;
             },
 
             get validLocation() {
@@ -249,6 +259,11 @@ export default function registerBranchLocationMap(Alpine) {
                         updateWhenIdle: true,
                         referrerPolicy: "strict-origin-when-cross-origin",
                     }).addTo(map);
+                    if (config.searchEnabled) {
+                        map.attributionControl.addAttribution(
+                            '<a href="https://photon.komoot.io/" target="_blank" rel="noopener noreferrer">Photon</a>',
+                        );
+                    }
                     tiles.on("tileerror", () => {
                         this.mapError =
                             "Unable to load the map tiles. Check your internet connection and try again. Your form values are preserved.";
@@ -290,8 +305,6 @@ export default function registerBranchLocationMap(Alpine) {
                 this.latitude = point.lat.toFixed(7);
                 this.longitude = point.lng.toFixed(7);
                 this.locationError = "";
-                this.selectedLocation = "";
-                this.pendingDetails = null;
                 this.syncLayers();
             },
 
@@ -358,9 +371,6 @@ export default function registerBranchLocationMap(Alpine) {
 
             resetLocation() {
                 this.latitude = this.longitude = "";
-                this.selectedLocation = "";
-                this.pendingDetails = null;
-                this.detailsMessage = "";
                 this.locationError = "";
                 this.syncLayers();
             },
@@ -375,7 +385,12 @@ export default function registerBranchLocationMap(Alpine) {
             },
 
             destroy() {
+                searchSequence++;
                 searchController?.abort();
+                if (form && onDetailsEdited) {
+                    form.removeEventListener("input", onDetailsEdited);
+                    form.removeEventListener("change", onDetailsEdited);
+                }
                 observer?.disconnect();
                 if (form && onSubmit)
                     form.removeEventListener("submit", onSubmit);

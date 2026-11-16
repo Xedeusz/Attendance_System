@@ -1,8 +1,8 @@
 # LIMCOMA — Employee Attendance and Management System
 
-Responsive Laravel web application for approximately 27 company branches. **Phases 1–4 are implemented:** HR/Employee accounts, employee/branch/department administration, activation, live camera photo attendance, reported GPS geofencing, server Time In/Out, private evidence, history, HR exception review, real dashboard statistics and audit logs.
+Responsive Laravel web application for approximately 27 company branches. **Phases 1–5 are implemented:** secure accounts/master data, live camera and GPS attendance, private evidence, HR review, explicit Supervisor assignments, final Supervisor leave approval, configurable balance ledgers, private leave documents, HR attendance corrections, persistent notifications and audit history.
 
-Exactly **HR** and **Employee** roles exist; HR administers all branches. There is no public registration. Facial recognition, biometric enrollment, face matching and liveness are removed. Ordinary attendance uses a live browser camera UI with no gallery/file selection. Camera/GPS do not independently prove physical presence.
+Exactly **HR**, **Supervisor** and **Employee** roles exist. HR administers the system; Supervisors can review leave only for their currently assigned employees and are the final leave approvers. HR is not a second leave approver. There is no public registration. Facial recognition, biometric enrollment, face matching and liveness are removed. Ordinary attendance uses a live browser camera UI with no gallery/file selection. Camera/GPS do not independently prove physical presence.
 
 ## Installed stack
 
@@ -25,7 +25,7 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task build
 powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task serve
 ```
 
-Open **http://127.0.0.1:8000/login**. The Phase 4 migration is already applied locally; migrate applies only pending work. Do not use database fresh/reset/wipe to upgrade. The helper loads GD via project-only `scripts/php/attendance.ini`, necessary for attendance image validation. Stop the project server with Ctrl+C before restarting it with the helper. No global PHP configuration was modified.
+Open **http://127.0.0.1:8000/login**. The Phase 5 migration is already applied locally; migrate applies only pending work. Do not use database fresh/reset/wipe to upgrade. The helper loads GD via project-only `scripts/php/attendance.ini`, necessary for attendance image validation. Stop the project server with Ctrl+C before restarting it with the helper. No global PHP configuration was modified.
 
 If no HR exists in a fresh environment, run `php artisan app:bootstrap-hr` and privately enter a unique email/name/password. It refuses when any HR exists and does not replace existing users. HR creates subsequent accounts. Newly registered employees receive activation invitations and **choose their own private passwords**; there is no default employee password.
 
@@ -82,6 +82,10 @@ Never overwrite an existing `.env` or key during an upgrade. Serve only `public/
 
 ## Documentation and next work
 
+- [System-wide UI/UX refinement, visual review and verification](docs/UI_UX_REFINEMENT.md)
+
+- [HR dashboard redesign, data definitions and verification](docs/HR_DASHBOARD_REDESIGN.md)
+
 - [Phase 4 report / exact file inventory](docs/PHASE_4_IMPLEMENTATION.md)
 - [Attendance workflow](docs/ATTENDANCE_WORKFLOW.md), [camera](docs/CAMERA_IMPLEMENTATION.md), [GPS](docs/GPS_GEOFENCING.md)
 - [Attendance schema](docs/ATTENDANCE_DATABASE.md), [master-data schema](docs/DATABASE_SCHEMA.md)
@@ -89,4 +93,19 @@ Never overwrite an existing `.env` or key during an upgrade. Serve only `public/
 - [Blueprint](docs/SYSTEM_BLUEPRINT.md), [requirements](docs/REQUIREMENTS.md), [roadmap](docs/DEVELOPMENT_ROADMAP.md)
 - [Phase 3 report](docs/PHASE_3_IMPLEMENTATION.md), [roles](docs/RBAC_PERMISSIONS.md)
 
-Leave, formal corrections, scheduling/classification, exports and payroll are not implemented. Phase 5 is proposed in the roadmap; **stop after Phase 4 and await the next instruction**. No deployment, remote publication or optional integration was performed.
+Phase 5 leave and formal corrections are implemented. Scheduling/classification, approved-leave reversal, automated entitlement accrual, exports and payroll remain outside this phase. Phase 6 reporting is recommended in the roadmap and has not been implemented. No deployment or remote publication was performed.
+
+## Phase 5 workflows
+HR: open /hr/supervisors, confirm your password, invite a new Supervisor or promote an existing Employee identity, then assign explicit employees with effective dates. Configure verified company types at /hr/leave/types and authorized credits at /hr/leave/balances. No official types or entitlements are prefilled.
+
+Employee: open My Leave, apply with dates/requested days/reason and any required document, then track the final Supervisor decision. Missing Supervisor assignment is saved for HR to resolve. Pending requests can be cancelled; approved reversal requires future policy.
+
+Supervisor: login opens /supervisor/leave. Review only current assigned employees' applications and private documents, confirm applicable chargeable days, add remarks and approve/reject. The decision is final, with no HR approval stage. Attendance, corrections and HR administration are denied.
+
+Corrections: Employee submits at /employee/attendance/corrections; another HR reviews at /hr/attendance/corrections. Effective manual values are labeled separately; original camera/GPS evidence is retained.
+
+Persistent notices are in Notifications; Supervisor notices stay within the leave module. All ordinary feedback uses the shared top-right 3000 ms SweetAlert toast.
+
+Read the [Phase 5 implementation and exact file inventory](docs/PHASE_5_IMPLEMENTATION.md), [test results](docs/PHASE_5_TEST_RESULTS.md), [Supervisor role](docs/SUPERVISOR_ROLE.md), [assignments](docs/SUPERVISOR_ASSIGNMENTS.md), [leave policy/balances/documents](docs/LEAVE_MANAGEMENT.md), [final workflow](docs/LEAVE_APPROVAL_WORKFLOW.md) and [corrections](docs/ATTENDANCE_CORRECTIONS.md).
+
+The existing Laravel scheduler runs leave:refresh-routing hourly and leave:purge-documents daily. Private leave document retention defaults to null until confirmed; LEAVE_DOCUMENT_RETENTION_DAYS sets expiry for new uploads. Keep APP_KEY/backups secure. Physical Android/iPhone Safari/device, target multi-worker concurrency and production privacy/restore checks remain rollout work.

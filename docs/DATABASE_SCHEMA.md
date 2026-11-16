@@ -1,83 +1,30 @@
-# Implemented Database Schema — Phase 3
+# Implemented database schema — current through Phase 5
+Updated 2026-11-16. XAMPP MariaDB 10.11.16 / InnoDB / utf8mb4; UTC timestamps and Asia/Manila business dates. Existing users, employee identities, attendance events/photos/GPS and historical decisions are retained. Exactly three fixed role rows exist: HR=1, Employee=2, Supervisor=3. User role/account/session fields are guarded from public mass assignment.
 
-Engine: XAMPP **MariaDB 10.11.16**, InnoDB, `utf8mb4_unicode_ci`. Connection: Laravel `mysql` through PDO MySQL. Database: `employee_biometric_db`. UTC timestamps; date-only hire dates. No credentials belong in this document.
+## Phase 5 additive migration
+database/migrations/2026_11_16_061609_create_phase_five_workflows.php was applied locally using migrate, without fresh/reset/wipe. It extends roles.code enum with supervisor and adds the following tables.
 
-## Migration and preservation
-
-Applied migration: `database/migrations/2026_11_12_051823_create_phase_three_administration_tables.php`, batch 2. The three original framework migrations remain unchanged. This migration is additive; the existing login was retained as an active Employee. No account was automatically promoted, deleted or given a new password. No reset/wipe/fresh command was run on the local development DB.
-
-There are now **17 tables**: 9 original framework tables and the 8 added tables below. The final database check confirmed the existing user remained, exactly two role rows existed, and synthetic browser records were cleaned up.
-
-## Extended `users`
-
-Original ID/name/email/password/email_verified_at/remember_token/timestamps remain. Added:
-
-| Column | Constraint/purpose |
+| Table | Main relationships and safeguards |
 | --- | --- |
-| `role_id` | Unsigned tiny integer FK to roles, default 2 (Employee), restricted deletion |
-| `account_status` | Enum `pending_activation`, `active`, `deactivated`; indexed; new users pending |
-| `last_login_at` | Nullable UTC login timestamp |
-| `session_version` | Unsigned integer, default 1; revocation check independent of session storage |
+| supervisor_assignments | Supervisor User, Employee, HR assigner; inclusive effective dates, enabled flag and revocation timestamp; employee/effective lookup index; restricted foreign keys |
+| leave_types | Unique code; active/document/balance/half-day settings and requested_days interim duration policy |
+| leave_requests | Employee/type/Supervisor; dates, decimal requested/charged days, half-day, encrypted reason, JSON type snapshot, indexed state and submission/review/final/cancel times |
+| leave_reviews | Request/reviewer; action, encrypted remarks, JSON routing metadata and review timestamp; generated unique final_request_id for approved/rejected actions |
+| employee_leave_balances | Unique Employee/type/policy_period; decimal available_days; no automatic entitlement |
+| leave_balance_transactions | Balance/request/authorizer; signed amount, type and encrypted reason; unique nullable leave_request_id prevents duplicate final debit |
+| leave_supporting_documents | Request FK, unique random private encrypted storage path, sanitized name, content MIME/size, optional expiry and purge timestamps |
+| attendance_correction_requests | Employee/optional original record/branch/HR reviewer; requested date and effective times, JSON original snapshot, record revision, encrypted reason/remarks, indexed state, unique nullable pending_key |
+| notifications | Standard Laravel UUID database notifications, polymorphic owner, JSON payload/read timestamp; Supervisor queries restrict leave category |
 
-Email remains unique and authoritative. Password uses the framework hashed cast. Role/account/session-state fields are not user mass assignable. Existing rows were explicitly retained as active; this backward-compatible migration does not certify their email identity. HR controls later lifecycle operations.
+attendance_records gains nullable effective_time_in_at/effective_time_out_at and correction_version. The unique generated open_employee_id includes only pending/open captured sessions without an effective checkout. This lets an approved manual checkout release the open-session guard while leaving original captured timestamps/status/evidence untouched. A missing-record correction stays supplemental; it does not manufacture a captured attendance row.
 
-## Added tables
+Financial day values use decimal storage and integer half-day arithmetic in services. Business mutations share the existing HR Role mutex, then lock workflow/balance rows. Foreign keys restrict deletion of referenced identities/history. No web endpoint deletes leave types, assignments, reviews or ledger entries. Rollback refuses populated Phase 5 business/configuration tables or Supervisor accounts; use a reviewed forward migration for real history.
 
-| Table | Columns and constraints |
-| --- | --- |
-| `roles` | Fixed ID 1/code `hr`, ID 2/code `employee`; primary ID; unique two-value enum code; no mutable role web API |
-| `branches` | ID; unique branch_code(30); branch_name(150); address(255), city/province(100); optional postal_code(20); nullable latitude/longitude DECIMAL(10,7); unsigned optional radius; active/inactive enum; timestamps; status index |
-| `departments` | ID; unique department_code(30); department_name(150); active/inactive enum; timestamps; company-wide (no branch FK) |
-| `employees` | ID; unique user_id FK restricted; unique employee_number(40); first/middle/last names, nullable suffix/contact; department_id FK restricted; position_title(150); date_hired; active/inactive employment enum; timestamps; employment_status/last_name index |
-| `employee_branch_assignments` | ID; employee/branch FKs restricted; primary flag; microsecond from/until datetimes; stored generated current_employee_id; unique current index; branch_id/effective_until index; timestamps |
-| `account_invitations` | ID; user FK restricted; unique SHA-256 token_hash CHAR(64); expiry index; nullable used/revoked timestamps; controlled delivery_status; timestamps; user/use/revocation index |
-| `audit_logs` | ID; nullable actor_user_id FK restricted; action index; subject_type/subject_id; safe JSON metadata; bounded IP/user-agent; created_at index; no web update/delete routes |
-| `local_mail_messages` | ID; recipient email SHA-256 hash index; encrypted JSON body in TEXT payload; created_at; expires_at index; hidden body serialization; local-only protected preview |
+Migrations work in isolated SQLite feature tests and were applied to local MariaDB. SQLite cannot establish InnoDB lock behavior; target multi-worker load/deadlock testing remains an operational check.
 
-`employees.work_email` is an accessor through `user.email`, not a duplicated column. Employee full name is derived from name parts and synchronized to the user's display name by HR edits. A User has an optional unique employee profile; an HR account can therefore participate in future employee self-service without a second login or role.
+## Earlier schema
+Phase 3 administration includes users/roles, branches, departments, employees, employee_branch_assignments, account_invitations, audit_logs and encrypted development local_mail_messages alongside framework tables. Employee assignment history retains effective ranges. Secure invitations store token hashes rather than permanent plaintext passwords.
 
-## Relationship diagram
+Phase 4 adds attendance_records, attendance_events, attendance_capture_sessions, attendance_photo_evidence, attendance_reviews and attendance_assistance_requests plus attendance version controls. See [attendance schema](ATTENDANCE_DATABASE.md). Original facts remain protected and separate from Phase 5 effective manual values.
 
-```mermaid
-erDiagram
-    ROLES ||--o{ USERS : authorizes
-    USERS ||--o| EMPLOYEES : profile
-    DEPARTMENTS ||--o{ EMPLOYEES : groups
-    EMPLOYEES ||--o{ EMPLOYEE_BRANCH_ASSIGNMENTS : history
-    BRANCHES ||--o{ EMPLOYEE_BRANCH_ASSIGNMENTS : assigned
-    USERS ||--o{ ACCOUNT_INVITATIONS : activates
-    USERS o|--o{ AUDIT_LOGS : actor
-```
-
-Audit subject IDs are intentionally descriptive references, not polymorphic cascades. Local preview bodies are encrypted and short-lived, not an authoritative invitation table; recipient hashes support targeted cleanup without storing a second plaintext recipient column.
-
-## Branch map enhancement (2026-11-16)
-
-No schema migration or duplicate coordinate/radius fields were added. Existing nullable DECIMAL(10,7) coordinates and unsigned radius are reused by the map and attendance snapshots. Application validation now requires all three for active branch writes, or all/none for inactive branches. Existing incomplete rows are preserved and can be configured by HR. Audit JSON metadata includes previous/current office latitude, longitude and radius for geofence changes; existing attendance snapshots preserve historical settings. See [map guide](BRANCH_MAP_GEOFENCING.md).
-
-## Assignment uniqueness and transaction rules
-
-`current_employee_id` is computed as:
-
-```sql
-CASE WHEN effective_until IS NULL AND is_primary = 1
-THEN employee_id ELSE NULL END
-```
-
-The unique index `one_current_primary_per_employee` allows many closed historical rows but at most one open primary per employee. MariaDB schema inspection verified it is a stored generated column with a unique BTREE. This avoids pretending a nullable composite index or PostgreSQL partial index provides the same guarantee.
-
-All administrative writes lock the HR role row, reauthorize the current actor, then apply bounded transactions. Activation takes the same lock and rechecks its invitation/user rows. Last-active-HR protection, active reference checks and transfer/status races therefore share one serialization boundary. Delivery occurs after commit and does not hold DB locks.
-
-## Audit and sensitive-data lifecycle
-
-Audit records include creation, updates, transfers, employee/HR status changes, invitation issuance/revocation/delivery failure and activation. Change metadata is limited to field names, related IDs and non-sensitive state. Passwords, raw tokens and contact values are excluded. The application exposes no ordinary audit modification endpoint; database-owner access and external tamper-evident copies are production operational concerns.
-
-Raw invitation tokens are absent from the invitation table; local mail stores recoverable tokens only inside encrypted preview payloads. The private inbox is restricted to reauthenticated HR in local mode. Expired previews are inaccessible and pruned with the scheduled cleanup command; configure scheduler execution to purge at rest. Hashes/audit/employee retention needs company/DPO policy and is not an invented indefinite retention commitment.
-
-Sessions/reset tokens are revoked on relevant account changes. Invitation issuance/activation and email replacement clear stale reset tokens. No cascade deletes erase employment or assignment history through ordinary endpoints.
-
-## Verification and scope
-
-SQLite feature tests cover actual queries, constraints, relationships, rollback and lifecycle behavior in isolation. Real MariaDB migration, column/index/FK inspection and browser CRUD/activation/session checks were also performed. This is not a claim of load or concurrent multi-process stress testing.
-
-Phase 4 adds six attendance/evidence/review/support tables and employee attendance version; see [ATTENDANCE_DATABASE.md](ATTENDANCE_DATABASE.md) for the migration, relationships, constraints and privacy lifecycle. Branch coordinates now drive real attendance geofencing. No schedule, leave, payroll or biometric-reference/template tables exist. The existing local database name is retained for compatibility; its legacy name does not imply facial processing.
+There are no biometric templates, facial-processing tables, schedule/holiday templates, payroll or export tables. The existing local database name is retained for compatibility.
