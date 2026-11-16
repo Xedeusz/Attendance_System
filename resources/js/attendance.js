@@ -1,3 +1,5 @@
+import { notify } from "./notifications";
+
 export default (Alpine) => {
     Alpine.data("attendanceCapture", (options) => ({
         canTimeIn: options.canTimeIn,
@@ -27,6 +29,39 @@ export default (Alpine) => {
         clock: "",
         remaining: 0,
         init() {
+            this.$watch("error", (value) => {
+                if (value)
+                    notify.error(
+                        this.uncertain
+                            ? "Submission Status Uncertain"
+                            : "Attendance Not Recorded",
+                        this.uncertain
+                            ? "Check submission status before starting another action."
+                            : "Your attendance request could not be completed. Review the details on this page.",
+                    );
+            });
+            this.$watch("cameraMessage", (value) => {
+                if (
+                    /permission denied|No camera|unavailable|could not start|requires HTTPS/i.test(
+                        value,
+                    )
+                )
+                    notify.error(
+                        "Camera Access Required",
+                        "Please allow camera access or review the camera guidance on this page.",
+                    );
+            });
+            this.$watch("locationMessage", (value) => {
+                if (
+                    /denied|unavailable|timed out|requires HTTPS|not support/i.test(
+                        value,
+                    )
+                )
+                    notify.warning(
+                        "Location Unavailable",
+                        "Check location permissions and review the guidance on this page.",
+                    );
+            });
             this.offset = Date.parse(options.serverTime) - Date.now();
             const tick = () => {
                 this.clock = new Intl.DateTimeFormat("en-PH", {
@@ -91,6 +126,13 @@ export default (Alpine) => {
                 );
             }
             if (!response.ok) {
+                if (response.status >= 500) {
+                    const failure = new Error(
+                        "The server could not complete the request. Please try again.",
+                    );
+                    failure.status = response.status;
+                    throw failure;
+                }
                 const failure = new Error(
                     Object.values(result.errors || {})
                         .flat()
@@ -155,6 +197,11 @@ export default (Alpine) => {
                     "POST",
                     { token: this.capture.token, ...this.location },
                 );
+                if (this.geo.status === "outside_geofence")
+                    notify.warning(
+                        "Outside Authorized Location",
+                        "Your current location is outside your assigned branch's allowed attendance area.",
+                    );
                 this.locationMessage = this.geo.validated
                     ? "Reported location meets the configured geofence and accuracy checks."
                     : `Location not validated: ${this.geo.status.replaceAll("_", " ")}. Retry or explicitly request HR review.`;
@@ -314,6 +361,19 @@ export default (Alpine) => {
             return false;
         },
         finish(result) {
+            notify.close();
+            notify.toast(
+                result.review_status === "pending" ||
+                    result.verification_status !== "location_validated"
+                    ? "warning"
+                    : "success",
+                result.review_status === "pending" ||
+                    result.verification_status !== "location_validated"
+                    ? "Saved for HR review; this is not yet verified."
+                    : result.action === "time_out"
+                      ? "Time Out Recorded"
+                      : "Time In Recorded",
+            );
             this.result = result;
             this.stopCamera();
             this.clearPhoto();
@@ -323,6 +383,7 @@ export default (Alpine) => {
         async submit() {
             if (this.submitting || !this.capture || !this.photo) return;
             this.submitting = true;
+            notify.loading("Submitting Attendance...");
             this.error = "";
             try {
                 if (this.uncertain && (await this.checkStatus())) return;
@@ -366,6 +427,7 @@ export default (Alpine) => {
                     this.uncertain = false;
                 }
             } finally {
+                notify.closeLoading();
                 this.submitting = false;
             }
         },

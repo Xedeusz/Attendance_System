@@ -44,6 +44,12 @@ test("HR registers real master data, invites employee, activation and session re
         Province: "Test province",
     }))
         await page.getByLabel(label, { exact: true }).fill(value);
+    await page
+        .getByLabel("Geofencing Radius (Meters)", { exact: true })
+        .fill("150");
+    await page
+        .getByRole("region", { name: "Branch location map", exact: true })
+        .click({ position: { x: 150, y: 170 } });
     await page.getByRole("button", { name: "Save branch" }).click();
     await expect(
         page.getByRole("heading", {
@@ -168,12 +174,18 @@ test("HR registers real master data, invites employee, activation and session re
     await page
         .getByRole("button", { name: "Deactivate account", exact: true })
         .click();
+    await page
+        .getByRole("button", { name: "Yes, Deactivate", exact: true })
+        .click();
     await expect(page.getByText("Deactivated", { exact: true })).toBeVisible();
     await employeePage.goto("http://127.0.0.1:8000/employee/dashboard");
     await expect(employeePage).toHaveURL(/\/login$/);
     await page.getByRole("checkbox").check();
     await page
         .getByRole("button", { name: "Reactivate account", exact: true })
+        .click();
+    await page
+        .getByRole("button", { name: "Yes, Reactivate", exact: true })
         .click();
     await expect(
         page.getByText("Active", { exact: true }).first(),

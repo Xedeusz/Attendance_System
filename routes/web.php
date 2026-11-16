@@ -48,6 +48,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::patch('/employees/{employee}/status', [HR\EmployeeController::class, 'status'])->name('employees.status');
         Route::post('/employees/{employee}/invitation', [HR\EmployeeController::class, 'resend'])->middleware('throttle:10,1')->name('employees.invitation');
         Route::resource('branches', HR\BranchController::class)->except('destroy');
+        Route::post('/branch-location-search', HR\BranchLocationSearchController::class)->middleware('throttle:10,1')->name('branches.location-search');
         Route::resource('departments', HR\DepartmentController::class)->except(['destroy', 'show']);
         Route::get('/audit-logs', [HR\AuditController::class, 'index'])->name('audit');
         Route::middleware('password.confirm')->group(function () {

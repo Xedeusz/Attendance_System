@@ -12,7 +12,7 @@ class AccountInvitationMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Activate your BranchSync account');
+        return new Envelope(subject: 'Activate your LIMCOMA account');
     }
 
     public function content(): Content

@@ -1,5 +1,193 @@
 @import "tailwindcss";
 
+.swal2-container {
+    z-index: 2000;
+}
+.limcoma-notification {
+    border-radius: 14px;
+    color: var(--text-primary);
+    max-width: calc(100vw - 24px);
+}
+.limcoma-notification .swal2-title {
+    color: var(--limcoma-purple);
+    font-size: 1.25rem;
+    overflow-wrap: anywhere;
+}
+.limcoma-notification .swal2-html-container {
+    overflow-wrap: anywhere;
+}
+.limcoma-notification-actions {
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.swal2-popup.limcoma-notification .swal-danger {
+    background: #b42332;
+    color: white;
+}
+.swal2-popup.limcoma-notification .swal-danger:hover {
+    background: #8b1b28;
+}
+.swal2-popup.limcoma-notification .button.teal {
+    background: var(--limcoma-teal-dark);
+}
+body.swal2-toast-shown .swal2-container.limcoma-toast-container.swal2-top-end,
+body.swal2-shown .swal2-container.limcoma-toast-container.swal2-top-end {
+    inset: 12px 12px auto auto;
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    padding: 0;
+    width: min(330px, calc(100vw - 24px)) !important;
+}
+.swal2-popup.swal2-toast.limcoma-compact-toast {
+    grid-template-columns: 18px minmax(0, 1fr);
+}
+.swal2-popup.limcoma-compact-toast {
+    display: grid !important;
+    grid-template-columns: 18px minmax(0, 1fr) 32px;
+    align-items: center;
+    column-gap: 8px;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--background-card);
+    box-shadow: 0 6px 20px rgb(30 41 59 / 10%);
+    font-family: var(--font-sans);
+}
+.swal2-popup.limcoma-compact-toast .limcoma-compact-toast-title {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: var(--text-primary);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.swal2-popup.limcoma-compact-toast .limcoma-compact-toast-icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    margin: 0 !important;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    animation: none !important;
+}
+.limcoma-compact-toast-icon .swal2-icon-content,
+.limcoma-compact-toast-icon svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+.swal2-popup.limcoma-compact-toast .swal2-success {
+    color: var(--limcoma-teal-dark);
+}
+.swal2-popup.limcoma-compact-toast .swal2-error {
+    color: #dc2626;
+}
+.swal2-popup.limcoma-compact-toast .swal2-warning {
+    color: #d97706;
+}
+.swal2-popup.limcoma-compact-toast .swal2-info {
+    color: var(--limcoma-purple);
+}
+.swal2-popup.limcoma-compact-toast .limcoma-compact-toast-close {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    justify-self: end;
+    width: 32px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 20px;
+    line-height: 1;
+}
+.swal2-popup.limcoma-compact-toast .limcoma-compact-toast-close:hover {
+    background: var(--limcoma-purple-light);
+    color: var(--limcoma-purple);
+}
+.limcoma-toast-enter {
+    animation: limcoma-toast-in 220ms ease-out both;
+}
+.swal2-popup.limcoma-notification .swal2-html-container {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    margin: 4px 0 0;
+    padding: 0;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+}
+.swal2-popup.limcoma-notification .limcoma-notification-actions {
+    grid-column: 2 / -1;
+    grid-row: 3;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+    margin: 10px 0 0;
+    padding: 0;
+}
+.swal2-popup.limcoma-notification .button {
+    min-height: 32px;
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.swal2-popup.limcoma-notification .swal2-loader {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border-width: 2px;
+}
+.limcoma-toast-exit {
+    animation: limcoma-toast-out 200ms ease-in both;
+}
+@keyframes limcoma-toast-in {
+    from {
+        opacity: 0;
+        translate: 6px 0;
+    }
+    to {
+        opacity: 1;
+        translate: 0 0;
+    }
+}
+@keyframes limcoma-toast-out {
+    to {
+        opacity: 0;
+        translate: 6px 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .limcoma-toast-enter,
+    .limcoma-toast-exit {
+        animation: none;
+    }
+}
+
+.branch-map {
+    width: 100%;
+    isolation: isolate;
+    z-index: 0;
+    touch-action: pan-y;
+}
+.branch-map.map-pan-enabled {
+    touch-action: none;
+}
+.branch-map .leaflet-control-attribution {
+    white-space: normal;
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
@@ -7,11 +195,98 @@
     --font-sans:
         "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
         "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-    --color-navy-950: #111e34;
-    --color-brand-600: #2458d3;
+    --color-navy-950: var(--limcoma-purple);
+    --color-brand-600: var(--limcoma-purple);
+    --color-blue-50: var(--limcoma-purple-light);
+    --color-blue-100: var(--limcoma-purple-light);
+    --color-blue-600: var(--limcoma-purple);
+    --color-blue-700: var(--limcoma-purple);
+    --color-teal-700: var(--limcoma-teal-dark);
 }
 
 @source '../views/**/*.blade.php';
+
+:root {
+    --limcoma-teal: #10ab8c;
+    --limcoma-teal-dark: #087c68;
+    --limcoma-purple: #2f1b72;
+    --limcoma-purple-dark: #241454;
+    --limcoma-teal-light: #e7f7f2;
+    --limcoma-purple-light: #f0ecf8;
+    --background-main: #f8fafc;
+    --background-card: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+}
+h1,
+h2,
+h3 {
+    color: var(--limcoma-purple);
+}
+.auth-story h1 {
+    color: white;
+}
+input[type="checkbox"] {
+    accent-color: var(--limcoma-teal-dark);
+}
+.brand-caption {
+    max-width: 145px;
+}
+.brand-accent {
+    color: var(--limcoma-teal);
+}
+.button.teal {
+    background: var(--limcoma-teal-dark);
+    color: white;
+}
+.branch-location-details {
+    background: var(--background-card);
+}
+.office-marker {
+    background: transparent;
+    border: none;
+}
+.office-marker span {
+    display: block;
+    position: relative;
+    width: 26px;
+    height: 26px;
+    background: var(--limcoma-teal);
+    border: 2px solid var(--limcoma-purple);
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 5px #0005;
+}
+.office-marker span::after {
+    content: "";
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    top: 9px;
+    left: 7px;
+    background: white;
+    border-radius: 50%;
+}
+.search-results {
+    max-height: 220px;
+    overflow-y: auto;
+}
+.search-result {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    text-align: left;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: white;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+.search-result:hover {
+    background: var(--limcoma-teal-light);
+}
 
 .button.attendance-action {
     min-height: 64px;
@@ -71,8 +346,8 @@ body {
     margin: 0;
     font-family: var(--font-sans);
     font-size: 14px;
-    color: #27354b;
-    background: #f5f7fb;
+    color: var(--text-primary);
+    background: var(--background-main);
 }
 button,
 input,
@@ -117,7 +392,7 @@ h3 {
     font-weight: 600;
 }
 .muted {
-    color: #64748b;
+    color: var(--text-secondary);
 }
 .small {
     font-size: 12px;
@@ -147,7 +422,7 @@ h3 {
 .brand-mark {
     width: 38px;
     height: 38px;
-    background: #2563eb;
+    background: var(--limcoma-teal-dark);
     color: #fff;
     display: grid;
     place-items: center;
@@ -176,20 +451,20 @@ h3 {
     font-size: 12px;
     font-weight: 600;
     border: 1px solid transparent;
-    background: #2458d3;
+    background: var(--limcoma-purple);
     color: #fff;
     transition: background 0.15s;
 }
 .button:hover {
-    background: #1e48ad;
+    background: var(--limcoma-purple-dark);
 }
 .button.secondary {
-    background: #fff;
-    color: #43536a;
-    border-color: #dce3ee;
+    background: var(--background-card);
+    color: var(--limcoma-purple);
+    border-color: var(--limcoma-purple);
 }
 .button.secondary:hover {
-    background: #f1f5f9;
+    background: var(--limcoma-purple-light);
 }
 .button:disabled {
     background: #eef2f7;
@@ -206,7 +481,7 @@ h3 {
     place-items: center;
     border: 0;
     border-radius: 8px;
-    color: #64748b;
+    color: var(--text-secondary);
     background: transparent;
 }
 .icon-button:hover {
@@ -215,12 +490,12 @@ h3 {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible {
-    outline: 3px solid #38bdf8;
+    outline: 3px solid var(--limcoma-teal-dark);
     outline-offset: 3px;
 }
 input:focus,
 select:focus {
-    outline: 2px solid #91b4fa;
+    outline: 2px solid var(--limcoma-teal-dark);
     outline-offset: 1px;
 }
 .field-label {
@@ -233,12 +508,12 @@ select:focus {
 .field {
     width: 100%;
     height: 46px;
-    border: 1px solid #dce3ec;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 0 13px;
     background: #fff;
     min-width: 0;
-    color: #27354b;
+    color: var(--text-primary);
 }
 .field::placeholder {
     color: #98a3b5;
@@ -271,17 +546,17 @@ select:focus {
     white-space: nowrap;
 }
 .badge.blue {
-    background: #edf3ff;
-    color: #315eb3;
+    background: var(--limcoma-purple-light);
+    color: var(--limcoma-purple);
 }
 .badge.teal {
     background: #e9f7f3;
     color: #23775f;
 }
 .alert {
-    border: 1px solid #dbe6fb;
-    background: #f0f5ff;
-    color: #385888;
+    border: 1px solid var(--limcoma-teal);
+    background: var(--limcoma-teal-light);
+    color: var(--limcoma-teal-dark);
     border-radius: 9px;
     padding: 13px 16px;
     font-size: 12px;
@@ -301,7 +576,7 @@ select:focus {
 }
 .card {
     background: #fff;
-    border: 1px solid #e5eaf2;
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     min-width: 0;
     box-shadow: 0 2px 3px #182d4b02;
@@ -402,8 +677,8 @@ select:focus {
     display: grid;
     place-items: center;
     border-radius: 9px;
-    background: #edf3ff;
-    color: #4b75cf;
+    background: var(--limcoma-purple-light);
+    color: var(--limcoma-purple);
 }
 .stat-value {
     font-size: 29px;
@@ -437,7 +712,7 @@ select:focus {
     z-index: 40;
     width: var(--sidebar-width);
     inset: 0 auto 0 0;
-    background: #111e34;
+    background: var(--limcoma-purple);
     color: #c0cbdd;
     padding: 29px 18px 20px;
     display: flex;
@@ -456,7 +731,7 @@ select:focus {
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 1.8px;
-    color: #6f829e;
+    color: #c6bbdf;
     margin-bottom: 13px;
 }
 .nav-link {
@@ -468,16 +743,16 @@ select:focus {
     font-size: 12px;
     border-radius: 7px;
     margin: 3px 0;
-    color: #9daec5;
+    color: #eee9fa;
     white-space: nowrap;
 }
 .nav-link.active {
-    background: #2458d3;
-    color: #fff;
+    background: var(--limcoma-teal);
+    color: var(--limcoma-purple-dark);
     box-shadow: 0 4px 9px #0001;
 }
 .nav-link:hover:not(.active) {
-    background: #ffffff09;
+    background: var(--limcoma-purple-dark);
     color: #fff;
 }
 .nav-link .icon {
@@ -543,8 +818,8 @@ select:focus {
     border-radius: 50%;
     display: grid;
     place-items: center;
-    background: #eaf0fc;
-    color: #4266a4;
+    background: var(--limcoma-purple-light);
+    color: var(--limcoma-purple);
     font-size: 11px;
     font-weight: 700;
     flex-shrink: 0;
@@ -634,7 +909,7 @@ select:focus {
 }
 .preview-tabs a.active {
     background: #fff;
-    color: #315eb3;
+    color: var(--limcoma-purple);
     box-shadow: 0 1px 4px #182d4b10;
 }
 .chart-placeholder {
@@ -694,8 +969,8 @@ table {
 }
 th {
     padding: 15px 20px;
-    background: #f9fbfe;
-    color: #7b8aa1;
+    background: var(--limcoma-purple-light);
+    color: var(--limcoma-purple);
     font-weight: 600;
     font-size: 10px;
     border-bottom: 1px solid #e9eef5;
@@ -738,7 +1013,7 @@ td {
     left: 12px;
     transform: translateY(-160%);
     background: #fff;
-    color: #2458d3;
+    color: var(--limcoma-purple);
     padding: 12px;
     z-index: 100;
     border-radius: 5px;
@@ -779,7 +1054,7 @@ td {
     background: #fff;
 }
 .auth-story {
-    background: #111e34;
+    background: var(--limcoma-purple);
     color: #fff;
     padding: 46px clamp(30px, 6vw, 95px);
     display: flex;
@@ -799,10 +1074,10 @@ td {
     margin: 24px 0;
 }
 .auth-story h1 span {
-    color: #6ce0cf;
+    color: var(--limcoma-teal);
 }
 .auth-story p {
-    color: #9baec9;
+    color: #e4dcf5;
     line-height: 1.9;
     font-size: 13px;
     max-width: 350px;
@@ -816,13 +1091,13 @@ td {
     font-size: 12px;
 }
 .auth-feature .icon {
-    color: #6ce0cf;
+    color: var(--limcoma-teal);
     width: 18px;
     height: 18px;
 }
 .auth-story-footer {
     font-size: 10px;
-    color: #778ca9;
+    color: #c6bbdf;
     line-height: 1.8;
 }
 .auth-main {
@@ -912,7 +1187,7 @@ td {
 }
 .modal p {
     font-size: 13px;
-    color: #64748b;
+    color: var(--text-secondary);
     line-height: 1.8;
     margin: 15px 0 23px;
 }

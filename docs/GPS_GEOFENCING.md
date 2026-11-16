@@ -10,6 +10,12 @@ Employee identity and branch are resolved server-side from the active current pr
 
 HR configures each real branch's coordinates and radius through existing Branch Management. No location or radius is guessed or seeded. Missing configuration returns `branch_not_configured`, never normal success. A capture freezes the branch/assignment/policy snapshot. Changes require a fresh capture; a transfer during an open session requires assistance.
 
+## HR map configuration
+
+Branch Create/Edit use the shared Leaflet/OpenStreetMap location picker: click/tap to place the marker, drag to refine coordinates, and enter whole meters to resize the geographic circle immediately. Details is read-only. Active branch saves require a complete geofence, and inactive branches may leave all three values empty. Radius bounds come from `attendance.geofence_min_radius_meters` / `geofence_max_radius_meters` and are shared by UI and backend validation. No competing geofence store or client attendance decision is introduced.
+
+Changes are committed with previous/current configuration in the existing audit trail. A changed configuration requires a fresh capture; previous event snapshots and validation results remain untouched. The administrative map adds external base tiles, while employee attendance itself still needs no map provider. See [map configuration, OSM policy and testing](BRANCH_MAP_GEOFENCING.md).
+
 ## Server calculation
 
 Haversine distance uses a mean Earth radius of 6,371,008.8 metres and clamps its intermediate value to avoid floating-point domain errors. Distances are computed on the backend, then rounded to two decimal places for storage/display. Acceptance uses the unrounded value.

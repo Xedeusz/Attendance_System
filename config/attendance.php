@@ -2,6 +2,8 @@
 
 return [
     'timezone' => 'Asia/Manila',
+    'geofence_min_radius_meters' => (int) env('ATTENDANCE_GEOFENCE_MIN_RADIUS_METERS', 1),
+    'geofence_max_radius_meters' => (int) env('ATTENDANCE_GEOFENCE_MAX_RADIUS_METERS', 100000),
     'capture_seconds' => (int) env('ATTENDANCE_CAPTURE_SECONDS', 180),
     'location_max_age_seconds' => (int) env('ATTENDANCE_LOCATION_MAX_AGE_SECONDS', 45),
     'max_accuracy_meters' => (float) env('ATTENDANCE_MAX_ACCURACY_METERS', 50),

@@ -1,4 +1,4 @@
-# BranchSync — Employee Attendance and Management System
+# LIMCOMA — Employee Attendance and Management System
 
 Responsive Laravel web application for approximately 27 company branches. **Phases 1–4 are implemented:** HR/Employee accounts, employee/branch/department administration, activation, live camera photo attendance, reported GPS geofencing, server Time In/Out, private evidence, history, HR exception review, real dashboard statistics and audit logs.
 
@@ -6,7 +6,13 @@ Exactly **HR** and **Employee** roles exist; HR administers all branches. There 
 
 ## Installed stack
 
+Transient feedback uses [LIMCOMA-themed SweetAlert2](docs/SWEETALERT2_NOTIFICATIONS.md), including session flashes, sensitive-action confirmations and attendance feedback. Inline validation, result cards and persistent notifications remain available.
+
+The shared interface uses the [LIMCOMA theme](docs/LIMCOMA_BRAND_THEME.md). HR Branch Management also supports [optional Photon location search](docs/BRANCH_LOCATION_SEARCH.md); Photon is enabled by default without an API key. Manual map selection works without an API key.
+
 PHP 8.5.12 / Laravel 13.42.0 / Fortify 1.42.0 / MariaDB 10.11.16 / Blade / Tailwind 4.3.5 / Alpine 3.17.5 / Vite 8.3.8. Exact dependencies are locked; no new package was required for Phase 4. [Technology decisions](docs/TECH_STACK.md).
+
+HR Branch Management includes a Leaflet 1.9.4/OpenStreetMap location picker, draggable office marker and live radius preview. Active branches require a complete geofence; saved values drive the existing server-side attendance checks. [Map configuration and testing](docs/BRANCH_MAP_GEOFENCING.md).
 
 ## Run locally
 

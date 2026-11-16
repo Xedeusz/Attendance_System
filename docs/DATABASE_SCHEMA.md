@@ -51,6 +51,10 @@ erDiagram
 
 Audit subject IDs are intentionally descriptive references, not polymorphic cascades. Local preview bodies are encrypted and short-lived, not an authoritative invitation table; recipient hashes support targeted cleanup without storing a second plaintext recipient column.
 
+## Branch map enhancement (2026-11-16)
+
+No schema migration or duplicate coordinate/radius fields were added. Existing nullable DECIMAL(10,7) coordinates and unsigned radius are reused by the map and attendance snapshots. Application validation now requires all three for active branch writes, or all/none for inactive branches. Existing incomplete rows are preserved and can be configured by HR. Audit JSON metadata includes previous/current office latitude, longitude and radius for geofence changes; existing attendance snapshots preserve historical settings. See [map guide](BRANCH_MAP_GEOFENCING.md).
+
 ## Assignment uniqueness and transaction rules
 
 `current_employee_id` is computed as:

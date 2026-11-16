@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'photon' => ['base_url' => env('PHOTON_BASE_URL', 'https://photon.komoot.io')],
 
     /*
     |--------------------------------------------------------------------------

@@ -42,7 +42,7 @@ class BranchController extends Controller
     {
         $branch = $administration->run(function () use ($request, $audit) {
             $branch = Branch::create($request->validated());
-            $audit->record('branch.created', $branch);
+            $audit->record('branch.created', $branch, ['geofence' => ['previous' => null, 'current' => $branch->only(['latitude', 'longitude', 'geofence_radius_meters'])]]);
 
             return $branch;
         });
@@ -61,10 +61,16 @@ class BranchController extends Controller
                     throw ValidationException::withMessages(['status' => "Transfer or mark inactive the {$count} active employee assignments before deactivating this branch."]);
                 }
             }
+            $geofenceFields = ['latitude', 'longitude', 'geofence_radius_meters'];
+            $previousGeofence = $branch->only($geofenceFields);
             $branch->fill($request->validated());
             $changed = array_keys($branch->getDirty());
             $branch->save();
-            $audit->record($branch->status === 'inactive' && in_array('status', $changed, true) ? 'branch.deactivated' : 'branch.updated', $branch, ['changed_fields' => $changed]);
+            $metadata = ['changed_fields' => $changed];
+            if (array_intersect($changed, $geofenceFields)) {
+                $metadata['geofence'] = ['previous' => $previousGeofence, 'current' => $branch->only($geofenceFields)];
+            }
+            $audit->record($branch->status === 'inactive' && in_array('status', $changed, true) ? 'branch.deactivated' : 'branch.updated', $branch, $metadata);
         });
 
         return redirect()->route('hr.branches.show', $branch)->with('status', 'Branch updated.');

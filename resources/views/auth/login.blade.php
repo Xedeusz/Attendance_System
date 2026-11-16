@@ -1,5 +1,4 @@
-<x-layouts.guest><div class="empty-icon" style="color:#2458d3;background:#edf3ff"><x-icon name="lock" /></div><h1>Welcome back</h1><p class="auth-subtitle">Sign in to your account to get your day started.</p><x-form-errors />
-@if(session('status'))<div class="mb-5"><x-alert>{{ session('status') }}</x-alert></div>@endif
+<x-layouts.guest><div class="empty-icon" style="color:var(--limcoma-purple);background:var(--limcoma-purple-light)"><x-icon name="lock" /></div><h1>Welcome back</h1><p class="auth-subtitle">Sign in to your LIMCOMA attendance workspace.</p><x-form-errors />
 <form method="POST" action="{{ route('login.store') }}" x-data="{ submitting: false }" @submit="submitting = true">@csrf
 <x-input name="email" label="Email address" type="email" autocomplete="username" placeholder="you@company.com" maxlength="254" required autofocus />
 <x-password />

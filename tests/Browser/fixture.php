@@ -82,7 +82,7 @@ if (($argv[1] ?? '') === 'create') {
         DB::table('password_reset_tokens')->whereIn('email', $users->pluck('email'))->delete();
         User::whereIn('id', $userIds)->delete();
         // Restrictive FKs reject cleanup if a non-fixture employee references these records.
-        Branch::where('branch_code', $prefix.'-BRANCH')->delete();
+        Branch::whereIn('branch_code', [$prefix.'-BRANCH', $prefix.'-MAP'])->delete();
         Department::where('department_code', $prefix.'-DEPT')->delete();
     });
 }

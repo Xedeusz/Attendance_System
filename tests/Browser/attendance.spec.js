@@ -133,6 +133,7 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     });
     await page.getByRole("button", { name: "Start live camera" }).click();
     await expect(page.getByText(/Camera permission denied/)).toBeVisible();
+    await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.evaluate(() => {
         window.qaCameraDenied = false;
     });
@@ -169,11 +170,13 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     await page
         .getByRole("button", { name: "Capture Photo", exact: true })
         .click();
-    expect(
-        await page.evaluate(() =>
-            window.qaTracks.every((track) => track.readyState === "ended"),
-        ),
-    ).toBe(true);
+    await expect
+        .poll(() =>
+            page.evaluate(() =>
+                window.qaTracks.every((track) => track.readyState === "ended"),
+            ),
+        )
+        .toBe(true);
     await page.screenshot({
         path: "test-results/screenshots/attendance-mobile-synthetic.png",
         fullPage: true,
@@ -189,6 +192,7 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     );
     await page.getByRole("button", { name: "Submit Attendance" }).click();
     await expect(page.getByText(/Server outcome is uncertain/)).toBeVisible();
+    await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.getByRole("button", { name: "Check submission status" }).click();
     await expect(
         page.getByRole("heading", { name: "Attendance result" }),
@@ -231,11 +235,21 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     ).toBeVisible();
     await page.goto("/employee/attendance");
     await page.getByRole("button", { name: "Time In", exact: true }).click();
+    await expect(
+        page.getByText(
+            "Reported location meets the configured geofence and accuracy checks.",
+            { exact: true },
+        ),
+    ).toBeVisible();
     await page.evaluate(() => {
         window.qaLocationDenied = true;
     });
+    await expect(
+        page.getByRole("button", { name: "Retry Location" }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Retry Location" }).click();
     await expect(page.getByText(/Location permission denied/)).toBeVisible();
+    await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.getByRole("button", { name: "Start live camera" }).click();
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     expect(
@@ -262,6 +276,7 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     await expect(
         page.getByText(/Location not validated: outside geofence/),
     ).toBeVisible();
+    await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.getByRole("checkbox", { name: /Request HR review/ }).check();
     await page
         .getByLabel(/Exception explanation/)
@@ -288,6 +303,9 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         .getByRole("checkbox", { name: /I confirm this decision/ })
         .check();
     await hrPage.getByRole("button", { name: "Save review decision" }).click();
+    await hrPage
+        .getByRole("button", { name: "Save Decision", exact: true })
+        .click();
     await expect(
         hrPage.getByText("HR approved", { exact: false }),
     ).toBeVisible();

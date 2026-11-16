@@ -1,1 +1,1 @@
-<x-modal id="logout" title="Sign out of your workspace?"><p>Your current session will end. You can sign in again whenever you need to.</p><div class="modal-actions"><x-button variant="secondary" @click="open = false">Cancel</x-button><form method="POST" action="{{ route('logout') }}">@csrf<x-button type="submit">Sign out</x-button></form></div></x-modal>
+<form method="POST" action="{{ route('logout') }}" data-logout-form hidden>@csrf</form>

@@ -11,7 +11,9 @@
     },
     "dependencies": {
         "@alpinejs/focus": "^3.14.0",
-        "alpinejs": "^3.14.0"
+        "alpinejs": "^3.14.0",
+        "leaflet": "1.9.4",
+        "sweetalert2": "11.26.25"
     },
     "devDependencies": {
         "@playwright/test": "^1.56.0",

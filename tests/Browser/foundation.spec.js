@@ -65,7 +65,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     await page.getByLabel("Email address").fill(account.email);
     await page.getByLabel("Password", { exact: true }).fill("invalid-password");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.locator(".form-errors").getByRole("alert")).toBeVisible();
     await signIn(page);
     const cookies = await page.context().cookies();
     const session = cookies.find((cookie) => cookie.name === "ebas_session");
@@ -104,7 +104,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     await expect(page.getByRole("dialog")).toBeVisible();
     await page
         .getByRole("dialog")
-        .getByRole("button", { name: "Sign out", exact: true })
+        .getByRole("button", { name: "Yes, Log Out", exact: true })
         .click();
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login$/);

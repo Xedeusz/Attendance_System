@@ -3,8 +3,8 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="{{ csrf_token() }}"><meta name="theme-color" content="#111e34">
-    <title>{{ $title }} · BranchSync</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}"><meta name="theme-color" content="#2f1b72">
+    <title>{{ $title }} · LIMCOMA</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
@@ -16,13 +16,13 @@
             <x-topbar :title="$title" />
             <main class="workspace-content" id="main-content" tabindex="-1">
                 <x-breadcrumbs :title="$title" />
-                @if(session('status'))<div class="mt-5"><x-alert>{{ session('status') }}</x-alert></div>@endif
-                @if($errors->any())<div class="mt-5"><x-form-errors /></div>@endif
+                <noscript>@if($errors->any())<div class="mt-5"><x-form-errors /></div>@endif</noscript>
                 {{ $slot }}
-                <footer class="workspace-footer"><span>© {{ now()->year }} BranchSync · Employee Attendance System</span><span>Attendance & Employee Management</span></footer>
+                <footer class="workspace-footer"><span>© {{ now()->year }} LIMCOMA · Employee Attendance System</span><span>Attendance & Employee Management</span></footer>
             </main>
         </div>
         <x-confirm-logout />
     </div>
+    <x-notifications />
 </body>
 </html>

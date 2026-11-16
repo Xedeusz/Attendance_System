@@ -1,9 +1,12 @@
 import Alpine from "alpinejs";
+import { notify, initializeNotifications } from "./notifications";
 import focus from "@alpinejs/focus";
 import registerAttendance from "./attendance";
+import registerBranchLocationMap from "./branch-location-map";
 
 Alpine.plugin(focus);
 registerAttendance(Alpine);
+registerBranchLocationMap(Alpine);
 Alpine.data("workspaceShell", () => ({
     mobileOpen: false,
     collapsed: false,
@@ -78,11 +81,13 @@ Alpine.data("accountActivation", () => ({
                         .flat()
                         .join(" ") ||
                     "Activation could not be completed. Wait and try again, or contact HR.";
+                notify.ajaxError(response.status);
                 return;
             }
             this.token = "";
             window.location.assign(result.redirect);
         } catch {
+            notify.ajaxError();
             this.error =
                 "The request could not be completed. Refresh the original invitation link and try again.";
         } finally {
@@ -91,3 +96,4 @@ Alpine.data("accountActivation", () => ({
     },
 }));
 Alpine.start();
+initializeNotifications();

@@ -2,6 +2,10 @@
 
 Completed 2026-11-12. Approved project: **Web-Based Employee Attendance and Management System with Live Camera Photo Capture and GPS Geofencing**. Phases 1–3 working features and existing local records were preserved. No Phase 5 implementation, deployment, paid API integration or new dependency was started.
 
+## Branch map enhancement (2026-11-16)
+
+HR can configure the existing branch geofence using a Leaflet/OpenStreetMap picker and live radius circle. This enhancement adds the pinned Leaflet npm dependency, no schema migration, and no new attendance decision path. Saved branch configuration continues through the existing capture/event snapshots and backend Haversine/accuracy checks. Configuration changes invalidate stale captures and audit before/after office values; historical events stay unchanged. Active branches now require a complete configuration. [Map behavior, files and tests](BRANCH_MAP_GEOFENCING.md).
+
 ## A. Implementation summary
 
 Implemented real camera/GPS attendance against Laravel/MariaDB: employee readiness checks, capture/session lifecycle, server geofence, image validation/private encryption, authoritative Time In/Out including overnight sessions, idempotency and conflicting-tab prevention. Added own history/protected evidence, company-wide HR monitoring/filters/sorting/pagination, explicit pending exception approval/rejection, assistance disposition, real dashboard totals, refresh-based review updates, audit and retention maintenance.

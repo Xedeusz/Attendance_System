@@ -17,7 +17,7 @@ class BranchDepartmentTest extends TestCase
     public function test_hr_can_create_edit_and_filter_branches_and_departments(): void
     {
         $this->actingAs($this->hr());
-        $branch = Branch::factory()->make()->toArray();
+        $branch = Branch::factory()->make(['latitude' => 14.5995, 'longitude' => 120.9842, 'geofence_radius_meters' => 150])->toArray();
         $this->post('/hr/branches', $branch)->assertSessionHasNoErrors()->assertRedirect();
         $record = Branch::sole();
         $this->put('/hr/branches/'.$record->id, [...$branch, 'branch_name' => 'Updated QA Branch'])->assertSessionHasNoErrors();

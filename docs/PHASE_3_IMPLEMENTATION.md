@@ -37,6 +37,10 @@ Positions are HR-controlled `position_title` values on employee profiles, follow
 - New employee passwords start as unguessable random values; no temporary password is printed, sent, or stored as plaintext. Activation lets the recipient set a private password.
 - The same shared password policy applies to bootstrap, activation, recovery and changes: 12+ characters, upper/lowercase letters, number and symbol.
 
+## Branch map enhancement (2026-11-16)
+
+Branch Create/Edit now share an interactive Leaflet/OpenStreetMap office picker and live geographic radius preview. Details shows a read-only map. Active branch writes require a complete valid geofence; inactive branches can remain unconfigured. Company radius bounds are configurable and HR changes audit previous/current coordinates and radius. Existing assignments and deactivation protections remain unchanged. Phase 4 now uses these values for attendance, superseding the original Phase 3-only scope statements below. See [implementation and verification](BRANCH_MAP_GEOFENCING.md).
+
 ## Local delivery configuration
 
 The ignored local `.env` uses `MAIL_MAILER=private_local`, `AUTH_PASSWORD_RESET_ENABLED=true`, and `APP_URL=http://127.0.0.1:8000`. No paid/email service is required. The private capture transport is **not external delivery** and is disabled outside `local`. Activation/recovery messages are not written to Laravel logs. Generic password-recovery responses do not reveal whether an email exists; inactive/pending users do not receive recovery messages.
