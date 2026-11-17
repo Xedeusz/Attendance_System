@@ -40,6 +40,8 @@ class PhaseFiveWorkflowTest extends TestCase
 
     private function assign(Employee $employee, User $supervisor): SupervisorAssignment
     {
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
+
         return SupervisorAssignment::factory()->create(['employee_id' => $employee->id, 'supervisor_user_id' => $supervisor->id]);
     }
 
@@ -66,6 +68,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->assertNull($leave->assigned_supervisor_user_id);
         $this->assertTrue($hr->notifications()->where('data->record_id', $leave->id)->exists());
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->actingAs($hr)->withSession(['auth.password_confirmed_at' => time()])->post('/hr/supervisors/'.$supervisor->id.'/assignments', ['employee_id' => $employee->id, 'effective_from' => now()->subDay()->toDateString(), 'confirmation' => 1])->assertRedirect()->assertSessionHasNoErrors();
         $leave->refresh();
         $this->assertSame('pending_supervisor_approval', $leave->status);
@@ -85,6 +88,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create(['affects_balance' => true, 'allows_half_day' => true]);
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         $hr = $this->reviewer();
         $this->actingAs($hr)->withSession(['auth.password_confirmed_at' => time()])->post('/hr/leave/balances', ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'policy_period' => now()->format('Y'), 'amount' => 7, 'reason' => 'Approved synthetic opening balance for this test.', 'confirmation' => 1])->assertRedirect()->assertSessionHasNoErrors();
@@ -107,6 +111,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create(['affects_balance' => true]);
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         $leave = $this->apply($employee, $type);
         $this->actingAs($supervisor);
@@ -141,6 +146,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create(['requires_document' => true]);
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $assignment = $this->assign($employee, $supervisor);
         $this->actingAs($employee->user);
         $this->postJson('/employee/leave', $this->application($type))->assertUnprocessable()->assertJsonValidationErrors('supporting_document');
@@ -164,6 +170,7 @@ class PhaseFiveWorkflowTest extends TestCase
     {
         $employee = $this->attendee();
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         $leave = $this->apply($employee, LeaveType::factory()->create());
         $this->post('/employee/leave/'.$leave->id.'/cancel', ['reason' => 'The requested leave is no longer needed.', 'confirmation' => 1])->assertRedirect();
@@ -239,6 +246,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create(['allows_half_day' => true, 'affects_balance' => true]);
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         EmployeeLeaveBalance::factory()->create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'available_days' => 2]);
         $day = now()->addWeek()->toDateString();
@@ -255,6 +263,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create();
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         $leave = $this->apply($employee, $type);
         $type->update(['affects_balance' => true]);
@@ -289,6 +298,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $employee = $this->attendee();
         $type = LeaveType::factory()->create();
         $supervisor = $this->supervisor();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
         $this->actingAs($employee->user);
         $this->postJson('/employee/leave', $this->application($type, ['supporting_document' => UploadedFile::fake()->create('large.pdf', 6000, 'application/pdf')]))->assertUnprocessable()->assertJsonValidationErrors('supporting_document');

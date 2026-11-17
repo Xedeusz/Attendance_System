@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\SupervisorAssignment;
@@ -22,6 +23,7 @@ class SupervisorService
             if ($target) {
                 $user = User::whereKey($target->id)->lockForUpdate()->firstOrFail();
                 abort_unless($user->isSupervisor(), 404);
+                EditVersion::check($user, $data['_edit_version'] ?? null);
             } elseif (! empty($data['employee_id'])) {
                 $employee = Employee::with('user')->findOrFail($data['employee_id']);
                 $user = $employee->user;
@@ -51,6 +53,9 @@ class SupervisorService
             }
             $user->account_status = $data['account_status'];
             $user->save();
+            if (array_key_exists('supervisor_department_id', $data)) {
+                $this->applyDepartment($user, $data['supervisor_department_id'] ? (int) $data['supervisor_department_id'] : null);
+            }
             $this->accounts->invalidateSessions($user);
             $this->invitations->revoke($user);
             if ($user->account_status === 'pending_activation') {
@@ -69,6 +74,9 @@ class SupervisorService
             abort_unless($fresh->isHr(), 403);
             $supervisor = $target->fresh();
             $employee = Employee::findOrFail($data['employee_id']);
+            if (! $supervisor->supervisorDepartment || $supervisor->supervisorDepartment->status !== 'active' || (int) $supervisor->supervisor_department_id !== (int) $employee->department_id) {
+                throw ValidationException::withMessages(['employee_id' => 'Assign an active department to this Supervisor and select an employee from that department.']);
+            }
             if (! $supervisor->isSupervisor() || ! $supervisor->canAuthenticate() || $employee->user_id === $supervisor->id || $employee->employment_status !== 'active') {
                 throw ValidationException::withMessages(['employee_id' => 'Choose an eligible employee and a different active Supervisor.']);
             }
@@ -94,6 +102,37 @@ class SupervisorService
 
             return $assignment;
         });
+    }
+
+    public function setDepartment(User $actor, User $target, int $departmentId, string $version): void
+    {
+        $this->transactions->run($actor, function (User $fresh) use ($target, $departmentId, $version): void {
+            abort_unless($fresh->isHr(), 403);
+            $supervisor = User::whereKey($target->id)->lockForUpdate()->firstOrFail();
+            abort_unless($supervisor->isSupervisor(), 404);
+            EditVersion::check($supervisor, $version);
+            $this->applyDepartment($supervisor, $departmentId);
+            $this->leave->refreshRouting();
+        });
+    }
+
+    private function applyDepartment(User $supervisor, ?int $departmentId): void
+    {
+        if ($departmentId !== null && ! Department::whereKey($departmentId)->where('status', 'active')->exists()) {
+            throw ValidationException::withMessages(['supervisor_department_id' => 'Please select a valid active department.']);
+        }
+        $conflict = SupervisorAssignment::where('supervisor_user_id', $supervisor->id)->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('effective_until')->orWhereDate('effective_until', '>=', now(config('attendance.timezone'))->toDateString()))
+            ->whereHas('employee', fn ($q) => $q->where('department_id', '!=', $departmentId))->exists();
+        if ($conflict) {
+            throw ValidationException::withMessages(['supervisor_department_id' => 'Resolve conflicting employee assignments before changing this department. Review history and explicitly revoke or reassign conflicts.']);
+        }
+        $previous = $supervisor->supervisor_department_id;
+        if ((int) $previous === $departmentId) {
+            return;
+        }
+        $supervisor->forceFill(['supervisor_department_id' => $departmentId])->save();
+        $this->audit->record('supervisor.department_changed', $supervisor, ['previous_department_id' => $previous, 'department_id' => $departmentId]);
     }
 
     public function revoke(User $actor, User $target, SupervisorAssignment $assignment): void

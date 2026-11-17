@@ -1,10 +1,13 @@
 import Alpine from "alpinejs";
 import { notify, initializeNotifications } from "./notifications";
 import focus from "@alpinejs/focus";
+import morph from "@alpinejs/morph";
+import initializeRealtime from "./realtime";
 import registerAttendance from "./attendance";
 import registerBranchLocationMap from "./branch-location-map";
 
 Alpine.plugin(focus);
+Alpine.plugin(morph);
 registerAttendance(Alpine);
 registerBranchLocationMap(Alpine);
 Alpine.data("workspaceShell", () => ({
@@ -97,3 +100,4 @@ Alpine.data("accountActivation", () => ({
 }));
 Alpine.start();
 initializeNotifications();
+initializeRealtime(Alpine);

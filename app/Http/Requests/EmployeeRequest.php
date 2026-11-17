@@ -24,6 +24,7 @@ class EmployeeRequest extends FormRequest
         $employee = $this->route('employee');
 
         return [
+            '_edit_version' => ['sometimes', 'string', 'size:64'],
             'employee_number' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('employees')->ignore($employee)],
             'first_name' => ['required', 'string', 'max:100'], 'last_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'], 'suffix' => ['nullable', 'string', 'max:20'],

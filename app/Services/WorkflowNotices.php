@@ -11,6 +11,7 @@ class WorkflowNotices
     public function send(User $user, string $category, string $title, string $url, int $id): void
     {
         $user->notify(new WorkflowNotice($category, $title, $url, $id));
+        app(WorkspaceSync::class)->touch($user, ['notifications']);
     }
 
     public function hr(string $category, string $title, string $url, int $id): void

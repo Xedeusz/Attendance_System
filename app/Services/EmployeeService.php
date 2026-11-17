@@ -30,8 +30,10 @@ class EmployeeService
                 $employee->user()->associate($user);
             } else {
                 $employee = Employee::whereKey($employee->id)->lockForUpdate()->firstOrFail();
+                EditVersion::check($employee, $data['_edit_version'] ?? null);
                 $user = $employee->user;
             }
+            unset($data['_edit_version']);
             $oldEmail = $user->email;
             if ($oldEmail !== $data['work_email']) {
                 DB::table('password_reset_tokens')->where('email', $oldEmail)->delete();
@@ -58,6 +60,9 @@ class EmployeeService
                 $this->accounts->deactivate($user);
             }
             $this->audit->record($new ? 'employee.created' : 'employee.updated', $employee, ['changed_fields' => $changed]);
+            if (! $new && in_array('department_id', $changed, true)) {
+                app(LeaveService::class)->refreshRouting($employee->id);
+            }
 
             return compact('employee', 'issued');
         });

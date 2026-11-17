@@ -8,7 +8,7 @@ export default defineConfig({
     timeout: 90_000,
     reporter: "list",
     use: {
-        baseURL: "http://127.0.0.1:8000",
+        baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:8000",
         channel: "msedge",
         headless: true,
         trace: "off",

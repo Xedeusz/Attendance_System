@@ -56,6 +56,22 @@ async function installMedia(page) {
                 timestamp: Date.now(),
             });
         };
+        window.qaWatchers = new Map();
+        window.qaWatchSerial = 0;
+        window.qaEmitLocation = () => {
+            for (const [success, failure] of window.qaWatchers.values())
+                navigator.geolocation.getCurrentPosition(success, failure);
+        };
+        navigator.geolocation.watchPosition = (success, failure) => {
+            const id = ++window.qaWatchSerial;
+            window.qaWatchers.set(id, [success, failure]);
+            setTimeout(() => {
+                if (window.qaWatchers.has(id))
+                    navigator.geolocation.getCurrentPosition(success, failure);
+            }, 0);
+            return id;
+        };
+        navigator.geolocation.clearWatch = (id) => window.qaWatchers.delete(id);
         navigator.mediaDevices.enumerateDevices = async () => {
             if (window.qaEnumerationDenied)
                 throw new DOMException("Cannot enumerate", "NotAllowedError");
@@ -101,9 +117,23 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     test.setTimeout(180000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+        if (
+            message.type() === "warning" &&
+            message.text().includes("SweetAlert2")
+        )
+            errors.push(message.text());
+    });
     await installMedia(page);
     await login(page, employee);
     await page.goto("/employee/attendance");
+    const monitorContext = await browser.newContext();
+    const monitor = await monitorContext.newPage();
+    await login(monitor, hr);
+    await monitor.goto("/hr/attendance?q=" + encodeURIComponent(hr.prefix));
+    await expect(monitor.locator("[data-sync-status]")).toHaveText("Live", {
+        timeout: 20000,
+    });
     expect(await page.locator('input[type="file"]').count()).toBe(0);
     expect(await page.evaluate(() => window.qaTracks.length)).toBe(0);
     for (const width of [320, 360, 375, 390, 430, 768, 1440]) {
@@ -123,11 +153,7 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         ).height,
     ).toBeGreaterThanOrEqual(64);
     await page.getByRole("button", { name: "Time In", exact: true }).click();
-    await expect(
-        page.getByText(
-            "Reported location meets the configured geofence and accuracy checks.",
-        ),
-    ).toBeVisible();
+    await expect(page.getByText("Inside authorized branch area")).toBeVisible();
     await page.evaluate(() => {
         window.qaCameraDenied = true;
     });
@@ -181,7 +207,30 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         path: "test-results/screenshots/attendance-mobile-synthetic.png",
         fullPage: true,
     });
-    // Let Laravel commit, then drop the reply to exercise an uncertain outcome.
+    await page.route(
+        "**/employee/attendance/captures/*/submit",
+        (route) =>
+            route.fulfill({
+                status: 429,
+                contentType: "text/html",
+                headers: { "Retry-After": "1" },
+                body: "<html>Too many requests</html>",
+            }),
+        { times: 1 },
+    );
+    await page.getByRole("button", { name: "Submit Attendance" }).click();
+    await expect(
+        page.getByText(
+            "Too many requests. Wait 1 seconds before trying again.",
+        ),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("button", { name: "Submit Attendance" }),
+    ).toBeEnabled();
+    await expect(
+        page.getByRole("button", { name: "Check submission status" }),
+    ).toBeHidden();
+    // Let Laravel commit, then drop the reply to exercise automatic recovery.
     await page.route(
         "**/employee/attendance/captures/*/submit",
         async (route) => {
@@ -191,9 +240,6 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         { times: 1 },
     );
     await page.getByRole("button", { name: "Submit Attendance" }).click();
-    await expect(page.getByText(/Server outcome is uncertain/)).toBeVisible();
-    await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
-    await page.getByRole("button", { name: "Check submission status" }).click();
     await expect(
         page.getByRole("heading", { name: "Attendance result" }),
     ).toBeVisible();
@@ -203,16 +249,48 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     const recordUrl = await page
         .getByRole("link", { name: "View saved record" })
         .getAttribute("href");
+    await expect(
+        monitor.locator('a[href="' + recordUrl + '"]').first(),
+    ).toBeVisible({ timeout: 20000 });
+    await expect(
+        page.getByRole("button", { name: "Time Out", exact: true }),
+    ).toBeEnabled();
     await page.getByRole("link", { name: "Refresh available actions" }).click();
     await expect(
         page.getByRole("button", { name: "Time In", exact: true }),
     ).toBeDisabled();
     await page.getByRole("button", { name: "Time Out", exact: true }).click();
+    await expect(
+        page.getByRole("button", { name: "Start live camera" }),
+    ).toBeVisible({ timeout: 15000 });
     await page.getByRole("button", { name: "Start live camera" }).click();
     await page
         .getByRole("button", { name: "Capture Photo", exact: true })
         .click();
+    await page.route("**/employee/attendance/captures/*/status", (route) =>
+        route.fulfill({
+            status: 503,
+            contentType: "text/html",
+            body: "Unavailable",
+        }),
+    );
+    await page.route(
+        "**/employee/attendance/captures/*/submit",
+        async (route) => {
+            await route.fetch();
+            await route.abort("failed");
+        },
+        { times: 1 },
+    );
     await page.getByRole("button", { name: "Submit Attendance" }).click();
+    await expect(
+        page.getByText(/We're checking whether your attendance was recorded/),
+    ).toBeVisible();
+    await expect(
+        page.getByRole("button", { name: "Cancel", exact: true }),
+    ).toBeDisabled();
+    await page.unroute("**/employee/attendance/captures/*/status");
+    await page.reload();
     await expect(
         page.getByText(/Attendance saved. Reported location passed/),
     ).toBeVisible();
@@ -236,19 +314,13 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     await page.goto("/employee/attendance");
     await page.getByRole("button", { name: "Time In", exact: true }).click();
     await expect(
-        page.getByText(
-            "Reported location meets the configured geofence and accuracy checks.",
-            { exact: true },
-        ),
+        page.getByText("Inside authorized branch area", { exact: true }),
     ).toBeVisible();
     await page.evaluate(() => {
         window.qaLocationDenied = true;
     });
-    await expect(
-        page.getByRole("button", { name: "Retry Location" }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Retry Location" }).click();
-    await expect(page.getByText(/Location permission denied/)).toBeVisible();
+    await page.evaluate(() => window.qaEmitLocation());
+    await expect(page.getByText(/Location access is required/)).toBeVisible();
     await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.getByRole("button", { name: "Start live camera" }).click();
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -274,7 +346,7 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     });
     await page.getByRole("button", { name: "Time In", exact: true }).click();
     await expect(
-        page.getByText(/Location not validated: outside geofence/),
+        page.getByText(/Outside authorized branch area/),
     ).toBeVisible();
     await expect(page.locator(".swal2-toast")).toBeHidden({ timeout: 4500 });
     await page.getByRole("checkbox", { name: /Request HR review/ }).check();
@@ -303,9 +375,17 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         .getByRole("checkbox", { name: /I confirm this decision/ })
         .check();
     await hrPage.getByRole("button", { name: "Save review decision" }).click();
-    await hrPage
-        .getByRole("button", { name: "Save Decision", exact: true })
-        .click();
+    await expect
+        .poll(
+            async () =>
+                (await hrPage
+                    .getByText("HR approved", { exact: false })
+                    .count()) > 0 ||
+                (await hrPage.locator(".swal2-confirm").isVisible()),
+        )
+        .toBeTruthy();
+    if (await hrPage.locator(".swal2-confirm").isVisible())
+        await hrPage.locator(".swal2-confirm").click();
     await expect(
         hrPage.getByText("HR approved", { exact: false }),
     ).toBeVisible();
@@ -360,5 +440,6 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         });
     }
     await hrContext.close();
+    await monitorContext.close();
     expect(errors).toEqual([]);
 });

@@ -9,6 +9,7 @@ use App\Models\Branch;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\EditVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
@@ -60,7 +61,7 @@ class EmployeeManagementTest extends TestCase
         $employee = $this->registerEmployee($data);
         $hash = $employee->user->password;
         $next = Branch::factory()->create();
-        $this->put('/hr/employees/'.$employee->id, [...$data, 'branch_id' => $next->id, 'position_title' => 'Updated position'])->assertSessionHasNoErrors();
+        $this->put('/hr/employees/'.$employee->id, [...$data, '_edit_version' => EditVersion::token($employee), 'branch_id' => $next->id, 'position_title' => 'Updated position'])->assertSessionHasNoErrors();
         $this->assertSame($hash, $employee->user->fresh()->password);
         $this->assertSame($next->id, $employee->fresh()->currentAssignment->branch_id);
         $this->assertSame(2, $employee->assignments()->count());
@@ -115,7 +116,7 @@ class EmployeeManagementTest extends TestCase
         DB::table('sessions')->insert(['id' => 'synthetic-session', 'user_id' => $employee->user_id, 'payload' => base64_encode(serialize([])), 'last_activity' => now()->timestamp]);
         DB::table('password_reset_tokens')->insert(['email' => $data['work_email'], 'token' => 'synthetic-hash', 'created_at' => now()]);
         $oldVersion = $employee->user->session_version;
-        $this->put('/hr/employees/'.$employee->id, [...$data, 'work_email' => 'replacement@example.test'])->assertSessionHasNoErrors();
+        $this->put('/hr/employees/'.$employee->id, [...$data, '_edit_version' => EditVersion::token($employee), 'work_email' => 'replacement@example.test'])->assertSessionHasNoErrors();
         $this->assertDatabaseMissing('sessions', ['id' => 'synthetic-session']);
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $data['work_email']]);
         $this->assertGreaterThan($oldVersion, $employee->user->fresh()->session_version);

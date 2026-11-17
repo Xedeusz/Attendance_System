@@ -10,3 +10,8 @@ After login, Supervisor lands at /supervisor/leave. Navigation contains Leave Ov
 RestrictSupervisor middleware denies unrelated routes, including direct HR, attendance, photo, GPS, correction, global notification, audit and report URLs. Owner policies additionally deny Supervisor access to their own attendance evidence. Leave queries and policies require both the stored assigned Supervisor and a currently effective explicit assignment. Historical/revoked assignment ownership alone grants no access. Only necessary leave employee/branch/department/balance/document details are shown.
 
 A Supervisor's own application needs a different assigned Supervisor. Self assignment and self review are rejected. No role inherits HR privileges.
+
+
+## Direct Supervisor department assignment
+
+HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.

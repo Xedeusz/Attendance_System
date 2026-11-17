@@ -182,3 +182,8 @@ Physical Android/iPhone Safari/tablet/camera/GPS, target multi-worker load/deadl
 
 ## N. Next phase
 Recommend Phase 6 Reports and Analytics after HR confirms definitions/recipients/exports and reconciliation rules. Scheduling-dependent metrics must await approved schedules. The updated [roadmap](DEVELOPMENT_ROADMAP.md) records this proposal. Phase 6 has not been implemented.
+
+
+## Direct Supervisor department assignment
+
+HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.

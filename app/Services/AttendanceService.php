@@ -212,6 +212,37 @@ class AttendanceService
         });
     }
 
+    public function availability(Employee $employee): array
+    {
+        $eligible = true;
+        $assignment = null;
+        $eligibilityError = null;
+        try {
+            $assignment = $this->assignment($employee);
+        } catch (ValidationException $exception) {
+            $eligible = false;
+            $eligibilityError = collect($exception->errors())->flatten()->first();
+        }
+        $open = $this->open($employee);
+
+        return ['canTimeIn' => $eligible && ! $open, 'canTimeOut' => $eligible && $open?->time_in_at !== null && $open?->review_status !== 'pending', 'label' => $open ? ($open->review_status === 'pending' ? 'Pending HR review' : 'Clocked in') : 'Not clocked in', 'pendingReview' => $open?->review_status === 'pending', 'eligibilityError' => $eligibilityError, 'employeeName' => $employee->full_name, 'employeeSummary' => $employee->employee_number.' · '.($assignment?->branch->branch_name ?? 'No eligible branch')];
+    }
+
+    public function status(User $actor, AttendanceCaptureSession $capture): array
+    {
+        $this->authorizeCapture($actor, $capture);
+
+        return $this->locked($actor, function (Employee $employee, User $fresh) use ($capture): array {
+            $capture = AttendanceCaptureSession::whereKey($capture->id)->lockForUpdate()->firstOrFail();
+            $this->authorizeCapture($fresh, $capture);
+            if ($capture->consumed_at) {
+                return ['status' => 'succeeded', 'submitted' => true, 'result' => $this->result($capture->event)];
+            }
+
+            return ['status' => $capture->expires_at->isPast() ? 'not_recorded' : 'unknown', 'submitted' => false, 'expired' => $capture->expires_at->isPast(), 'attendance' => $this->availability($employee)];
+        });
+    }
+
     public function result(AttendanceEvent $event): array
     {
         $message = match ($event->verification_status) {
@@ -221,7 +252,7 @@ class AttendanceService
             default => 'Attendance saved. Reported location passed the configured checks; photo origin and physical presence are not independently proven.',
         };
 
-        return ['event_id' => $event->id, 'record_id' => $event->attendance_record_id, 'action' => $event->event_type, 'occurred_at' => $event->occurred_at->toIso8601String(), 'verification_status' => $event->verification_status, 'geofence_status' => $event->geofence_status, 'branch' => $event->branch_snapshot['branch_name'], 'message' => $message, 'record_url' => route('attendance.show', $event->attendance_record_id)];
+        return ['event_id' => $event->id, 'record_id' => $event->attendance_record_id, 'action' => $event->event_type, 'occurred_at' => $event->occurred_at->toIso8601String(), 'verification_status' => $event->verification_status, 'review_status' => $event->review_status, 'attendance' => $this->availability(Employee::findOrFail($event->employee_id)), 'geofence_status' => $event->geofence_status, 'branch' => $event->branch_snapshot['branch_name'], 'message' => $message, 'record_url' => route('attendance.show', $event->attendance_record_id)];
     }
 
     public function requestAssistance(User $actor, array $data): void

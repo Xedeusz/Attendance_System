@@ -64,9 +64,7 @@ class EmployeeAttendanceController extends Controller
 
     public function status(Request $request, AttendanceCaptureSession $capture, AttendanceService $attendance): JsonResponse
     {
-        $attendance->authorizeCapture($request->user(), $capture);
-
-        return response()->json($capture->consumed_at ? ['submitted' => true, 'result' => $attendance->result($capture->event)] : ['submitted' => false, 'expired' => $capture->expires_at->isPast()]);
+        return response()->json($attendance->status($request->user(), $capture));
     }
 
     public function history(Request $request, AttendanceQueries $queries): View

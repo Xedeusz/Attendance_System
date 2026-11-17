@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Services\EditVersion;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\Phase3Data;
@@ -20,11 +21,11 @@ class BranchDepartmentTest extends TestCase
         $branch = Branch::factory()->make(['latitude' => 14.5995, 'longitude' => 120.9842, 'geofence_radius_meters' => 150])->toArray();
         $this->post('/hr/branches', $branch)->assertSessionHasNoErrors()->assertRedirect();
         $record = Branch::sole();
-        $this->put('/hr/branches/'.$record->id, [...$branch, 'branch_name' => 'Updated QA Branch'])->assertSessionHasNoErrors();
+        $this->put('/hr/branches/'.$record->id, [...$branch, '_edit_version' => EditVersion::token($record), 'branch_name' => 'Updated QA Branch'])->assertSessionHasNoErrors();
         $this->get('/hr/branches?q=Updated&sort=branch_code&direction=desc')->assertOk()->assertSee('Updated QA Branch');
         $this->post('/hr/departments', ['department_code' => 'QA-DEPT', 'department_name' => 'QA Department', 'status' => 'active'])->assertSessionHasNoErrors();
         $department = Department::sole();
-        $this->put('/hr/departments/'.$department->id, ['department_code' => 'QA-DEPT', 'department_name' => 'Changed QA Department', 'status' => 'active'])->assertSessionHasNoErrors();
+        $this->put('/hr/departments/'.$department->id, ['_edit_version' => EditVersion::token($department), 'department_code' => 'QA-DEPT', 'department_name' => 'Changed QA Department', 'status' => 'active'])->assertSessionHasNoErrors();
         $this->get('/hr/departments?q=Changed')->assertOk()->assertSee('Changed QA Department');
     }
 
@@ -54,7 +55,7 @@ class BranchDepartmentTest extends TestCase
         $this->actingAs($this->hr());
         $branch = Branch::factory()->create();
         $this->put('/hr/branches/'.$branch->id, [...$branch->toArray(), 'status' => 'inactive'])->assertSessionHasErrors('confirmation');
-        $this->put('/hr/branches/'.$branch->id, [...$branch->toArray(), 'status' => 'inactive', 'confirmation' => 1])->assertSessionHasNoErrors();
+        $this->put('/hr/branches/'.$branch->id, [...$branch->toArray(), '_edit_version' => EditVersion::token($branch), 'status' => 'inactive', 'confirmation' => 1])->assertSessionHasNoErrors();
         $this->assertSame('inactive', $branch->fresh()->status);
         $this->assertDatabaseCount('branches', 1);
     }

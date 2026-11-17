@@ -25,7 +25,7 @@ class DashboardController extends Controller
             'attendanceStats' => $attendance->statistics(),
             'activity' => $attendance->activity(),
             'businessDate' => now(config('attendance.timezone')),
-            'leaveStats' => ['Awaiting Supervisor assignment' => LeaveRequest::where('status', 'awaiting_supervisor_assignment')->count(), 'Pending Supervisor approval' => LeaveRequest::where('status', 'pending_supervisor_approval')->count(), 'Pending attendance corrections' => AttendanceCorrectionRequest::where('status', 'pending')->count()],
+            'leaveStats' => ['Awaiting Supervisor assignment' => LeaveRequest::where('status', 'awaiting_supervisor_assignment')->count(), 'Pending Supervisor approval' => LeaveRequest::where('status', 'pending_supervisor_approval')->count(), 'Pending attendance corrections' => AttendanceCorrectionRequest::where('status', 'pending')->count(), 'Approved leave applications' => LeaveRequest::where('status', 'approved')->count(), 'Rejected leave applications' => LeaveRequest::where('status', 'rejected')->count(), 'Completed correction reviews' => AttendanceCorrectionRequest::whereIn('status', ['approved', 'rejected'])->count()],
         ]);
     }
 

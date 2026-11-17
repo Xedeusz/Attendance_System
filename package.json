@@ -11,8 +11,11 @@
     },
     "dependencies": {
         "@alpinejs/focus": "^3.14.0",
+        "@alpinejs/morph": "^3.17.5",
         "alpinejs": "^3.14.0",
+        "laravel-echo": "^2.6.3",
         "leaflet": "1.9.4",
+        "pusher-js": "^8.6.0",
         "sweetalert2": "11.26.25"
     },
     "devDependencies": {

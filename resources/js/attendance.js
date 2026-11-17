@@ -1,7 +1,9 @@
 import { notify } from "./notifications";
+import locationMonitoring from "./attendance-location";
 
 export default (Alpine) => {
     Alpine.data("attendanceCapture", (options) => ({
+        ...locationMonitoring(),
         canTimeIn: options.canTimeIn,
         canTimeOut: options.canTimeOut,
         action: "",
@@ -21,6 +23,13 @@ export default (Alpine) => {
         locating: false,
         submitting: false,
         uncertain: false,
+        checking: false,
+        recoveryStopped: false,
+        attendanceLabel: options.attendanceLabel,
+        employeeName: options.employeeName,
+        employeeSummary: options.employeeSummary,
+        eligibilityError: options.eligibilityError,
+        pendingReview: options.pendingReview,
         error: "",
         result: null,
         requestReview: false,
@@ -29,17 +38,6 @@ export default (Alpine) => {
         clock: "",
         remaining: 0,
         init() {
-            this.$watch("error", (value) => {
-                if (value)
-                    notify.error(
-                        this.uncertain
-                            ? "Submission Status Uncertain"
-                            : "Attendance Not Recorded",
-                        this.uncertain
-                            ? "Check submission status before starting another action."
-                            : "Your attendance request could not be completed. Review the details on this page.",
-                    );
-            });
             this.$watch("cameraMessage", (value) => {
                 if (
                     /permission denied|No camera|unavailable|could not start|requires HTTPS/i.test(
@@ -49,17 +47,6 @@ export default (Alpine) => {
                     notify.error(
                         "Camera Access Required",
                         "Please allow camera access or review the camera guidance on this page.",
-                    );
-            });
-            this.$watch("locationMessage", (value) => {
-                if (
-                    /denied|unavailable|timed out|requires HTTPS|not support/i.test(
-                        value,
-                    )
-                )
-                    notify.warning(
-                        "Location Unavailable",
-                        "Check location permissions and review the guidance on this page.",
                     );
             });
             this.offset = Date.parse(options.serverTime) - Date.now();
@@ -82,18 +69,60 @@ export default (Alpine) => {
                     : 0;
             };
             tick();
-            this.timer = setInterval(tick, 1000);
+            this.timer = setInterval(() => {
+                tick();
+                this.refreshLocationPreview();
+            }, 1000);
             this.onHide = () => {
-                if (document.hidden) this.stopCamera();
+                if (document.hidden) {
+                    this.stopCamera();
+                    this.stopLocation();
+                    this.geo = null;
+                    this.location = null;
+                } else {
+                    this.startLocation();
+                }
             };
-            this.onExit = () => this.stopCamera();
+            this.onExit = () => {
+                this.stopCamera();
+                this.stopLocation();
+            };
             document.addEventListener("visibilitychange", this.onHide);
             window.addEventListener("pagehide", this.onExit);
+            this.onWorkspaceAttendance = (event) => {
+                this.applyAttendance(event.detail);
+                if (this.uncertain && !this.checking)
+                    this.checkStatus().catch(() => {});
+            };
+            window.addEventListener(
+                "workspace:attendance",
+                this.onWorkspaceAttendance,
+            );
+            this.storageKey = `attendance-pending:${options.employeeId}`;
+            try {
+                const pending = JSON.parse(
+                    sessionStorage.getItem(this.storageKey),
+                );
+                if (pending?.id) {
+                    this.capture = pending;
+                    this.action = pending.action;
+                    this.uncertain = true;
+                    this.reconcile();
+                }
+            } catch {
+                // Storage may be unavailable in private browser sessions.
+            }
         },
         destroy() {
+            this.stopLocation();
             this.stopCamera();
             this.clearPhoto();
             clearInterval(this.timer);
+            this.recoveryStopped = true;
+            window.removeEventListener(
+                "workspace:attendance",
+                this.onWorkspaceAttendance,
+            );
             document.removeEventListener("visibilitychange", this.onHide);
             window.removeEventListener("pagehide", this.onExit);
         },
@@ -117,36 +146,45 @@ export default (Alpine) => {
                     : null,
                 signal: AbortSignal.timeout(30000),
             });
-            let result;
+            let result = null;
             try {
                 result = await response.json();
-            } catch {
-                throw new Error(
-                    "The server could not complete the request. Check your connection and sign-in session.",
-                );
-            }
+            } catch {}
             if (!response.ok) {
-                if (response.status >= 500) {
-                    const failure = new Error(
-                        "The server could not complete the request. Please try again.",
-                    );
-                    failure.status = response.status;
-                    throw failure;
-                }
+                const messages = {
+                    401: "Your session ended. Sign in again before continuing.",
+                    403: "You do not have permission to perform this attendance action.",
+                    419: "Your session expired. Refresh the page and sign in again.",
+                    409: "Attendance changed or this capture expired. Check your attendance history.",
+                    413: "The photo exceeds the upload limit. Take a smaller fresh photo.",
+                    422: "Review the photo and location requirements and try again.",
+                    429: `Too many requests. Wait ${response.headers.get("Retry-After") || "60"} seconds before trying again.`,
+                };
                 const failure = new Error(
-                    Object.values(result.errors || {})
-                        .flat()
-                        .join(" ") ||
-                        result.message ||
-                        "The request could not be completed.",
+                    messages[response.status] &&
+                        response.status !== 422 &&
+                        response.status !== 409
+                        ? messages[response.status]
+                        : Object.values(result?.errors || {})
+                              .flat()
+                              .join(" ") ||
+                              (response.status < 500 && result?.message) ||
+                              messages[response.status] ||
+                              "The server could not confirm the request result.",
                 );
                 failure.status = response.status;
                 throw failure;
             }
+            if (!result || typeof result !== "object" || response.redirected) {
+                throw new Error(
+                    "The server returned an unexpected response. Check your sign-in session.",
+                );
+            }
             return result;
         },
         async begin(action) {
-            if (this.busy || this.submitting) return;
+            if (this.busy || this.submitting || this.uncertain || this.checking)
+                return;
             this.cancel();
             this.action = action;
             this.busy = true;
@@ -157,66 +195,15 @@ export default (Alpine) => {
                     action,
                 });
                 this.remaining = options.captureSeconds;
-                await this.locate();
+                this.startLocation();
             } catch (error) {
                 this.error = error.message;
             } finally {
                 this.busy = false;
             }
         },
-        async locate() {
-            if (!this.capture || this.uncertain || this.locating) return;
-            this.locating = true;
-            this.location = null;
-            this.geo = null;
-            try {
-                if (!window.isSecureContext)
-                    throw new Error(
-                        "Location access requires HTTPS or localhost. Use a trusted secure connection.",
-                    );
-                if (!navigator.geolocation)
-                    throw new Error(
-                        "This browser does not support location. Request HR assistance.",
-                    );
-                this.locationMessage = "Requesting your current location…";
-                const position = await new Promise((resolve, reject) =>
-                    navigator.geolocation.getCurrentPosition(resolve, reject, {
-                        enableHighAccuracy: true,
-                        maximumAge: 0,
-                        timeout: 15000,
-                    }),
-                );
-                this.location = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    retrieved_at: Math.round(position.timestamp),
-                };
-                this.geo = await this.api(
-                    `${options.captureBase}/${this.capture.id}/location`,
-                    "POST",
-                    { token: this.capture.token, ...this.location },
-                );
-                if (this.geo.status === "outside_geofence")
-                    notify.warning(
-                        "Outside Authorized Location",
-                        "Your current location is outside your assigned branch's allowed attendance area.",
-                    );
-                this.locationMessage = this.geo.validated
-                    ? "Reported location meets the configured geofence and accuracy checks."
-                    : `Location not validated: ${this.geo.status.replaceAll("_", " ")}. Retry or explicitly request HR review.`;
-            } catch (error) {
-                this.locationMessage =
-                    error.code === 1
-                        ? "Location permission denied. Allow access, retry, or request HR review."
-                        : error.code === 2
-                          ? "Location is unavailable. Check device location services or request HR review."
-                          : error.code === 3
-                            ? "Location timed out. Move to a clearer area and retry."
-                            : error.message;
-            } finally {
-                this.locating = false;
-            }
+        locate() {
+            this.startLocation(true);
         },
         stopCamera() {
             if (this.stream)
@@ -345,22 +332,101 @@ export default (Alpine) => {
             await this.startCamera();
         },
         async checkStatus() {
-            if (!this.capture) return false;
-            const response = await this.api(
-                `${options.captureBase}/${this.capture.id}/status`,
-                "GET",
-            );
-            if (response.submitted) {
-                this.finish(response.result);
-                return true;
+            if (!this.capture || this.checking) return false;
+            this.checking = true;
+            try {
+                const response = await this.api(
+                    `${options.captureBase}/${this.capture.id}/status`,
+                    "GET",
+                );
+                if (
+                    response.status === "succeeded" &&
+                    response.result?.event_id
+                ) {
+                    this.finish(response.result);
+                    return true;
+                }
+                if (response.status === "not_recorded") {
+                    this.uncertain = false;
+                    this.forgetPending();
+                    this.applyAttendance(response.attendance);
+                    this.checking = false;
+                    this.resetCapture();
+                    this.error =
+                        "This capture expired without a saved result. Start again and take a fresh photo.";
+                    return true;
+                }
+                this.uncertain = true;
+                return false;
+            } finally {
+                this.checking = false;
             }
-            this.uncertain = false;
-            if (response.expired)
+        },
+        rememberPending() {
+            try {
+                sessionStorage.setItem(
+                    this.storageKey,
+                    JSON.stringify({
+                        id: this.capture.id,
+                        action: this.action,
+                        expires_at: this.capture.expires_at,
+                    }),
+                );
+            } catch {}
+        },
+        forgetPending() {
+            try {
+                sessionStorage.removeItem(this.storageKey);
+            } catch {}
+        },
+        applyAttendance(attendance) {
+            if (!attendance) return;
+            this.canTimeIn = attendance.canTimeIn;
+            this.canTimeOut = attendance.canTimeOut;
+            this.attendanceLabel = attendance.label;
+            this.employeeName = attendance.employeeName ?? this.employeeName;
+            this.employeeSummary =
+                attendance.employeeSummary ?? this.employeeSummary;
+            this.eligibilityError = attendance.eligibilityError;
+            this.pendingReview = attendance.pendingReview;
+            if (
+                this.result &&
+                attendance.latestResult &&
+                !this.capture &&
+                !this.submitting &&
+                !this.uncertain
+            ) {
+                this.result = attendance.latestResult;
+            }
+        },
+        async reconcile() {
+            this.error =
+                "We couldn't confirm your last submission. We're checking whether your attendance was recorded.";
+            for (const delay of [0, 2000, 4000, 8000]) {
+                if (delay)
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                if (this.recoveryStopped || !this.uncertain) return;
+                try {
+                    if (await this.checkStatus()) return;
+                } catch (failure) {
+                    if ([401, 403, 419, 429].includes(failure.status)) {
+                        this.error =
+                            failure.message +
+                            " Your pending submission is preserved. Check submission status after access is restored.";
+                        return;
+                    }
+                }
+            }
+            if (!this.recoveryStopped && this.uncertain)
                 this.error =
-                    "This capture expired without a saved result. Start again and take a fresh photo.";
-            return false;
+                    "We couldn't verify the result yet. Check submission status before trying again, or request HR assistance. Do not submit another punch.";
         },
         finish(result) {
+            if (!result?.event_id || !result?.occurred_at) {
+                throw new Error(
+                    "The server did not confirm a saved attendance event.",
+                );
+            }
             notify.close();
             notify.toast(
                 result.review_status === "pending" ||
@@ -374,26 +440,30 @@ export default (Alpine) => {
                       ? "Time Out Recorded"
                       : "Time In Recorded",
             );
+            this.stopLocation();
             this.result = result;
+            this.error = "";
+            this.forgetPending();
+            this.applyAttendance(result.attendance);
             this.stopCamera();
             this.clearPhoto();
             this.capture = null;
             this.uncertain = false;
         },
         async submit() {
-            if (this.submitting || !this.capture || !this.photo) return;
+            if (
+                this.submitting ||
+                this.uncertain ||
+                !this.capture ||
+                !this.photo
+            )
+                return;
             this.submitting = true;
             notify.loading("Submitting Attendance...");
             this.error = "";
             try {
-                if (this.uncertain && (await this.checkStatus())) return;
+                await this.ensureFreshLocation();
                 if (!this.body) {
-                    if (
-                        this.location &&
-                        Date.now() + this.offset - this.location.retrieved_at >
-                            options.locationMaxAge * 1000
-                    )
-                        await this.locate();
                     const data = new FormData();
                     data.append("token", this.capture.token);
                     data.append("photo", this.photo, "camera-frame.jpg");
@@ -409,6 +479,8 @@ export default (Alpine) => {
                         data.append("exception_reason", this.reason);
                     this.body = data;
                 }
+                this.stopLocation();
+                this.rememberPending();
                 this.finish(
                     await this.api(
                         `${options.captureBase}/${this.capture.id}/submit`,
@@ -417,21 +489,35 @@ export default (Alpine) => {
                     ),
                 );
             } catch (error) {
-                this.error = error.message;
-                if (!error.status || error.status >= 500) {
+                if (
+                    !error.status ||
+                    error.status >= 500 ||
+                    error.status === 408
+                ) {
                     this.uncertain = true;
-                    this.error +=
-                        " Server outcome is uncertain. Check submission status before starting another action.";
+                    this.stopLocation();
+                    this.rememberPending();
+                    await this.reconcile();
                 } else {
+                    this.error = error.message;
+                    this.forgetPending();
                     this.body = null;
                     this.uncertain = false;
                 }
             } finally {
                 notify.closeLoading();
                 this.submitting = false;
+                if (this.capture && !this.uncertain) this.startLocation();
             }
         },
         cancel() {
+            if (this.submitting || this.uncertain || this.checking) return;
+            this.resetCapture();
+        },
+        resetCapture() {
+            this.stopLocation();
+            this.locationDenied = false;
+            this.locationRetries = 0;
             this.stopCamera();
             this.clearPhoto();
             this.capture = null;

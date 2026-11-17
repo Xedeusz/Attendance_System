@@ -32,7 +32,11 @@ class SupervisorAssignment extends Model
     {
         $today = now(config('attendance.timezone'))->toDateString();
 
+        $query->whereExists(function ($q) {
+            $q->selectRaw('1')->from('employees')->join('users', 'users.id', '=', 'supervisor_assignments.supervisor_user_id')->whereColumn('employees.id', 'supervisor_assignments.employee_id')->whereColumn('employees.department_id', 'users.supervisor_department_id');
+        });
+
         return $query->where('is_active', true)->whereDate('effective_from', '<=', $today)->where(fn ($q) => $q->whereNull('effective_until')->orWhereDate('effective_until', '>=', $today))
-            ->whereHas('supervisor', fn ($q) => $q->where('role_id', Role::SUPERVISOR)->where('account_status', 'active')->where(fn ($q) => $q->whereDoesntHave('employee')->orWhereHas('employee', fn ($q) => $q->where('employment_status', 'active'))));
+            ->whereHas('supervisor', fn ($q) => $q->where('role_id', Role::SUPERVISOR)->where('account_status', 'active')->whereHas('supervisorDepartment', fn ($q) => $q->where('status', 'active'))->where(fn ($q) => $q->whereDoesntHave('employee')->orWhereHas('employee', fn ($q) => $q->where('employment_status', 'active'))));
     }
 }

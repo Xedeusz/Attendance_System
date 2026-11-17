@@ -161,8 +161,9 @@ test("employee submission, final Supervisor decision, private document and HR co
     await expect(
         supPage.getByRole("heading", { name: "Final Supervisor decision" }),
     ).toHaveCount(0);
-    await employeePage.reload();
-    await expect(employeePage.locator("main")).toContainText("Approved");
+    await expect(employeePage.locator("main")).toContainText("Approved", {
+        timeout: 20000,
+    });
     await employeePage.goto("/employee/leave");
     await expect(employeePage.locator("main")).toContainText(
         "3.00 days available",
@@ -172,6 +173,7 @@ test("employee submission, final Supervisor decision, private document and HR co
     await hrPage.goto("/hr/leave/" + leaveId);
     await expect(hrPage.locator('[name="decision"]')).toHaveCount(0);
     await employeePage.goto("/employee/attendance/corrections/create");
+    await hrPage.goto("/hr/attendance/corrections");
     await employeePage
         .getByLabel("Correction type", { exact: true })
         .selectOption("missing_record");
@@ -192,6 +194,9 @@ test("employee submission, final Supervisor decision, private document and HR co
         .click();
     await expect(employeePage).toHaveURL(/corrections\/\d+$/);
     const correctionId = employeePage.url().split("/").at(-1);
+    await expect(
+        hrPage.locator('a[href$="/corrections/' + correctionId + '"]'),
+    ).toBeVisible({ timeout: 20000 });
     await hrPage.goto("/hr/attendance/corrections/" + correctionId);
     await hrPage
         .getByLabel("Decision", { exact: true })
@@ -204,6 +209,9 @@ test("employee submission, final Supervisor decision, private document and HR co
         .click();
     await hrPage.locator(".swal2-confirm").click();
     await expect(hrPage.locator("main")).toContainText("Approved");
+    await expect(employeePage.locator("main")).toContainText("Approved", {
+        timeout: 20000,
+    });
     await employeePage.goto("/employee/attendance/history");
     await expect(employeePage.locator("main")).toContainText(
         "Approved manual entries",

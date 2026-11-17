@@ -13,6 +13,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Administration;
 use App\Services\AuditService;
+use App\Services\EditVersion;
 use App\Services\LeaveService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -38,6 +39,10 @@ class LeaveAdministrationController extends Controller
     {
         $data = $request->validate(['code' => ['required', 'string', 'max:30', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('leave_types')->ignore($type?->id)], 'name' => ['required', 'string', 'max:150'], 'description' => ['nullable', 'string', 'max:2000'], 'requires_document' => ['required', 'boolean'], 'affects_balance' => ['required', 'boolean'], 'allows_half_day' => ['required', 'boolean'], 'is_active' => ['required', 'boolean'], 'duration_policy' => ['required', Rule::in(['requested_days'])]]);
         $administration->run(function () use ($type, $data, $audit) {
+            if ($type) {
+                $type->refresh();
+                EditVersion::check($type, request()->input('_edit_version'));
+            }
             $type ??= new LeaveType;
             $type->fill($data)->save();
             $audit->record('leave.type_saved', $type, ['code' => $type->code, 'affects_balance' => $type->affects_balance]);

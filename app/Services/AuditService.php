@@ -17,5 +17,6 @@ class AuditService
             'user_agent' => app()->runningInConsole() ? null : mb_substr((string) request()->userAgent(), 0, 255),
             'created_at' => now(),
         ]);
+        app(WorkspaceSync::class)->record($action, $subject, $metadata);
     }
 }

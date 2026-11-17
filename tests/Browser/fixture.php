@@ -65,7 +65,7 @@ if (($argv[1] ?? '') === 'create') {
     $employee = Employee::where('employee_number', $prefix.'-EMP')->sole();
     $password = bin2hex(random_bytes(20)).'aA!';
     $supervisor = User::create(['name' => 'Synthetic Leave Supervisor', 'email' => strtolower($prefix).'-supervisor@example.test', 'password' => $password]);
-    $supervisor->forceFill(['role_id' => Role::SUPERVISOR, 'account_status' => 'active', 'email_verified_at' => now()])->save();
+    $supervisor->forceFill(['supervisor_department_id' => $employee->department_id, 'role_id' => Role::SUPERVISOR, 'account_status' => 'active', 'email_verified_at' => now()])->save();
     $type = LeaveType::factory()->create(['code' => $prefix.'-LEAVE', 'name' => $prefix.' Synthetic Leave', 'affects_balance' => true, 'requires_document' => true]);
     Auth::login($actor);
     app(LeaveService::class)->adjustBalance($actor, ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'policy_period' => now()->format('Y'), 'amount' => 5, 'reason' => 'Synthetic browser test credit; not company policy.']);
@@ -77,7 +77,7 @@ if (($argv[1] ?? '') === 'create') {
     }
     $prefix = 'QA-'.substr($matches[1], 0, 10);
     DB::transaction(function () use ($actor, $prefix) {
-        $users = User::whereKey($actor->id)->orWhereIn('email', [strtolower($prefix).'-employee@example.test', strtolower($prefix).'-hr@example.test', strtolower($prefix).'-supervisor@example.test'])->get();
+        $users = User::whereKey($actor->id)->orWhereIn('email', [strtolower($prefix).'-employee@example.test', strtolower($prefix).'-hr@example.test', strtolower($prefix).'-supervisor@example.test', strtolower($prefix).'-realtime@example.test'])->get();
         $userIds = $users->pluck('id');
         $employees = Employee::whereIn('user_id', $userIds)->get();
         $leaveIds = LeaveRequest::whereIn('employee_id', $employees->pluck('id'))->pluck('id');

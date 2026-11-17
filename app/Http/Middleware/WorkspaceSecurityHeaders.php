@@ -19,6 +19,16 @@ class WorkspaceSecurityHeaders
             RateLimiter::hit($key, 60);
         }
         $response = $next($request);
+        if ($request->header('X-Workspace-Sync') === '1' || $request->routeIs('realtime.state') || $request->is('broadcasting/auth')) {
+            $request->session()->reflash();
+        }
+        if ($request->header('X-Workspace-Sync') === '1' && $response->isSuccessful() && is_string($response->getContent())) {
+            $parts = explode('<!--workspace:start-->', $response->getContent(), 2);
+            if (count($parts) === 2) {
+                $response->setContent(explode('<!--workspace:end-->', $parts[1], 2)[0]);
+                $response->headers->remove('Content-Length');
+            }
+        }
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
         $response->headers->set('Referrer-Policy', 'same-origin');

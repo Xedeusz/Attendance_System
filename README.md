@@ -109,3 +109,13 @@ Persistent notices are in Notifications; Supervisor notices stay within the leav
 Read the [Phase 5 implementation and exact file inventory](docs/PHASE_5_IMPLEMENTATION.md), [test results](docs/PHASE_5_TEST_RESULTS.md), [Supervisor role](docs/SUPERVISOR_ROLE.md), [assignments](docs/SUPERVISOR_ASSIGNMENTS.md), [leave policy/balances/documents](docs/LEAVE_MANAGEMENT.md), [final workflow](docs/LEAVE_APPROVAL_WORKFLOW.md) and [corrections](docs/ATTENDANCE_CORRECTIONS.md).
 
 The existing Laravel scheduler runs leave:refresh-routing hourly and leave:purge-documents daily. Private leave document retention defaults to null until confirmed; LEAVE_DOCUMENT_RETENTION_DAYS sets expiry for new uploads. Keep APP_KEY/backups secure. Physical Android/iPhone Safari/device, target multi-worker concurrency and production privacy/restore checks remain rollout work.
+
+## System-wide synchronization
+
+Authorized Blade views now synchronize through private Laravel Reverb/Echo signals and authoritative content fragments. Dashboard/directory tables, attendance, leave, corrections and notification badges update while open; active forms and camera captures are preserved. A controlled polling fallback handles unavailable WebSockets.
+
+Run separate terminals with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1` followed by `serve`, `reverb`, `queue`, and optionally `assets`. Windows `composer run dev` starts all four processes. MySQL must also be running. Refresh already-open tabs once after this upgrade to load the new client. Do not start duplicate processes on ports 8000/8080.
+
+Read [architecture and exact local/HTTPS setup](docs/REALTIME_SYSTEM_ARCHITECTURE.md), [events, recipient scopes and source inventory](docs/REALTIME_EVENT_MATRIX.md), and [automated/manual verification](docs/REALTIME_TESTING.md). Real local `.env` secrets remain uncommitted. Apply the additive workspace revision migration on other installations; do not reset existing tables.
+
+HR-controlled [Supervisor department linking](docs/SUPERVISOR_DEPARTMENT_LINKING.md) is implemented. Apply the additive user-department migration on upgrades and review legacy assignment conflicts. A department link does not grant department-wide leave access.

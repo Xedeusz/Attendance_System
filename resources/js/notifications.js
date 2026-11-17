@@ -30,8 +30,12 @@ const toastIcons = {
 function iconMarkup(type) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${toastIcons[type] || toastIcons.info}</svg>`;
 }
+const toastDefaults = { ...defaults };
+for (const option of ["backdrop", "heightAuto", "returnFocus"]) {
+    delete toastDefaults[option];
+}
 const Toast = Swal.mixin({
-    ...defaults,
+    ...toastDefaults,
     toast: true,
     position: "top-end",
     width: "min(330px, calc(100vw - 24px))",

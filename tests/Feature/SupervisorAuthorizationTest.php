@@ -34,6 +34,7 @@ class SupervisorAuthorizationTest extends TestCase
 
     private function pending(Employee $employee, User $supervisor): LeaveRequest
     {
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         SupervisorAssignment::factory()->create(['employee_id' => $employee->id, 'supervisor_user_id' => $supervisor->id]);
 
         return LeaveRequest::factory()->create(['employee_id' => $employee->id, 'assigned_supervisor_user_id' => $supervisor->id, 'status' => 'pending_supervisor_approval']);
@@ -80,7 +81,9 @@ class SupervisorAuthorizationTest extends TestCase
         $hr = $this->reviewer();
         $first = $this->supervisor();
         $second = $this->supervisor();
+        // The replacement reviewer must meet the same department prerequisite.
         $employee = $this->attendee();
+        $second->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $leave = $this->pending($employee, $first);
         $assignment = SupervisorAssignment::where('employee_id', $employee->id)->sole();
         $this->actingAs($hr)->withSession(['auth.password_confirmed_at' => time()]);
@@ -117,6 +120,8 @@ class SupervisorAuthorizationTest extends TestCase
         $employee = $this->attendee();
         $first = $this->supervisor();
         $second = $this->supervisor();
+        // The replacement reviewer must meet the same department prerequisite.
+        $second->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $leave = $this->pending($employee, $first);
         $assignment = SupervisorAssignment::where('employee_id', $employee->id)->sole();
         $starts = now(config('attendance.timezone'))->addDays(2)->toDateString();
@@ -137,6 +142,7 @@ class SupervisorAuthorizationTest extends TestCase
         $employee = $this->attendee();
         $supervisor = $employee->user;
         $supervisor->forceFill(['role_id' => Role::SUPERVISOR])->save();
+        $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         SupervisorAssignment::factory()->create(['employee_id' => $employee->id, 'supervisor_user_id' => $supervisor->id]);
         $type = LeaveType::factory()->create();
         $this->actingAs($supervisor)->post('/employee/leave', ['leave_type_id' => $type->id, 'start_date' => now()->addDays(10)->toDateString(), 'end_date' => now()->addDays(10)->toDateString(), 'requested_duration' => 1, 'reason' => 'Own application must require another reviewer.'])->assertRedirect()->assertSessionHasNoErrors();

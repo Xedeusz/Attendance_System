@@ -1,7 +1,7 @@
 <x-layouts.app :title="$branch->exists ? 'Edit Branch' : 'Add Branch'">
     <x-page-header :title="$branch->exists ? 'Edit Branch' : 'Add Branch'" description="Manage official office information and the attendance boundary." />
     <form method="POST" class="card" action="{{ $branch->exists ? route('hr.branches.update', $branch) : route('hr.branches.store') }}">
-        @csrf
+        @csrf <x-edit-version :record="$branch" />
         @if($branch->exists) @method('PUT') @endif
         <div id="branch-location-geofencing" class="card-body"><x-branch-location-map :branch="$branch" /></div>
         <section id="branch-information" class="border-t border-slate-100" aria-label="Branch Information">

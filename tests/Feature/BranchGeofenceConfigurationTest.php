@@ -6,6 +6,7 @@ use App\Models\AttendanceEvent;
 use App\Models\AuditLog;
 use App\Models\Branch;
 use App\Models\User;
+use App\Services\EditVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\AttendanceData;
@@ -136,7 +137,7 @@ class BranchGeofenceConfigurationTest extends TestCase
         $actor = $this->hr();
 
         $this->actingAs($actor)->put(route('hr.branches.update', $branch), [
-            ...$branch->toArray(), 'latitude' => 14.6095, 'longitude' => 120.9942, 'geofence_radius_meters' => 50,
+            ...$branch->toArray(), '_edit_version' => EditVersion::token($branch), 'latitude' => 14.6095, 'longitude' => 120.9942, 'geofence_radius_meters' => 50,
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $audit = AuditLog::where('action', 'branch.updated')->sole();

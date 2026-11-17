@@ -9,6 +9,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveSupportingDocument;
 use App\Models\LeaveType;
 use App\Services\LeaveService;
+use App\Services\WorkspaceSync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -117,6 +118,7 @@ class LeaveController extends Controller
             $query->where('data->category', 'leave');
         }
         $query->firstOrFail()->markAsRead();
+        app(WorkspaceSync::class)->touch($request->user(), ['notifications']);
 
         return back();
     }

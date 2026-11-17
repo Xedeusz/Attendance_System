@@ -1,0 +1,31 @@
+# Real-time event matrix
+
+All messages use `.workspace.changed` on a recipient's private, role/session-version-bound channel. Topic revisions are invalidation hints. Each affected view retrieves its own protected server fragment; notification counts use the own-user state endpoint. No business objects or files are broadcast.
+
+| Successful source operation | Revision topics | Authorized recipients | Affected views |
+| --- | --- | --- | --- |
+| Employee create/update/transfer/contact change | employees; relevant supervisor leave | HR, affected employee, relevant current supervisor (leave only) | Employee directory/details, dashboards, own workday/profile, related leave displays |
+| Account activation/reactivation/deactivation and invitations | employees/account context | HR, active affected account | HR counts, employee/account directories and details; existing backend session revocation remains enforced |
+| Branch create/edit/status/geofence | branches; relevant supervisor leave | HR and employees currently assigned to the branch; their supervisors get generic leave invalidation | Branch list/details/map, employee directory, dashboards and current workday availability |
+| Department create/edit/status | departments; relevant supervisor leave | HR and affected employees; relevant supervisors (leave only) | Department list, related employee displays, dashboards |
+| Time In / Time Out / pending review / HR review / evidence purge | attendance | HR and owner | HR monitoring/counters, employee history/details/workday, attendance updates |
+| Attendance assistance create/review | attendance | HR and owner | Assistance lists and relevant workday/history views |
+| Leave submit/approve/reject/cancel | leave; notifications | HR, owner, currently assigned supervisor; notification recipients | Supervisor queue/summary, owner leave history/balance/detail, HR monitoring/dashboard |
+| Supervisor assignment/revocation/reassignment | leave; employees as applicable | HR, owner, current/former relevant supervisor; generic invalidation only | Current authorized queues and supervisor administration |
+| Supervisor create/update/status | leave and employees | HR, affected accounts and relevant leave views | Supervisor directory/details, HR counts and current leave routing |
+| Leave type/policy change | leave | HR, active employee/supervisor workspaces | Leave lists, policy lists; active form selections are preserved |
+| Leave balance adjustment/final debit | leave | HR, owner, decision context | Leave balances, summaries and history |
+| Correction submission/decision/cancellation | corrections and attendance; notices | HR and owner, never supervisors | HR queue/counters, owner correction detail/history and effective attendance/history |
+| Workflow notice creation/read | notifications | Owner only; supervisors see leave-category notices only | Header unread badge and authorized notification lists across tabs |
+| Rolled-back write or attendance validation failure | none | None | No success signal; existing specific error response remains authoritative |
+
+The event map is centralized in WorkspaceSync rather than duplicating individual broadcast classes for every audit action. Existing creation/update/decision services remain the source of domain semantics. No unsupported delete endpoint or new approval stage was introduced. Directory dropdowns in active forms are intentionally retained; the saved-data notice provides deliberate recovery when options change.
+
+## Source inventory
+
+New files: `app/Events/WorkspaceChanged.php`, `app/Jobs/BroadcastWorkspaceChange.php`, `app/Services/WorkspaceSync.php`, `app/Services/EditVersion.php`, `app/Http/Controllers/WorkspaceSyncController.php`, `config/broadcasting.php`, `config/reverb.php`, `config/realtime.php`, `routes/channels.php`, `database/migrations/2026_11_17_005731_create_workspace_revisions_table.php`, `resources/js/realtime.js`, `resources/views/components/edit-version.blade.php`, `tests/Feature/WorkspaceSyncTest.php`, `tests/Browser/realtime.spec.js`, and the three REALTIME documentation files.
+
+Modified integration files: `app/Services/AuditService.php`, `app/Services/WorkflowNotices.php`, `app/Services/EmployeeService.php`, `app/Services/SupervisorService.php`, `app/Http/Controllers/LeaveController.php`, `app/Http/Controllers/DashboardController.php`, `app/Http/Controllers/HR/BranchController.php`, `app/Http/Controllers/HR/DepartmentController.php`, `app/Http/Controllers/HR/LeaveAdministrationController.php`, `app/Http/Controllers/HR/SupervisorController.php`, `app/Http/Middleware/RestrictSupervisor.php`, `app/Http/Middleware/WorkspaceSecurityHeaders.php`, `app/Http/Requests/EmployeeRequest.php`, `bootstrap/app.php`, `routes/web.php`, `resources/js/app.js`, `resources/js/attendance.js`, `resources/views/components/layouts/app.blade.php`, `resources/views/components/topbar.blade.php`, `resources/views/attendance/updates.blade.php`, `resources/views/hr/branches/form.blade.php`, `resources/views/hr/departments/form.blade.php`, `resources/views/hr/employees/form.blade.php`, `resources/views/hr/supervisors/form.blade.php`, `resources/views/hr/leave/types.blade.php`, `scripts/dev.ps1`, `composer.json`, `composer.lock`, `package.json`, `package-lock.json`, `.env.example`, and `README.md`.
+
+Regression updates: `tests/Feature/BranchDepartmentTest.php`, `tests/Feature/EmployeeManagementTest.php`, `tests/Feature/BranchGeofenceConfigurationTest.php`, `tests/Browser/attendance.spec.js`, `tests/Browser/phase5.spec.js`, `tests/Browser/fixture.php`. Existing attendance-recovery edits from the previous task remain intact and are not replaced.
+Attendance integration also updates `app/Services/AttendanceService.php` and `resources/views/attendance/capture.blade.php` with authoritative current eligibility, review state, assignment/name labels, and owner-only latest result metadata, preserving the camera subtree. Read-only filter options refresh when safe while keeping the current selected values.

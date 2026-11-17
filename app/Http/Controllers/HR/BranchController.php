@@ -7,6 +7,7 @@ use App\Http\Requests\BranchRequest;
 use App\Models\Branch;
 use App\Services\Administration;
 use App\Services\AuditService;
+use App\Services\EditVersion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -62,6 +63,7 @@ class BranchController extends Controller
                 }
             }
             $geofenceFields = ['latitude', 'longitude', 'geofence_radius_meters'];
+            EditVersion::check($branch, $request->input('_edit_version'));
             $previousGeofence = $branch->only($geofenceFields);
             $branch->fill($request->validated());
             $changed = array_keys($branch->getDirty());

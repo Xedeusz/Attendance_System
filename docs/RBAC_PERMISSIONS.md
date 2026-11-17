@@ -20,3 +20,8 @@ Exactly three fixed roles: HR (1), Employee (2), Supervisor (3). This supersedes
 Middleware enforces active account/session version and Supervisor route restrictions. HR routes use explicit RequireHR middleware; sensitive account/assignment/balance/type mutations require recent password confirmation. Laravel policies, FormRequests and scoped queries independently enforce record access. IDs supplied by a client do not grant ownership/review permission. Services reload actors inside transactions and recheck eligibility/current assignment before mutation.
 
 Supervisor menus contain only leave and personal utilities. Status or role changes revoke sessions/remember tokens/reset credentials. Existing Employee promotion reuses identity and history. All significant changes create existing AuditLog entries; private reasons/document contents are excluded from audit metadata.
+
+
+## Direct Supervisor department assignment
+
+HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.

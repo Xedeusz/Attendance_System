@@ -1,6 +1,6 @@
 <x-layouts.app :title="$employee->exists ? 'Edit Employee' : 'Register New Employee'">
 <x-page-header :title="$employee->exists ? 'Edit Employee' : 'Register New Employee'" description="Maintain accurate employment details. Account activation is completed by the employee." />
-<form class="card" method="POST" action="{{ $employee->exists ? route('hr.employees.update', $employee) : route('hr.employees.store') }}">@csrf @if($employee->exists) @method('PUT') @endif
+<form class="card" method="POST" action="{{ $employee->exists ? route('hr.employees.update', $employee) : route('hr.employees.store') }}">@csrf <x-edit-version :record="$employee" /> @if($employee->exists) @method('PUT') @endif
 <div class="card-heading"><h2>Personal information</h2><x-badge>{{ $employee->exists ? 'Existing account' : 'Employee · Pending activation' }}</x-badge></div>
 <div class="card-body form-grid">
 <x-input name="employee_number" label="Employee number" :value="$employee->employee_number" required maxlength="40" />

@@ -9,6 +9,7 @@
         "php": "^8.3",
         "laravel/fortify": "^1.42",
         "laravel/framework": "^13.17",
+        "laravel/reverb": "^1.13",
         "laravel/tinker": "^3.0"
     },
     "require-dev": {
@@ -44,7 +45,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others --names=server,vite \"php artisan serve --host=127.0.0.1 --port=8000\" \"npm run dev\""
+            "npx concurrently --kill-others --names=server,reverb,queue,vite \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 serve\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 reverb\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 queue\" \"npm run dev\""
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",

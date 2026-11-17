@@ -1,13 +1,13 @@
 # Attendance workflow — Phase 4
 
-Approved method: authenticated employee + reported GPS/geofence checks + live browser camera photo + server-recorded time. Exactly HR and Employee roles exist. No facial recognition, enrollment, face matching, or liveness service is used.
+Approved method: authenticated employee + reported GPS/geofence checks + live browser camera photo + server-recorded time. HR and Employee accounts use attendance; Supervisors remain restricted to Leave Management. No facial recognition, enrollment, face matching, or liveness service is used.
 
 ## Time In
 
 1. Sign in with an activated account and open `/employee/attendance`.
 2. Select Time In. Laravel resolves the employee from the session and checks active employment, current primary assignment, active branch, and absence of an open/pending session.
 3. Laravel creates a short-lived capture UUID, random secret token, hashed browser-session binding, employee attendance version, and branch/policy snapshot. The default lifetime is 180 seconds.
-4. Browser requests a new location reading. Laravel previews the geofence result. A preview is informational; submission recalculates it.
+4. Browser automatically watches location while capture verification is active. The panel previews distance, accuracy, freshness and geofence readiness locally from the saved branch policy; submission recalculates it on the server. See [automatic GPS monitoring](AUTOMATIC_GPS_GEOFENCE_MONITORING.md) for lifecycle, recovery and privacy behavior.
 5. Select **Start live camera**, allow camera access, capture an appropriate office photo, and preview or retake it. There is no gallery/file-selection control.
 6. Submit. Laravel validates the token, session, current assignment/policy/version, image, coordinates, age, accuracy, and attendance lifecycle. Staged images are validated/normalized before the short database transaction.
 7. Laravel records its receipt time in UTC. The work date is the Time In date in Asia/Manila. The browser clock and location retrieval timestamp never set the official punch time.
@@ -49,6 +49,6 @@ Assistance has its own pending/resolved/rejected lifecycle. HR disposition recor
 
 Database transactions lock the existing HR administration mutex and employee, re-read account/assignment state, and consume a capture atomically. The employee version invalidates competing tabs. Unique generated columns prevent two open records or two effective actions per record; the capture-to-event FK is unique.
 
-An identical retry of a consumed capture returns the original event, including after expiry; changed evidence returns 409. Exact request/photo data must be reused. On network timeout the UI preserves the submitted body and checks the status endpoint before retrying. An unconsumed expired capture needs a fresh photo/session. Validation errors are 422; authorization failures 403; stale/reused captures 409; missing retained evidence 410; throttling 429. Session expiry/deactivation requires sign-in/HR assistance. No optimistic success or offline punch queue exists.
+An identical retry of a consumed capture returns the original event, including after expiry; changed evidence returns 409. Exact request/photo data must be reused. On an ambiguous response the UI preserves the capture identifier across refresh and automatically checks the status endpoint without retrying the POST. Unconsumed captures remain unknown until serialized status inspection confirms expiry; then a fresh photo/session is required. Validation errors are 422; authorization failures 403; stale/reused captures 409; missing retained evidence 410; throttling 429. Confirmed HTTP rejections retain their status even with HTML bodies. Session expiry/deactivation requires sign-in/HR assistance. No optimistic success or offline punch queue exists. See [Attendance submission recovery](ATTENDANCE_SUBMISSION_RECOVERY.md) for state transitions, runtime setup, and regression results.
 
 History `/employee/attendance/history` is owner-scoped and paginated. HR `/hr/attendance` supports employee name/number search, employee/branch/date/status filters and whitelisted sorting. `/notifications` shows database-backed exception updates; refresh to see decisions. There is no push/email provider.

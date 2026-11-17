@@ -12,7 +12,9 @@ class AttendancePhotoStorage
 {
     public function prepare(UploadedFile $file): array
     {
-        abort_unless(extension_loaded('gd'), 503, 'Image processing is unavailable. Contact HR or use the configured project PHP startup helper.');
+        if (! extension_loaded('gd')) {
+            throw ValidationException::withMessages(['photo' => 'Photo processing is unavailable. Attendance was not recorded. Contact HR to restore the attendance service.']);
+        }
         $bytes = $file->get();
         $info = @getimagesizefromstring($bytes);
         if (! $info || ! in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true) || min($info[0], $info[1]) < 240 || max($info[0], $info[1]) > 4096 || $info[0] * $info[1] > 8000000) {

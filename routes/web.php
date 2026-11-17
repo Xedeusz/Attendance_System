@@ -9,6 +9,7 @@ use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\AttendanceReviewController;
 use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\WorkspaceController;
+use App\Http\Controllers\WorkspaceSyncController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'));
@@ -17,6 +18,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/activate-account', [ActivationController::class, 'store'])->middleware('throttle:10,1')->name('activation.store');
 });
 Route::middleware(['auth', 'auth.session'])->group(function () {
+    Route::get('/realtime/state', WorkspaceSyncController::class)->middleware('throttle:120,1,workspace-sync:')->name('realtime.state');
     Route::get('/dashboard', fn () => redirect()->route(auth()->user()->workspaceRoute()))->name('dashboard');
     Route::get('/profile', [SelfServiceController::class, 'profile'])->name('profile');
     Route::patch('/profile', [SelfServiceController::class, 'update'])->name('profile.update');
@@ -32,10 +34,10 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/employee/attendance/history', [EmployeeAttendanceController::class, 'history'])->name('employee.attendance.history');
     Route::get('/employee/attendance/records/{record}', [EmployeeAttendanceController::class, 'show'])->name('attendance.show');
     Route::get('/attendance/photos/{photo}', [AttendanceEvidenceController::class, 'show'])->middleware('throttle:120,1')->name('attendance.photo');
-    Route::post('/employee/attendance/captures', [EmployeeAttendanceController::class, 'start'])->middleware('throttle:20,1')->name('attendance.capture.start');
-    Route::post('/employee/attendance/captures/{capture}/location', [EmployeeAttendanceController::class, 'location'])->middleware('throttle:30,1')->name('attendance.location');
-    Route::post('/employee/attendance/captures/{capture}/submit', [EmployeeAttendanceController::class, 'submit'])->middleware('throttle:20,1')->name('attendance.submit');
-    Route::get('/employee/attendance/captures/{capture}/status', [EmployeeAttendanceController::class, 'status'])->middleware('throttle:60,1')->name('attendance.capture.status');
+    Route::post('/employee/attendance/captures', [EmployeeAttendanceController::class, 'start'])->middleware('throttle:20,1,attendance-start:')->name('attendance.capture.start');
+    Route::post('/employee/attendance/captures/{capture}/location', [EmployeeAttendanceController::class, 'location'])->middleware('throttle:30,1,attendance-location:')->name('attendance.location');
+    Route::post('/employee/attendance/captures/{capture}/submit', [EmployeeAttendanceController::class, 'submit'])->middleware('throttle:20,1,attendance-submit:')->name('attendance.submit');
+    Route::get('/employee/attendance/captures/{capture}/status', [EmployeeAttendanceController::class, 'status'])->middleware('throttle:60,1,attendance-status:')->name('attendance.capture.status');
     Route::post('/employee/attendance/assistance', [EmployeeAttendanceController::class, 'assistance'])->middleware('throttle:5,1')->name('attendance.assistance');
     Route::middleware('hr')->prefix('hr')->name('hr.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'hr'])->name('dashboard');

@@ -28,3 +28,8 @@ Phase 3 administration includes users/roles, branches, departments, employees, e
 Phase 4 adds attendance_records, attendance_events, attendance_capture_sessions, attendance_photo_evidence, attendance_reviews and attendance_assistance_requests plus attendance version controls. See [attendance schema](ATTENDANCE_DATABASE.md). Original facts remain protected and separate from Phase 5 effective manual values.
 
 There are no biometric templates, facial-processing tables, schedule/holiday templates, payroll or export tables. The existing local database name is retained for compatibility.
+
+
+## Direct Supervisor department assignment
+
+HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.

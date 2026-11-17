@@ -11,7 +11,7 @@ class RestrictSupervisor
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->isSupervisor()) {
-            abort_unless($request->is('supervisor/leave', 'supervisor/leave/*', 'employee/leave', 'employee/leave/*', 'leave', 'dashboard', 'profile', 'settings', 'user/password', 'user/confirm-password', 'confirm-password', 'logout', 'login', 'forgot-password', 'reset-password', 'reset-password/*'), 403);
+            abort_unless($request->is('broadcasting/auth', 'realtime/state', 'supervisor/leave', 'supervisor/leave/*', 'employee/leave', 'employee/leave/*', 'leave', 'dashboard', 'profile', 'settings', 'user/password', 'user/confirm-password', 'confirm-password', 'logout', 'login', 'forgot-password', 'reset-password', 'reset-password/*'), 403);
         }
 
         return $next($request);

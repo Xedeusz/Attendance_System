@@ -7,6 +7,7 @@ use App\Http\Requests\DepartmentRequest;
 use App\Models\Department;
 use App\Services\Administration;
 use App\Services\AuditService;
+use App\Services\EditVersion;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -53,6 +54,7 @@ class DepartmentController extends Controller
                     throw ValidationException::withMessages(['status' => 'Reassign active employees before deactivating this department.']);
                 }
             }
+            EditVersion::check($department, $request->input('_edit_version'));
             $department->fill($request->validated());
             $changed = array_keys($department->getDirty());
             $department->save();

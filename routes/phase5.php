@@ -10,6 +10,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::prefix('hr')->name('hr.')->middleware('hr')->group(function () {
         Route::middleware('password.confirm')->group(function () {
             Route::resource('supervisors', SupervisorController::class)->except('destroy');
+            Route::post('supervisors/{supervisor}/department', [SupervisorController::class, 'department'])->name('supervisors.department');
             Route::post('supervisors/{supervisor}/assignments', [SupervisorController::class, 'assign'])->name('supervisors.assign');
             Route::post('supervisors/{supervisor}/assignments/{assignment}/revoke', [SupervisorController::class, 'revoke'])->name('supervisors.revoke');
             Route::post('supervisors/{supervisor}/status', [SupervisorController::class, 'status'])->name('supervisors.status');
