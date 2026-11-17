@@ -8,6 +8,8 @@ use App\Models\AccountInvitation;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\SupervisorAssignment;
+use App\Models\User;
 use App\Services\AccountService;
 use App\Services\Administration;
 use App\Services\EmployeeService;
@@ -58,7 +60,7 @@ class EmployeeController extends Controller
     {
         Gate::authorize('view', $employee);
 
-        return view('hr.employees.show', ['employee' => $employee->load(['user', 'department', 'currentAssignment.branch', 'assignments.branch']), 'invitation' => $employee->user->id ? AccountInvitation::where('user_id', $employee->user_id)->latest('id')->first() : null]);
+        return view('hr.employees.show', ['employee' => $employee->load(['user', 'department', 'currentAssignment.branch', 'assignments.branch']), 'supervisors' => User::whereIn('id', SupervisorAssignment::current()->whereNull('revoked_at')->where('employee_id', $employee->id)->select('supervisor_user_id'))->get(), 'invitation' => $employee->user->id ? AccountInvitation::where('user_id', $employee->user_id)->latest('id')->first() : null]);
     }
 
     public function store(EmployeeRequest $request, EmployeeService $service, InvitationService $invitations): RedirectResponse

@@ -88,7 +88,7 @@ class WorkspaceSync
         }
         if (in_array($topic, ['employees', 'branches', 'departments'], true)) {
             $affected = Employee::whereIn('user_id', array_filter($recipients))->pluck('id');
-            $supervisors = SupervisorAssignment::current()->whereIn('employee_id', $affected)->pluck('supervisor_user_id');
+            $supervisors = SupervisorAssignment::query()->whereIn('employee_id', $affected)->pluck('supervisor_user_id');
             foreach (User::whereIn('id', $supervisors)->where('role_id', Role::SUPERVISOR)->where('account_status', 'active')->get() as $supervisor) {
                 $this->touch($supervisor, ['leave']);
             }

@@ -61,7 +61,7 @@ class User extends Authenticatable
             $initials = mb_substr($this->employee->first_name, 0, 1).mb_substr($this->employee->last_name, 0, 1);
         }
 
-        return ['url' => $this->profile_photo_path ? route('profile.photo', hash('sha256', $this->profile_photo_path)) : null, 'initials' => mb_strtoupper($initials)];
+        return ['url' => $this->profile_photo_path ? (auth()->id() !== $this->id && $this->employee ? route('employee.profile.photo', [$this->employee, hash('sha256', $this->profile_photo_path)]) : route('profile.photo', hash('sha256', $this->profile_photo_path))) : null, 'initials' => mb_strtoupper($initials)];
     }
 
     public function employee(): HasOne

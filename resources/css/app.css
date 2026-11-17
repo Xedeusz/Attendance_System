@@ -1072,42 +1072,39 @@ td {
     padding-left: 0;
     padding-right: 0;
 }
-.auth-layout {
+.auth-page {
     min-height: 100svh;
     display: grid;
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    place-items: center;
+    padding: 24px;
+    background: #f8fafc;
+}
+.auth-layout {
+    width: min(1220px, 100%);
+    min-height: min(760px, calc(100svh - 48px));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     background: white;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px rgb(36 20 84 / 12%);
 }
 .auth-story {
-    background: var(--limcoma-purple);
-    background-image:
-        linear-gradient(
-            to bottom,
-            #241454 0%,
-            rgb(36 20 84 / 96%) 16%,
-            transparent 34%,
-            transparent 68%,
-            rgb(36 20 84 / 96%) 84%,
-            #241454 100%
-        ),
-        linear-gradient(
-            110deg,
-            rgb(36 20 84 / 96%) 0%,
-            rgb(47 27 114 / 85%) 48%,
-            rgb(36 20 84 / 60%) 100%
-        ),
-        url("../images/LIMCOMA-LOGO.png");
-    background-size:
-        100% 100%,
-        100% 100%,
-        contain;
-    background-position: center, center, center;
+    background: #ffffff url("../images/limcoma poster.png") no-repeat;
+    background-size: cover;
+    background-position: center;
     background-repeat: no-repeat;
     color: white;
-    padding: 40px clamp(28px, 4vw, 64px);
+    padding: clamp(32px, 5vw, 64px);
     display: flex;
     flex-direction: column;
     position: relative;
+}
+.auth-brand {
+    flex: 0 0 auto;
+}
+.auth-brand .brand {
+    margin: 0;
 }
 .auth-story-content {
     margin: auto 0;
@@ -1150,7 +1147,8 @@ td {
 .auth-main {
     display: flex;
     flex-direction: column;
-    padding: 32px 9%;
+    min-width: 0;
+    padding: clamp(32px, 5vw, 64px);
 }
 .auth-topline {
     font-size: 12px;
@@ -1161,7 +1159,7 @@ td {
     width: 100%;
     max-width: 390px;
     margin: auto;
-    padding: 40px 0;
+    padding: 32px 0;
 }
 .auth-form h1 {
     font-size: 28px;
@@ -1311,10 +1309,14 @@ td {
         padding: 35px;
     }
     .auth-main {
-        padding: 30px 10%;
+        padding: 30px clamp(24px, 4vw, 48px);
     }
 }
 @media (max-width: 640px) {
+    .auth-page {
+        padding: 12px;
+        place-items: start center;
+    }
     .topbar {
         padding: 0 13px;
         height: 66px;
@@ -1383,29 +1385,16 @@ td {
     }
     .auth-layout {
         display: block;
+        min-height: 0;
+        border-radius: 18px;
     }
     .auth-story {
-        padding: 22px 7%;
-        background-size:
-            100% 100%,
-            100% 100%,
-            auto calc(100% - 20px);
-        background-position:
-            center,
-            center,
-            right 16px center;
-    }
-    .auth-story-content,
-    .auth-story-footer {
+        background-image: none;
         display: none;
     }
-    .auth-story .brand-mark {
-        width: 33px;
-        height: 33px;
-    }
     .auth-main {
-        min-height: calc(100svh - 82px);
-        padding: 20px 7%;
+        min-height: calc(100svh - 24px);
+        padding: 28px clamp(20px, 7vw, 36px);
     }
     .auth-form {
         padding: 35px 0;
@@ -2489,6 +2478,14 @@ nav[role="navigation"] [aria-current="page"] > span {
 .auth-main input.field {
     font-size: 14px;
 }
+.auth-page input:focus,
+.auth-page select:focus {
+    border-color: var(--limcoma-purple);
+    outline-color: var(--limcoma-purple);
+}
+.auth-form a {
+    color: var(--limcoma-purple);
+}
 @media (max-width: 1023px) {
     .workday-layout {
         grid-template-columns: minmax(0, 1fr);
@@ -2654,4 +2651,227 @@ nav[role="navigation"] [aria-current="page"] > span {
 
 .card > .toolbar:first-child {
     border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+}
+
+.attendance-evidence-map {
+    height: 340px;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    isolation: isolate;
+    z-index: 0;
+    background: #f1f5f9;
+}
+.attendance-evidence-map .leaflet-control-attribution {
+    white-space: normal;
+}
+.attendance-evidence-map .leaflet-popup-content {
+    overflow-wrap: anywhere;
+}
+.attendance-location-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.attendance-location-details dt {
+    color: var(--text-secondary);
+}
+.attendance-location-details dd {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+}
+.attendance-technical {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 16px;
+    font-size: 12px;
+}
+.attendance-technical summary {
+    cursor: pointer;
+    color: #2f1b72;
+    font-weight: 600;
+}
+.attendance-map-key {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.attendance-map-key.branch {
+    background: #087c68;
+}
+.attendance-map-key.employee {
+    background: #2f1b72;
+}
+.attendance-branch-marker span {
+    display: block;
+    width: 28px;
+    height: 28px;
+    background: #087c68;
+    border: 3px solid white;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 1px 5px #0005;
+}
+.attendance-employee-marker span {
+    display: block;
+    width: 22px;
+    height: 22px;
+    background: #2f1b72;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 1px 5px #0005;
+}
+@media (max-width: 480px) {
+    .attendance-location-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .attendance-evidence-map {
+        height: 300px;
+    }
+}
+
+.attendance-photo-comparison {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+}
+.attendance-day-details {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+.attendance-location-details.event-details {
+    grid-template-columns: minmax(0, 1fr);
+}
+.attendance-comparison-photo {
+    height: 280px;
+    aspect-ratio: auto;
+    object-fit: contain;
+}
+.attendance-photo-unavailable {
+    min-height: 140px;
+    display: grid;
+    place-items: center;
+    background: #f8fafc;
+    border: 1px dashed #e2e8f0;
+    border-radius: 10px;
+    padding: 20px;
+}
+.attendance-location .attendance-evidence-map {
+    height: 320px;
+}
+.attendance-map-key.time-out {
+    background: #f97316;
+}
+.attendance-time-out-marker span {
+    display: block;
+    width: 34px;
+    height: 34px;
+    border: 5px solid #f97316;
+    border-radius: 50%;
+    box-shadow:
+        0 0 0 2px white,
+        0 1px 5px #0005;
+}
+@media (min-width: 768px) {
+    .attendance-photo-comparison,
+    .attendance-day-details {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1280px) {
+    .attendance-day-details {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (max-width: 480px) {
+    .attendance-comparison-photo {
+        height: 240px;
+    }
+    .attendance-location .attendance-evidence-map {
+        height: 320px;
+    }
+}
+
+.attendance-map-legend-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    color: #2f1b72;
+    cursor: pointer;
+}
+.attendance-map-legend-button:hover {
+    background: #f0ecf8;
+}
+.attendance-map-legend-button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.attendance-location-comparison {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+}
+.attendance-event-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+    align-items: start;
+}
+.attendance-event-column .card-heading {
+    padding: 14px 16px;
+}
+.attendance-event-column .card-body {
+    padding: 16px;
+}
+.attendance-event-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.attendance-event-compact > * {
+    margin-block: 0;
+}
+.attendance-event-compact .attendance-location-details.event-details {
+    gap: 8px;
+}
+.attendance-event-compact .attendance-location-details > div {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 8px;
+    align-items: start;
+}
+.attendance-event-compact .attendance-location-details dd {
+    margin: 0;
+}
+.attendance-branch-details .attendance-location-details {
+    grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+    .attendance-event-column {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .attendance-branch-details .attendance-location-details {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1280px) {
+    .attendance-location-comparison {
+        grid-template-columns: minmax(0, 31fr) minmax(0, 19fr);
+    }
+    .attendance-event-column {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

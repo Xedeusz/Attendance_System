@@ -21,6 +21,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/realtime/state', WorkspaceSyncController::class)->middleware('throttle:120,1,workspace-sync:')->name('realtime.state');
     Route::get('/dashboard', fn () => redirect()->route(auth()->user()->workspaceRoute()))->name('dashboard');
+    Route::get('/profile/photo/employees/{employee}/{version}', [ProfilePhotoController::class, 'employee'])->middleware('throttle:120,1,profile-photo-read:')->name('employee.profile.photo');
     Route::get('/profile/photo/{version}', [ProfilePhotoController::class, 'show'])->middleware('throttle:120,1,profile-photo-read:')->name('profile.photo');
     Route::post('/employee/profile/photo', [ProfilePhotoController::class, 'store'])->middleware('throttle:10,1,profile-photo-write:')->name('profile.photo.store');
     Route::delete('/employee/profile/photo', [ProfilePhotoController::class, 'destroy'])->middleware('throttle:10,1,profile-photo-write:')->name('profile.photo.destroy');

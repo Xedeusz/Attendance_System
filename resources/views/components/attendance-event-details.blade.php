@@ -1,0 +1,13 @@
+@props(['entry', 'hr' => false, 'compact' => false])
+@if($entry['event'])
+@php($event = $entry['event'])
+@php($evidence = $entry['evidence'])
+<div @class(['space-y-4', 'attendance-event-compact' => $compact])><div class="flex flex-wrap gap-2"><x-state :value="$event->verification_status" /><x-state :value="$event->review_status" /><x-badge :tone="$evidence['tone']">{{ $evidence['status'] }}</x-badge>@if(!$evidence['map']['employee'])<x-badge>Missing Location</x-badge>@endif</div>
+@if(!$evidence['map']['employee'])<p class="small muted">Attendance location data is unavailable. No pin is shown for this event.</p>@endif
+<dl class="attendance-location-details event-details">@foreach($evidence['details'] as $label => $value)<div><dt title="{{ $label }}">{{ $compact ? match ($label) { 'Original geofence result' => 'Geofence result', 'Distance from branch (recorded)' => 'Distance', 'Allowed radius (recorded)' => 'Allowed radius', 'GPS accuracy (device-reported estimate)' => 'GPS accuracy', 'Location Captured At (Device-Reported)' => 'Captured (device)', 'Attendance Recorded At (Server-Recorded)' => 'Recorded (server)', default => $label } : $label }}</dt><dd>{{ $value }}</dd></div>@endforeach</dl>
+@if($event->exception_reason)<p class="small leading-6">Exception explanation: {{ $event->exception_reason }}</p>@endif
+@if($event->review)<div class="rounded-lg border border-slate-200 p-4"><p class="small font-semibold">HR {{ $event->review->action }} · {{ $event->review->reviewed_at->timezone('Asia/Manila')->format('M j, Y H:i:s') }}</p><p class="small mt-3 leading-6">{{ $event->review->remarks }}</p></div>@endif
+@if($hr && $event->review_status === 'pending')<form method="POST" class="space-y-4 border-t border-slate-100 pt-5" action="{{ route('hr.attendance.review',$event) }}">@csrf<x-select name="decision" :id="'decision-'.$event->id" label="HR decision" :options="['approved' => 'Approve as exception', 'rejected' => 'Reject']" :placeholder="null" /><div class="field-label-row"><label for="review-remarks-{{ $event->id }}" class="field-label">Review remarks</label><span class="field-required" aria-hidden="true">Required</span></div><textarea id="review-remarks-{{ $event->id }}" name="remarks" rows="4" class="field attendance-textarea" minlength="10" maxlength="1000" required></textarea><x-confirm-check label="I confirm this decision. Original GPS results and timestamps remain unchanged." /><x-button type="submit">Save review decision</x-button></form>@endif
+
+</div>
+@else<x-badge>Unavailable</x-badge><p class="small muted mt-3">No attendance submission recorded.</p>@endif

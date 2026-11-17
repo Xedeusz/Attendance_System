@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LeaveApplicationRequest;
 use App\Http\Requests\LeaveDecisionRequest;
+use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveSupportingDocument;
 use App\Models\LeaveType;
+use App\Models\SupervisorAssignment;
 use App\Services\LeaveService;
 use App\Services\WorkspaceSync;
 use Illuminate\Http\RedirectResponse;
@@ -40,7 +42,10 @@ class LeaveController extends Controller
         $query->when($data['q'] ?? null, fn ($q, $term) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', '%'.$term.'%')->orWhere('last_name', 'like', '%'.$term.'%')->orWhere('employee_number', 'like', '%'.$term.'%'))))->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('end_date', '>=', $date))->when($data['to'] ?? null, fn ($q, $date) => $q->whereDate('start_date', '<=', $date));
         $query->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
 
-        return view('leave.index', ['scope' => $scope, 'leaves' => $query->latest('id')->paginate(15)->withQueryString(), 'stats' => $stats, 'balances' => $scope === 'employee' ? EmployeeLeaveBalance::with('type')->where('employee_id', $actor->employee?->id ?? 0)->get() : collect()]);
+        $leaves = $query->latest('id')->paginate(15)->withQueryString();
+        $profileEmployeeIds = $scope === 'supervisor' ? SupervisorAssignment::current()->whereNull('revoked_at')->where('supervisor_user_id', $actor->id)->whereIn('employee_id', $leaves->pluck('employee_id'))->pluck('employee_id')->all() : [];
+
+        return view('leave.index', ['scope' => $scope, 'leaves' => $leaves, 'profileEmployeeIds' => $profileEmployeeIds, 'stats' => $stats, 'assignedEmployees' => $scope === 'supervisor' ? Employee::with(['user.employee', 'department', 'currentAssignment.branch'])->whereIn('id', SupervisorAssignment::current()->whereNull('revoked_at')->where('supervisor_user_id', $actor->id)->select('employee_id'))->orderBy('last_name')->orderBy('id')->paginate(10, ['*'], 'employees_page')->withQueryString() : null, 'balances' => $scope === 'employee' ? EmployeeLeaveBalance::with('type')->where('employee_id', $actor->employee?->id ?? 0)->get() : collect()]);
     }
 
     public function create(Request $request): View

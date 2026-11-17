@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AttendanceCorrectionController;
+use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\HR\LeaveAdministrationController;
 use App\Http\Controllers\HR\SupervisorController;
 use App\Http\Controllers\LeaveController;
@@ -31,6 +32,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     });
     Route::prefix('supervisor/leave')->name('supervisor.leave.')->group(function () {
         Route::get('/', [LeaveController::class, 'index'])->name('index');
+        Route::get('employees/{employee}/profile', [EmployeeProfileController::class, 'show'])->name('employees.profile');
         Route::get('pending', [LeaveController::class, 'index'])->name('pending');
         Route::get('history', [LeaveController::class, 'index'])->name('history');
         Route::get('notifications', [LeaveController::class, 'notices'])->name('notices');

@@ -8,6 +8,10 @@ Completed 2026-11-12. Approved project: **Web-Based Employee Attendance and Mana
 
 HR can configure the existing branch geofence using a Leaflet/OpenStreetMap picker and live radius circle. This enhancement adds the pinned Leaflet npm dependency, no schema migration, and no new attendance decision path. Saved branch configuration continues through the existing capture/event snapshots and backend Haversine/accuracy checks. Configuration changes invalidate stale captures and audit before/after office values; historical events stay unchanged. Active branches now require a complete configuration. [Map behavior, files and tests](BRANCH_MAP_GEOFENCING.md).
 
+## Attendance evidence location maps (2026-11-17)
+
+Protected attendance details now pair each original photograph with a read-only Leaflet/OpenStreetMap map of that event's saved device location, recorded branch and historical geofence. Original results and timestamps remain authoritative; missing legacy snapshots are explicitly unavailable. No GPS decision logic, route permissions, public location endpoint or database schema changes were added. The current comparison layout uses side-by-side photos and one shared daily map with Branch, Time In and Time Out markers. See [Combined Attendance Map](ATTENDANCE_EVIDENCE_COMBINED_MAP.md) for behavior, historical snapshot selection, privacy, files and verification.
+
 ## A. Implementation summary
 
 Implemented real camera/GPS attendance against Laravel/MariaDB: employee readiness checks, capture/session lifecycle, server geofence, image validation/private encryption, authoritative Time In/Out including overnight sessions, idempotency and conflicting-tab prevention. Added own history/protected evidence, company-wide HR monitoring/filters/sorting/pagination, explicit pending exception approval/rejection, assistance disposition, real dashboard totals, refresh-based review updates, audit and retention maintenance.

@@ -109,7 +109,7 @@ class AttendanceSecurityTest extends TestCase
         $this->get('/employee/attendance/records/'.$event->attendance_record_id)->assertForbidden();
         $this->get('/employee/attendance/history')->assertOk()->assertDontSee('View record');
         $this->actingAs($this->reviewer())->get('/attendance/photos/'.$photo->id)->assertOk();
-        $this->get('/employee/attendance/records/'.$event->attendance_record_id)->assertOk()->assertSee('Employee-reported, untrusted coordinates');
+        $this->get('/employee/attendance/records/'.$event->attendance_record_id)->assertOk()->assertSee('Attendance Location')->assertSee('Technical Attendance Location Details');
     }
 
     public function test_failed_transaction_cleans_staged_files_and_rolls_back_all_attendance_facts(): void

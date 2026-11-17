@@ -6,12 +6,14 @@ import morph from "@alpinejs/morph";
 import initializeRealtime from "./realtime";
 import registerAttendance from "./attendance";
 import registerBranchLocationMap from "./branch-location-map";
+import registerAttendanceLocationMap from "./attendance-location-map";
 
 registerProfilePhoto(Alpine);
 Alpine.plugin(focus);
 Alpine.plugin(morph);
 registerAttendance(Alpine);
 registerBranchLocationMap(Alpine);
+registerAttendanceLocationMap(Alpine);
 Alpine.data("workspaceShell", () => ({
     mobileOpen: false,
     collapsed: false,
