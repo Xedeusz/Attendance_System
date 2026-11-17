@@ -119,3 +119,6 @@ Run separate terminals with `powershell -NoProfile -ExecutionPolicy Bypass -File
 Read [architecture and exact local/HTTPS setup](docs/REALTIME_SYSTEM_ARCHITECTURE.md), [events, recipient scopes and source inventory](docs/REALTIME_EVENT_MATRIX.md), and [automated/manual verification](docs/REALTIME_TESTING.md). Real local `.env` secrets remain uncommitted. Apply the additive workspace revision migration on other installations; do not reset existing tables.
 
 HR-controlled [Supervisor department linking](docs/SUPERVISOR_DEPARTMENT_LINKING.md) is implemented. Apply the additive user-department migration on upgrades and review legacy assignment conflicts. A department link does not grant department-wide leave access.
+
+
+Employee [profile picture management](docs/EMPLOYEE_PROFILE_MANAGEMENT.md) supports private, owner-only uploads, previews, replacement/removal and synchronized initials/photo avatars. Apply the additive profile-photo migration on upgrades; GD and persistent private storage are required. Attendance camera evidence is separate.

@@ -38,7 +38,7 @@ Active states now follow the actual attendance/history routes. Closed mobile nav
 
 The topbar remains compact, with readable account details and the working Notifications link. Development workspace is still limited to local/testing environments. Breadcrumb/page-header typography, primary/secondary action grouping and footer contrast are consistent.
 
-No approved logo image currently exists at `public/limcoma-logo.png`. The interface uses the LIMCOMA wordmark without inventing a replacement symbol. Supplying an approved image at that existing supported path will render it automatically. Login uses one main Sign in heading, restrained company context, clearer account help and the existing protected login form. Password visibility, CSRF, recovery configuration and authentication behavior are unchanged.
+The approved LIMCOMA logo is served from `public/LIMCOMA-LOGO.png` and is rendered by the shared brand component. Login uses one main Sign in heading, restrained company context, clearer account help and the existing protected login form. Password visibility, CSRF, recovery configuration and authentication behavior are unchanged.
 
 ## HR experience
 

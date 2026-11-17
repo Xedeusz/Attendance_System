@@ -5,7 +5,7 @@
         <section class="card workday-focus" aria-labelledby="workday-attendance-heading">
             <div class="card-heading"><div><p class="section-kicker">Attendance</p><h2 id="workday-attendance-heading">{{ $open?->review_status === 'pending' ? 'Awaiting HR review' : ($open ? 'Your attendance session is open' : 'Ready for your workday') }}</h2></div><x-state :value="$open?->session_status ?? 'not_clocked_in'" /></div>
             <div class="card-body">
-                <p class="workday-name">{{ $user->employee?->full_name ?? $user->name }}</p>
+                <x-user-avatar :user="$user" class="mb-4" /><p class="workday-name">{{ $user->employee?->full_name ?? $user->name }}</p>
                 @if($user->employee)
                     <p class="muted small">{{ $user->employee->currentAssignment?->branch->branch_name ?? 'No primary branch assigned' }}</p>
                     @if($open?->time_in_at)<p class="workday-timestamp">Time In: {{ $open->time_in_at->timezone(config('attendance.timezone'))->format('M j, Y · g:i A') }} <span>{{ config('attendance.timezone') }}</span></p>@endif

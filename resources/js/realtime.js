@@ -164,6 +164,7 @@ export default function initializeRealtime(Alpine) {
             return;
         }
         running = true;
+        const requestStartedAt = performance.now();
         try {
             const url = new URL(config.stateUrl);
             if (document.querySelector('[x-data^="attendanceCapture"]'))
@@ -190,6 +191,13 @@ export default function initializeRealtime(Alpine) {
                     changed.some((topic) => pageTopics.includes(topic)))
             )
                 await refreshPage();
+            if (
+                state.avatar &&
+                Alpine.store("profileAvatar").updatedAt <= requestStartedAt
+            )
+                Object.assign(Alpine.store("profileAvatar"), state.avatar, {
+                    ready: true,
+                });
             revisions = state.revisions;
             businessDate = state.business_date;
             const name = document.querySelector(".user-name");

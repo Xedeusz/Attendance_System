@@ -16,7 +16,7 @@ class WorkspaceSyncController extends Controller
         $user = $request->user();
         $data = [
             'channel' => WorkspaceSync::channel($user),
-            'user_name' => $user->name,
+            'user_name' => $user->name, 'avatar' => $user->avatarData(),
             'business_date' => now(config('attendance.timezone'))->toDateString(),
             'revisions' => DB::table('workspace_revisions')->where('user_id', $user->id)->whereIn('topic', $sync->topics($user))->pluck('revision', 'topic'),
             'unread' => $user->unreadNotifications()->when($user->isSupervisor(), fn ($query) => $query->where('data->category', 'leave'))->count(),

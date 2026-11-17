@@ -14,7 +14,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'profile_photo_path'])]
 class User extends Authenticatable
 {
     protected $attributes = ['role_id' => Role::EMPLOYEE, 'account_status' => 'pending_activation', 'session_version' => 1];
@@ -50,6 +50,18 @@ class User extends Authenticatable
             Role::SUPERVISOR => 'Supervisor',
             default => 'Employee',
         };
+    }
+
+    /** @return array{url: ?string, initials: string} */
+    public function avatarData(): array
+    {
+        $words = preg_split('/\s+/u', trim($this->name), -1, PREG_SPLIT_NO_EMPTY);
+        $initials = $words ? mb_substr($words[0], 0, 1).(count($words) > 1 ? mb_substr($words[count($words) - 1], 0, 1) : '') : '?';
+        if ($this->employee) {
+            $initials = mb_substr($this->employee->first_name, 0, 1).mb_substr($this->employee->last_name, 0, 1);
+        }
+
+        return ['url' => $this->profile_photo_path ? route('profile.photo', hash('sha256', $this->profile_photo_path)) : null, 'initials' => mb_strtoupper($initials)];
     }
 
     public function employee(): HasOne

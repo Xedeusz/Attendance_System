@@ -20,7 +20,7 @@ Primary buttons use purple/white; secondary buttons use white with purple text a
 
 ## Logo and company identity
 
-No approved LIMCOMA logo image was found in the repository. The LIMCOMA / Multipurpose Cooperative wordmark is used without an invented substitute symbol. It is not represented as an approved logo image. Place an approved PNG at **`public/limcoma-logo.png`**; the shared brand component will render it on login and both sidebars. Do not replace it with an invented logo. Application titles/footers, login identity and activation invitation subject/body use LIMCOMA. Existing environment-specific application/session configuration was not changed.
+The approved LIMCOMA logo is **`public/LIMCOMA-LOGO.png`**; the shared brand component renders it on login and both sidebars. Do not replace it with an invented logo. Application titles/footers, login identity and activation invitation subject/body use LIMCOMA. Existing environment-specific application/session configuration was not changed.
 
 ## Files changed for branding
 

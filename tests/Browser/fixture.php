@@ -121,6 +121,11 @@ if (($argv[1] ?? '') === 'create') {
         Employee::whereIn('id', $employees->pluck('id'))->delete();
         DB::table('sessions')->whereIn('user_id', $userIds)->delete();
         DB::table('password_reset_tokens')->whereIn('email', $users->pluck('email'))->delete();
+        foreach ($users as $user) {
+            if ($user->profile_photo_path && preg_match('~^profile-photos/[a-f0-9-]{36}\.jpg$~D', $user->profile_photo_path)) {
+                Storage::disk('local')->delete($user->profile_photo_path);
+            }
+        }
         User::whereIn('id', $userIds)->delete();
         // Restrictive FKs reject cleanup if a non-fixture employee references these records.
         Branch::whereIn('branch_code', [$prefix.'-BRANCH', $prefix.'-MAP'])->delete();

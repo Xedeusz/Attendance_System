@@ -7,6 +7,7 @@ use App\Http\Controllers\EmployeeAttendanceController;
 use App\Http\Controllers\HR;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\AttendanceReviewController;
+use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\WorkspaceController;
 use App\Http\Controllers\WorkspaceSyncController;
@@ -20,6 +21,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/realtime/state', WorkspaceSyncController::class)->middleware('throttle:120,1,workspace-sync:')->name('realtime.state');
     Route::get('/dashboard', fn () => redirect()->route(auth()->user()->workspaceRoute()))->name('dashboard');
+    Route::get('/profile/photo/{version}', [ProfilePhotoController::class, 'show'])->middleware('throttle:120,1,profile-photo-read:')->name('profile.photo');
+    Route::post('/employee/profile/photo', [ProfilePhotoController::class, 'store'])->middleware('throttle:10,1,profile-photo-write:')->name('profile.photo.store');
+    Route::delete('/employee/profile/photo', [ProfilePhotoController::class, 'destroy'])->middleware('throttle:10,1,profile-photo-write:')->name('profile.photo.destroy');
     Route::get('/profile', [SelfServiceController::class, 'profile'])->name('profile');
     Route::patch('/profile', [SelfServiceController::class, 'update'])->name('profile.update');
     Route::get('/settings', [SelfServiceController::class, 'settings'])->name('settings');
