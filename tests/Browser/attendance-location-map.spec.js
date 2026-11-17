@@ -55,7 +55,7 @@ async function submit(page, action, latitude, file, mimeType) {
 test("one shared day map, photo comparison, missing checkout, read-only controls and fallback", async ({
     browser,
 }) => {
-    test.setTimeout(150000);
+    test.setTimeout(180000);
     const hr = fixture("create");
     const contexts = [];
     try {
@@ -104,7 +104,45 @@ test("one shared day map, photo comparison, missing checkout, read-only controls
             "resources/images/LIMCOMA.png",
             "image/png",
         );
+        await owner.goto("/employee/profile");
+        await owner
+            .locator("input[type=file]")
+            .setInputFiles("resources/images/limcoma logo.jpg");
+        await owner
+            .getByRole("button", { name: "Save Photo", exact: true })
+            .click();
+        await expect(
+            owner.locator(".topbar .user-trigger .avatar img"),
+        ).toBeVisible();
+        for (const path of [
+            "/employee/dashboard",
+            "/employee/attendance/history",
+            first.record_url,
+        ]) {
+            await owner.goto(path);
+            await expect(
+                owner.locator(".attendance-identity img"),
+            ).toBeVisible();
+        }
+        await admin.bringToFront();
+        await admin.goto(
+            "/hr/attendance?q=" + encodeURIComponent(hr.prefix + "-EMP"),
+        );
+        await expect(
+            admin.locator(".attendance-table-avatar img"),
+        ).toBeVisible();
+        await admin.goto(first.record_url);
+        await expect(admin.locator(".attendance-identity img")).toBeVisible();
+        const avatarUrl = await admin
+            .locator(".attendance-identity img")
+            .getAttribute("src");
+        expect((await admin.request.get(avatarUrl)).status()).toBe(200);
+        await contexts[1].route(avatarUrl, (route) => route.abort());
         await admin.reload();
+        await expect(admin.locator(".attendance-identity img")).toBeHidden();
+        await contexts[1].unroute(avatarUrl);
+        await admin.reload();
+        await expect(admin.locator(".attendance-identity img")).toBeVisible();
         const sections = admin.locator(".attendance-location");
         const maps = admin.locator(".attendance-evidence-map");
         await expect(maps).toHaveCount(1);
@@ -280,6 +318,7 @@ test("one shared day map, photo comparison, missing checkout, read-only controls
             elements.map((e) => e._leaflet_id),
         );
         // A visibility refresh exercises the existing morph hook without replacing unchanged maps.
+        await admin.bringToFront();
         const refresh = admin.waitForResponse(
             (response) =>
                 response.request().headers()["x-workspace-sync"] === "1" &&
@@ -316,6 +355,19 @@ test("one shared day map, photo comparison, missing checkout, read-only controls
         await expect(
             admin.locator("img.attendance-video").first(),
         ).toBeVisible();
+        await admin.evaluate(() =>
+            window.workspaceEcho?.connector.pusher.disconnect(),
+        );
+        await owner.goto("/employee/profile");
+        await owner
+            .getByRole("button", { name: "Remove Photo", exact: true })
+            .click();
+        await owner.locator(".swal2-confirm").click();
+        await admin.bringToFront();
+        await expect(admin.locator(".attendance-identity img")).toHaveCount(0, {
+            timeout: 35000,
+        });
+        await expect(admin.locator("img.attendance-video")).toHaveCount(2);
         expect(errors).toEqual([]);
     } finally {
         await Promise.all(contexts.map((c) => c.close()));

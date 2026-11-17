@@ -50,3 +50,30 @@ Optional interactive cropping was not introduced. Circular presentation uses asp
 - `resources/views/employee/profile.blade.php`, `resources/views/employee/dashboard.blade.php`: profile header/controls and dashboard display.
 - `tests/Feature/ProfilePhotoTest.php`, `tests/Browser/profile-photo.spec.js`, `tests/Browser/fixture.php`: regression coverage and scoped QA-file cleanup.
 - This document and README cross-reference. The existing landing-page stylesheet/image changes belong to the earlier task and were preserved.
+## Attendance avatar integration
+
+Attendance pages reuse the existing user-avatar component and private, versioned profile-photo routes. A shared attendance-identity component shows employee name, Employee ID and branch with a 56 px avatar on desktop, 48 px on tablet and 44 px on small screens. HR Attendance Details and employee Attendance Details display the record employee; employee history and My Workday display the authenticated employee. HR Monitoring uses 34 px avatars beside employee names without adding a table column. Initials and failed-image fallback retain the existing LIMCOMA style. No new image storage, dependencies, migrations, image endpoints or permissions are introduced.
+
+AttendanceQueries and the details controller eager-load employee.user.employee so avatarData does not cause a separate inverse employee query per row. A regression compares database query counts for one versus five employees. Existing private hash-version URLs change on successful photo replacement; old URLs stop serving the replaced photo. Current avatars may change while historical Time In/Out camera photos, their encrypted bytes, event coordinates, timestamps and review records remain unchanged.
+
+The existing per-user revisions, Reverb updates and polling fallback refresh HR pages; the authenticated employee avatar store updates own pages. No image bytes or storage paths are broadcast. Supervisors retain leave-only access, and unrelated employees cannot fetch another employee's protected avatar. A missing avatar never blocks attendance, map or camera workflows.
+
+Integration files:
+
+- resources/views/components/attendance-identity.blade.php (new)
+- resources/views/components/user-avatar.blade.php (early image-error fallback)
+- resources/views/attendance/show.blade.php
+- resources/views/attendance/index.blade.php
+- resources/views/employee/dashboard.blade.php
+- app/Services/AttendanceQueries.php
+- app/Http/Controllers/EmployeeAttendanceController.php
+- resources/css/app.css
+- tests/Feature/AttendanceAvatarTest.php (new)
+- tests/Browser/attendance-location-map.spec.js
+- docs/EMPLOYEE_PROFILE_MANAGEMENT.md
+
+Tests exercise all attendance avatar surfaces, HR/owner and denied role boundaries, missing/removed avatars, image versions, immutable evidence and fixed query counts. The existing Edge attendance regression additionally checks real uploads, own Workday/history/details avatars, HR table/details avatars, failed-image fallback, responsive layouts and photo removal propagation with the viewer's Reverb disconnected.
+
+The shared avatar also checks for an already-failed image after initialization, covering failures that happen before its error listener attaches. The browser test foregrounds the HR page for lazy images and visibility-driven synchronization, consistent with the application's background-tab behavior.
+
+Attendance avatar verification: the full PHP suite passed 243 tests / 1,831 assertions. After hardening image fallback, the focused attendance-avatar, profile-photo and profile-access suites passed 18 tests / 210 assertions. The Edge attendance regression passed with own dashboard/history/details avatars, HR monitoring/details avatars, forced image failure initials, responsive widths, map controls, tile failure, and profile photo removal updating the foreground HR page through existing sync while original camera photos remained present. Synthetic fixtures were cleaned up. Production build, Blade compilation, Pint, Prettier and whitespace checks passed.

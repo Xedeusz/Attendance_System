@@ -38,7 +38,7 @@ class AttendanceQueries
     {
         $data = $request->validate(['from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('from') ? ['after_or_equal:from'] : [])], 'q' => $employeeId === null ? ['nullable', 'string', 'max:100'] : ['prohibited'], 'branch_id' => $employeeId === null ? ['nullable', 'integer', 'exists:branches,id'] : ['prohibited'], 'employee_id' => $employeeId === null ? ['nullable', 'integer', 'exists:employees,id'] : ['prohibited'], 'session_status' => ['nullable', Rule::in(['open', 'pending', 'completed', 'cancelled'])], 'verification_status' => ['nullable', Rule::in(['location_validated', 'pending_review', 'exception_approved', 'rejected'])], 'sort' => ['nullable', Rule::in(['work_date', 'created_at', 'time_in_at'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])]]);
 
-        return AttendanceRecord::with(['employee.user', 'branch'])
+        return AttendanceRecord::with(['employee.user.employee', 'branch'])
             ->when($employeeId !== null, fn ($query) => $query->where('employee_id', $employeeId))
             ->when($employeeId === null && ! empty($data['employee_id']), fn ($query) => $query->where('employee_id', $data['employee_id']))
             ->when($employeeId === null && ! empty($data['branch_id']), fn ($query) => $query->where('branch_id', $data['branch_id']))

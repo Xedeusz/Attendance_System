@@ -78,7 +78,7 @@ class EmployeeAttendanceController extends Controller
     {
         Gate::authorize('view', $record);
 
-        return view('attendance.show', ['record' => $record->load(['employee.user', 'branch', 'events.photo', 'events.review.reviewer']), 'hr' => auth()->user()->isHr()]);
+        return view('attendance.show', ['record' => $record->load(['employee.user.employee', 'branch', 'events.photo', 'events.review.reviewer']), 'hr' => auth()->user()->isHr()]);
     }
 
     public function assistance(Request $request, AttendanceService $attendance): RedirectResponse

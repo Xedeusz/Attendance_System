@@ -5,9 +5,8 @@
         <section class="card workday-focus" aria-labelledby="workday-attendance-heading">
             <div class="card-heading"><div><p class="section-kicker">Attendance</p><h2 id="workday-attendance-heading">{{ $open?->review_status === 'pending' ? 'Awaiting HR review' : ($open ? 'Your attendance session is open' : 'Ready for your workday') }}</h2></div><x-state :value="$open?->session_status ?? 'not_clocked_in'" /></div>
             <div class="card-body">
-                <x-user-avatar :user="$user" class="mb-4" /><p class="workday-name">{{ $user->employee?->full_name ?? $user->name }}</p>
+                @if($user->employee)<x-attendance-identity :employee="$user->employee" :branch-name="$user->employee->currentAssignment?->branch?->branch_name" />@else<x-user-avatar :user="$user" class="attendance-identity-avatar mb-4" /><p class="workday-name">{{ $user->name }}</p>@endif
                 @if($user->employee)
-                    <p class="muted small">{{ $user->employee->currentAssignment?->branch->branch_name ?? 'No primary branch assigned' }}</p>
                     @if($open?->time_in_at)<p class="workday-timestamp">Time In: {{ $open->time_in_at->timezone(config('attendance.timezone'))->format('M j, Y · g:i A') }} <span>{{ config('attendance.timezone') }}</span></p>@endif
                     <p class="workday-guidance">{{ $open?->review_status === 'pending' ? 'Your submission is saved. HR must complete the review before you can record another action.' : ($open ? 'Open attendance to record your next action with a fresh camera photo and location.' : 'No open attendance session. Open attendance to check your available actions and record Time In.') }}</p>
                     <div class="workday-actions"><x-button :href="route('employee.attendance')"><x-icon name="clock" />Open attendance</x-button><a class="text-link" href="{{ route('employee.attendance.history') }}">Attendance history <x-icon name="arrow" /></a></div>
