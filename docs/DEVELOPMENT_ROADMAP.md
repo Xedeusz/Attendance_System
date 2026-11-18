@@ -18,3 +18,5 @@ Phase 5 details and exact inventory: [implementation](PHASE_5_IMPLEMENTATION.md)
 Obtain HR-approved definitions, recipients, date/time rules, report totals and export fields before implementing Reports and Analytics. Start from existing server attendance facts, clearly labeled manual correction overlays and final leave decisions. Do not invent late/absent/overtime classifications without schedules. Authorize each report/export, minimize photos/GPS/reasons, prevent spreadsheet formula injection and audit sensitive exports. Reconcile sample totals and test role/record scope and pagination.
 
 Scheduling, payroll, automated entitlement accrual, approved-leave reversal, off-site attendance, paid APIs, offline/native apps, public deployment and external notifications require separate authorization. No Phase 6 code or public deployment is included in Phase 5.
+
+Phase 5 also includes the [Leave Calendar](LEAVE_CALENDAR.md). It displays recorded leave and overlap counts. Work scheduling remains a separate phase.

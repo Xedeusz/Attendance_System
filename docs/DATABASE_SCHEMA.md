@@ -7,9 +7,9 @@ Updated 2026-11-16. XAMPP MariaDB 10.11.16 / InnoDB / utf8mb4; UTC timestamps an
 | --- | --- |
 | leave_requests | Nullable encrypted form_snapshot with employee name, department, branch and official leave-type mapping at submission. Earlier applications can retain a null snapshot. |
 | supervisor_signatures | Supervisor user FK, unique private path, version unique per Supervisor, registration and revocation timestamps. |
-| leave_approval_documents | Unique leave request FK, approver and signature FKs, unique document reference and private path, SHA-256 of the original PDF bytes, version, template reference, approver name and generation time. |
+| leave_approval_documents | Leave request FK and unique request/version pair, unique QR token digest for new issues, revocation metadata and optional replacement FK, approver and signature FKs, unique document reference and private path, SHA-256 of the original PDF bytes, version, template reference, approver name and generation time. |
 
-The private leave disk stores encrypted signature PNGs and final PDFs. The signature record preserves provenance after replacement. Approved PDFs are generated during the existing transaction, with one final document per request and the existing unique balance debit maintained. The enhancement migration refuses rollback while form history exists.
+The private leave disk stores encrypted signature PNGs and final PDFs. The signature record preserves provenance after replacement. Approved PDFs are generated during the existing transaction, with one current version per request, preserved historical versions and the existing unique balance debit maintained. The enhancement migration refuses rollback while form history exists.
 
 ## Phase 5 additive migration
 database/migrations/2026_11_16_061609_create_phase_five_workflows.php was applied locally using migrate, without fresh/reset/wipe. It extends roles.code enum with supervisor and adds the following tables.

@@ -25,3 +25,5 @@ Device-file PDF/JPEG/PNG uploads are allowed for leave; camera-only restrictions
 leave.document_retention_days defaults to null until the company confirms retention. A configured value sets purge_after at upload; changing configuration does not retroactively rewrite existing expiry dates. leave:purge-documents removes expired bytes and retains document metadata/history. Approval checks that any required evidence is still present in private storage. Approved PDFs and Supervisor signatures are stored separately from supporting evidence and are excluded from its purge command. APP_KEY and encrypted backups must be retained securely.
 
 Company confirmation still needed: official type names and guidance; credits/policy years/accrual/carry-over; schedules/holidays; document requirements/retention/legal holds; cancellation/reversal rules; request deadlines; authorized Supervisor coverage. Existing operational privacy and real-device rollout requirements still apply.
+
+The [Leave Calendar](LEAVE_CALENDAR.md) displays scheduled leave by status and links to the existing application and official PDF.

@@ -5,9 +5,11 @@ Implemented 2026-11-16 in the existing Laravel 13 / PHP 8.5 / Fortify / Blade / 
 
 The online request now creates a saved preview of the **LMPC Leave Application Form — HRD No. 23/Rev.2**. An assigned Supervisor uses their registered electronic signature and current password to approve and generate a private signed PDF in the existing final decision workflow. Rejection keeps the application unsigned. Employee signature implementation is deferred. HR retains monitoring and routing authority.
 
-The additive migration adds submission snapshots, supervisor signature versions and one immutable approved document per request. The existing balance ledger and notification flow are reused.
+The additive migration adds submission snapshots, supervisor signature versions and the initial immutable approved document per request. The existing balance ledger and notification flow are reused.
 
 See [form fields and renderer](LIMCOMA_OFFICIAL_LEAVE_FORM.md), [signature setup](SUPERVISOR_E_SIGNATURE.md), and [decision workflow](LEAVE_APPROVAL_WORKFLOW.md). Authorized LIMCOMA HR must approve the form and signing procedure for production.
+
+The QR enhancement adds authenticated verification, integrity checking, HR document revocation and Supervisor-signed replacement versions. [QR verification workflow](LEAVE_QR_VERIFICATION.md)
 
 ### Enhancement verification
 
@@ -199,3 +201,5 @@ Recommend Phase 6 Reports and Analytics after HR confirms definitions/recipients
 ## Direct Supervisor department assignment
 
 HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.
+
+The [Leave Calendar enhancement](LEAVE_CALENDAR.md) adds month, week and list views, authorized filters, and staffing overlap counts.

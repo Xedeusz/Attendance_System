@@ -47,11 +47,15 @@
         .signature-image img { display: block; width: 100%; height: 88px; object-fit: contain; }
         .signature-caption { border-top: 1px solid; padding-top: 4px; overflow-wrap: anywhere; }
         .signature-caption strong { display: block; }
-        .footnote { margin: 8px 0 0; font-size: 11px; }
+        .footnote { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 8px 0 0; font-size: 11px; break-inside: avoid; }
+        .verification-code { margin: 0; flex: none; text-align: center; }
+        .verification-code img { display: block; width: 27mm; height: 27mm; background: white; }
         .status { margin: 0 0 12px; font-weight: bold; }
         @media print {
             .paper { padding: 0; }
-            .application, .block { padding: 6mm; }
+            .application, .block { padding: 4.5mm; }
+            .application dl { margin-block: 8px; }
+            .options { margin-block: 12px; }
             .block { min-height: 47mm; }
         }
         @media screen and (max-width: 510px) {
@@ -117,7 +121,13 @@
         </section>
     </div>
     @isset($approval)
-        <p class="footnote">Document {{ $approval['reference'] }} · Approved {{ $approval['signedAt'] }}@if($approval['chargedDays'] !== null) · Chargeable days {{ $approval['chargedDays'] }}@endif</p>
+        <footer class="footnote">
+            <p>Document {{ $approval['reference'] }} · {{ $approval['version'] > 1 ? 'Reissued' : 'Approved' }} {{ $approval['signedAt'] }}@if($approval['chargedDays'] !== null) · Chargeable days {{ $approval['chargedDays'] }}@endif</p>
+            <figure class="verification-code">
+                <a href="{{ $approval['verificationUrl'] }}"><img src="data:image/svg+xml;base64,{{ $approval['qr'] }}" alt="Leave document verification QR code"></a>
+                <figcaption>Scan to Verify</figcaption>
+            </figure>
+        </footer>
     @endisset
 </main>
 </body>

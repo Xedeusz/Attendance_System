@@ -63,7 +63,7 @@ async function confirmPassword(page) {
 test("employee submission, final Supervisor decision, private document and HR correction work on MariaDB", async ({
     browser,
 }) => {
-    test.setTimeout(180000);
+    test.setTimeout(240000);
     const contexts = await Promise.all([
         browser.newContext(),
         browser.newContext(),
@@ -74,7 +74,7 @@ test("employee submission, final Supervisor decision, private document and HR co
     );
     const errors = [];
     for (const page of [hrPage, employeePage, supPage]) {
-        page.setDefaultTimeout(15000);
+        page.setDefaultTimeout(30000);
         page.on("pageerror", (error) => errors.push(error.message));
     }
     await login(hrPage, hr);
@@ -89,6 +89,30 @@ test("employee submission, final Supervisor decision, private document and HR co
     await expect(hrPage.locator(".swal2-popup")).toBeVisible();
     await hrPage.locator(".swal2-confirm").click();
     await expect(hrPage.locator("table")).toContainText("Synthetic Employee");
+    const calendarPage = await contexts[0].newPage();
+    calendarPage.on("pageerror", (error) => errors.push(error.message));
+    await calendarPage.goto(
+        "/hr/leave/calendar?view=month&date=" + supervisor.from,
+    );
+    const schedules = calendarPage.getByRole("region", {
+        name: "Leave schedules",
+    });
+    const period = schedules.getByRole("heading", { level: 2 });
+    const initialPeriod = await period.innerText();
+    await calendarPage.getByRole("button", { name: "Next period" }).click();
+    await expect(period).not.toHaveText(initialPeriod);
+    await calendarPage.getByRole("button", { name: "Previous period" }).click();
+    await expect(period).toHaveText(initialPeriod);
+    await calendarPage
+        .getByRole("button", { name: "List", exact: true })
+        .click();
+    const statusFilter = calendarPage
+        .locator('[aria-label="Calendar filters"] select')
+        .last();
+    await statusFilter.selectOption("approved");
+    await calendarPage.getByRole("button", { name: "Clear filters" }).click();
+    await expect(statusFilter).toHaveValue("");
+    await expect(calendarPage.locator("[data-sync-status]")).toHaveText("Live");
     await login(employeePage, employee);
     await employeePage.goto("/employee/leave/create");
     for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280]) {
@@ -130,6 +154,11 @@ test("employee submission, final Supervisor decision, private document and HR co
         .click();
     await expect(employeePage).toHaveURL(/employee\/leave\/\d+$/);
     const leaveId = employeePage.url().split("/").at(-1);
+    await expect(
+        schedules.getByRole("button", {
+            name: /Synthetic Employee.*Pending Supervisor approval/,
+        }),
+    ).toBeVisible({ timeout: 15000 });
     const unsignedForm = await employeePage.request.get(
         `/employee/leave/${leaveId}/form`,
     );
@@ -140,7 +169,25 @@ test("employee submission, final Supervisor decision, private document and HR co
     await login(supPage, supervisor);
     await expect(supPage.locator(".sidebar")).not.toContainText("Attendance");
     await enrollSignature(supPage, supervisor);
-    await supPage.goto("/supervisor/leave/" + leaveId);
+    await supPage.goto(
+        "/supervisor/leave/calendar?view=week&date=" + supervisor.from,
+    );
+    const pendingDay = supPage.locator('[aria-label="Selected day leave"]');
+    await pendingDay
+        .getByRole("button", {
+            name: /Synthetic Employee.*Pending Supervisor approval/,
+        })
+        .click();
+    const calendarDetails = supPage.getByRole("dialog", {
+        name: "Leave application details",
+    });
+    await expect(calendarDetails).toBeVisible();
+    await calendarDetails
+        .getByRole("link", { name: "Review Application" })
+        .click();
+    await expect(supPage).toHaveURL(
+        new RegExp("/supervisor/leave/" + leaveId + "$"),
+    );
     for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280]) {
         await supPage.setViewportSize({ width, height: 950 });
         await fits(supPage);
@@ -216,6 +263,36 @@ test("employee submission, final Supervisor decision, private document and HR co
     await expect(employeePage.locator("main")).toContainText("Approved", {
         timeout: 20000,
     });
+    await expect(
+        schedules.getByRole("button", { name: /Synthetic Employee.*Approved/ }),
+    ).toBeVisible({ timeout: 15000 });
+    const personalCalendar = await contexts[1].newPage();
+    personalCalendar.on("pageerror", (error) => errors.push(error.message));
+    await personalCalendar.setViewportSize({ width: 320, height: 800 });
+    await personalCalendar.goto(
+        "/employee/leave/calendar?date=" + supervisor.from,
+    );
+    await expect(
+        personalCalendar.getByRole("button", { name: "List", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await fits(personalCalendar);
+    await personalCalendar
+        .getByRole("button", { name: /Others.*Approved/ })
+        .click();
+    await expect(
+        personalCalendar
+            .getByRole("dialog", { name: "Leave application details" })
+            .getByRole("link", { name: "View Approved Form" }),
+    ).toBeVisible();
+    await personalCalendar.keyboard.press("Escape");
+    await expect(
+        personalCalendar.getByRole("dialog", {
+            name: "Leave application details",
+        }),
+    ).toBeHidden();
+    await personalCalendar.close();
+    await calendarPage.close();
+
     const approvedLink = employeePage.getByRole("link", {
         name: "View Approved Form",
     });
@@ -246,6 +323,38 @@ test("employee submission, final Supervisor decision, private document and HR co
     );
     expect(download.headers()["content-disposition"]).toMatch(/^attachment/);
     expect(await download.body()).toEqual(bytes);
+    const qrUrl = pdf.match(
+        /\/URI \(([^)]+\/verify\/leave#[a-f0-9]{64})\)/,
+    )?.[1];
+    expect(qrUrl).toBeTruthy();
+    const scanContext = await browser.newContext({
+        viewport: { width: 375, height: 800 },
+    });
+    const scanPage = await scanContext.newPage();
+    try {
+        await scanPage.goto(qrUrl, { waitUntil: "commit" });
+        await expect(scanPage).toHaveURL(/\/login$/);
+        await scanPage.getByLabel("Email address").fill(hr.email);
+        await scanPage
+            .getByLabel("Password", { exact: true })
+            .fill(hr.password);
+        await scanPage
+            .getByRole("button", { name: "Sign in", exact: true })
+            .click();
+        await expect(
+            scanPage.getByRole("heading", { name: "Valid Approved Record" }),
+        ).toBeVisible();
+        await expect(
+            scanPage.getByRole("link", { name: "View Official PDF" }),
+        ).toBeVisible();
+        expect(
+            await scanPage.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+        ).toBe(true);
+    } finally {
+        await scanContext.close();
+    }
     await employeePage.goto("/employee/leave");
     await expect(employeePage.locator("main")).toContainText(
         "3.00 days available",

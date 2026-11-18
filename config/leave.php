@@ -6,5 +6,6 @@ return [
     'max_request_calendar_days' => 366,
     'pdf_node_binary' => env('LEAVE_PDF_NODE_BINARY'),
     'pdf_browser_binary' => env('LEAVE_PDF_BROWSER_BINARY'),
+    'verification_url' => env('LEAVE_VERIFICATION_URL'),
     'cancellation' => 'pending_only',
 ];

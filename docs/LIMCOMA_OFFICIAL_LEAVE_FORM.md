@@ -20,6 +20,8 @@ Users with access can view the saved application before approval. After signing,
 
 The original LIMCOMA logo is centered behind the form in previews and new approved PDFs. See [watermark implementation and print verification](LIMCOMA_LEAVE_FORM_WATERMARK.md).
 
+Approved versions include a QR and reference in the footer. [QR verification and versioning](LEAVE_QR_VERIFICATION.md)
+
 ## Renderer setup
 
 The renderer uses Node, the existing Playwright package, and headless Chromium or Microsoft Edge. Install the existing JavaScript dependencies, including development dependencies, on the host serving approval requests. The XAMPP setup resolves the project-local Node binary and standard Edge path when available. Set `LEAVE_PDF_NODE_BINARY` or `LEAVE_PDF_BROWSER_BINARY` to absolute paths when using other locations. PHP must be able to launch the browser and write to the private leave disk. Rendering passes HTML and PDF bytes over process pipes. The browser page uses escaped content with JavaScript and network requests disabled.

@@ -10,9 +10,14 @@ class LeaveApprovalDocument extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['leave_request_id', 'approved_by_user_id', 'supervisor_signature_id', 'document_reference', 'storage_path', 'sha256_hash', 'version', 'template_reference', 'approver_name', 'generated_at'];
+    protected $fillable = ['leave_request_id', 'approved_by_user_id', 'supervisor_signature_id', 'document_reference', 'storage_path', 'sha256_hash', 'version', 'template_reference', 'approver_name', 'generated_at', 'verification_token_hash', 'revoked_at', 'revoked_by_user_id', 'superseded_by_document_id'];
 
-    protected $hidden = ['storage_path'];
+    protected $hidden = ['storage_path', 'verification_token_hash'];
+
+    public function leave(): BelongsTo
+    {
+        return $this->belongsTo(LeaveRequest::class, 'leave_request_id');
+    }
 
     public function signature(): BelongsTo
     {
@@ -21,6 +26,6 @@ class LeaveApprovalDocument extends Model
 
     protected function casts(): array
     {
-        return ['generated_at' => 'datetime'];
+        return ['generated_at' => 'datetime', 'revoked_at' => 'datetime'];
     }
 }

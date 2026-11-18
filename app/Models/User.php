@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -18,6 +19,16 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     protected $attributes = ['role_id' => Role::EMPLOYEE, 'account_status' => 'pending_activation', 'session_version' => 1];
+
+    public function workspaceNotifications(): MorphMany
+    {
+        $notifications = $this->notifications();
+        if ($this->isSupervisor()) {
+            $notifications->where('data->category', 'leave');
+        }
+
+        return $notifications;
+    }
 
     public function isHr(): bool
     {

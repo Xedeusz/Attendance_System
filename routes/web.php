@@ -7,6 +7,7 @@ use App\Http\Controllers\EmployeeAttendanceController;
 use App\Http\Controllers\HR;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\AttendanceReviewController;
+use App\Http\Controllers\NotificationDropdownController;
 use App\Http\Controllers\ProfilePhotoController;
 use App\Http\Controllers\SelfServiceController;
 use App\Http\Controllers\WorkspaceController;
@@ -31,6 +32,11 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/employee/dashboard', [DashboardController::class, 'employee'])->name('employee.dashboard');
     Route::get('/employee/profile', [SelfServiceController::class, 'profile'])->name('employee.profile');
     Route::patch('/employee/profile', [SelfServiceController::class, 'update'])->name('employee.profile.update');
+    Route::prefix('notifications/dropdown')->name('notifications.dropdown.')->group(function () {
+        Route::get('/', [NotificationDropdownController::class, 'index'])->middleware('throttle:60,1,notice-list:')->name('index');
+        Route::post('read-all', [NotificationDropdownController::class, 'readAll'])->middleware('throttle:30,1,notice-write:')->name('read-all');
+        Route::post('{notice}/read', [NotificationDropdownController::class, 'read'])->whereUuid('notice')->middleware('throttle:30,1,notice-write:')->name('read');
+    });
     Route::get('/notifications', [WorkspaceController::class, 'notifications'])->name('notifications');
     Route::get('/leave', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.leave.index' : (auth()->user()->isSupervisor() ? 'supervisor.leave.index' : 'employee.leave.index')))->name('leave');
     Route::get('/attendance', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.attendance.index' : 'employee.attendance'))->name('attendance');

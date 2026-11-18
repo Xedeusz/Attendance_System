@@ -24,10 +24,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Mail::extend('private_local', fn () => new PrivateLocalTransport);
-        URL::forceRootUrl(config('app.url'));
+        $appUrl = config('app.url');
+        URL::forceRootUrl($appUrl);
+        if (parse_url($appUrl, PHP_URL_SCHEME) === 'https') {
+            URL::forceScheme('https');
+        }
+
         View::composer('components.topbar', function (\Illuminate\View\View $view): void {
             $user = auth()->user();
-            $view->with('unreadNotices', $user ? $user->unreadNotifications()->when($user->isSupervisor(), fn ($query) => $query->where('data->category', 'leave'))->count() : 0);
+            $view->with('unreadNotices', $user?->workspaceNotifications()->unread()->count() ?? 0);
         });
     }
 }

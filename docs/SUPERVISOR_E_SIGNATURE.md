@@ -10,3 +10,5 @@ Registration creates a version. Replacement revokes the previous version for fut
 The private leave disk holds the encrypted, normalized PNG. The image endpoint only serves the current signature to its authenticated Supervisor owner. Final approved PDFs have separate leave-request authorization. Audit entries capture enrollment, replacement, signing confirmation, PDF generation and retrieval without images or passwords. Protect the private disk, application encryption key and backups together.
 
 This workflow applies an electronic signature image. Certificate-based signing is outside its scope. Authorized LIMCOMA HR personnel must approve the signing procedure before production use.
+
+See [QR verification and document versioning](LEAVE_QR_VERIFICATION.md) for verification access, HR revocation and assigned Supervisor reissuance.

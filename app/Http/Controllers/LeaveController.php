@@ -37,12 +37,12 @@ class LeaveController extends Controller
         $query = LeaveRequest::with(['employee.user', 'employee.department', 'employee.currentAssignment.branch', 'type', 'supervisor']);
         $scope === 'supervisor' ? $query->forSupervisor($actor) : $query->where('employee_id', $actor->employee?->id ?? 0);
         $stats = (clone $query)->selectRaw('status,COUNT(*) AS total')->groupBy('status')->pluck('total', 'status')->all();
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'status' => ['nullable', 'in:awaiting_supervisor_assignment,pending_supervisor_approval,approved,rejected,cancelled']]);
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'status' => ['nullable', 'in:awaiting_supervisor_assignment,pending_supervisor_approval,approved,rejected,cancelled,revoked']]);
         if ($request->routeIs('supervisor.leave.pending')) {
             $query->where('status', 'pending_supervisor_approval');
         }
         if ($request->routeIs('supervisor.leave.history')) {
-            $query->whereIn('status', ['approved', 'rejected', 'cancelled']);
+            $query->whereIn('status', ['approved', 'rejected', 'cancelled', 'revoked']);
         }
         $query->when($data['q'] ?? null, fn ($q, $term) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', '%'.$term.'%')->orWhere('last_name', 'like', '%'.$term.'%')->orWhere('employee_number', 'like', '%'.$term.'%'))))->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('end_date', '>=', $date))->when($data['to'] ?? null, fn ($q, $date) => $q->whereDate('start_date', '<=', $date));
         $query->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
@@ -88,7 +88,7 @@ class LeaveController extends Controller
         return view('leave.show', [
             'leave' => $leave,
             'scope' => $scope,
-            'signatureVersion' => $scope === 'supervisor' && $leave->status === 'pending_supervisor_approval'
+            'signatureVersion' => $scope === 'supervisor' && in_array($leave->status, ['pending_supervisor_approval', 'approved'], true)
                 ? SupervisorSignature::activeFor($request->user())->value('version')
                 : null,
             'balance' => EmployeeLeaveBalance::where('employee_id', $leave->employee_id)->where('leave_type_id', $leave->leave_type_id)->where('policy_period', $leave->start_date->format('Y'))->first(),
@@ -122,11 +122,14 @@ class LeaveController extends Controller
         ]);
     }
 
-    public function approvedForm(Request $request, LeaveRequest $leave, LeaveApplicationDocumentService $forms, AuditService $audit): Response
+    public function approvedForm(Request $request, LeaveRequest $leave, LeaveApplicationDocumentService $forms, AuditService $audit): Response|RedirectResponse
     {
         $this->authorizeFormView($request, $leave);
-        abort_unless($leave->status === 'approved', 404);
+        abort_unless(in_array($leave->status, ['approved', 'revoked'], true), 404);
         $document = $leave->approvalDocument()->with('signature')->firstOrFail();
+        if ($document->revoked_at) {
+            return redirect()->route('leave.verify.show', $document);
+        }
         $pdf = $forms->bytes($document);
         $download = $request->boolean('download');
         $audit->record('leave.approved_pdf_accessed', $leave, [
@@ -206,16 +209,12 @@ class LeaveController extends Controller
     {
         abort_unless($request->user()->isSupervisor(), 403);
 
-        return view('leave.notices', ['notices' => $request->user()->notifications()->where('data->category', 'leave')->latest()->paginate(15)]);
+        return view('leave.notices', ['notices' => $request->user()->workspaceNotifications()->latest()->paginate(15)]);
     }
 
     public function readNotice(Request $request, string $notice): RedirectResponse
     {
-        $query = $request->user()->notifications()->whereKey($notice);
-        if ($request->user()->isSupervisor()) {
-            $query->where('data->category', 'leave');
-        }
-        $query->firstOrFail()->markAsRead();
+        $request->user()->workspaceNotifications()->whereKey($notice)->firstOrFail()->markAsRead();
         app(WorkspaceSync::class)->touch($request->user(), ['notifications']);
 
         return back();

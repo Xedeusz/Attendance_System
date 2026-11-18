@@ -15,3 +15,5 @@ leave:refresh-routing runs hourly to handle future starts, expirations and eligi
 ## Direct Supervisor department assignment
 
 HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.
+
+The [Team Leave Calendar](LEAVE_CALENDAR.md) rechecks effective assignments and department eligibility on each event and detail request.

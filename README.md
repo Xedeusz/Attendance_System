@@ -122,3 +122,5 @@ HR-controlled [Supervisor department linking](docs/SUPERVISOR_DEPARTMENT_LINKING
 
 
 Employee [profile picture management](docs/EMPLOYEE_PROFILE_MANAGEMENT.md) supports private, owner-only uploads, previews, replacement/removal and synchronized initials/photo avatars. Apply the additive profile-photo migration on upgrades; GD and persistent private storage are required. Attendance camera evidence is separate.
+
+Open Leave Calendar (HR), Team Leave Calendar (Supervisor), or My Leave Calendar (Employee) for month, week and list views. See [Leave Calendar](docs/LEAVE_CALENDAR.md).

@@ -7,6 +7,7 @@ export default function initializeRealtime(Alpine) {
     const config = JSON.parse(element.textContent);
     const region = document.querySelector('[data-sync-region="page"]');
     const status = document.querySelector("[data-sync-status]");
+    const leaveCalendar = document.querySelector("[data-leave-calendar]");
     const notice = document.getElementById("workspace-update-notice");
     const path = location.pathname;
     const pageTopics = path.includes("dashboard")
@@ -71,6 +72,7 @@ export default function initializeRealtime(Alpine) {
         return response;
     }
     async function refreshPage() {
+        if (leaveCalendar) return;
         // The active camera/reconciliation component is updated only through its state API.
         if (document.querySelector('[x-data^="attendanceCapture"]')) return;
         const response = authorize(
@@ -198,15 +200,35 @@ export default function initializeRealtime(Alpine) {
                 Object.assign(Alpine.store("profileAvatar"), state.avatar, {
                     ready: true,
                 });
+            if (
+                leaveCalendar &&
+                (force ||
+                    businessDate !== state.business_date ||
+                    changed.some((topic) =>
+                        [
+                            "leave",
+                            "employees",
+                            "departments",
+                            "branches",
+                        ].includes(topic),
+                    ))
+            ) {
+                window.dispatchEvent(new Event("workspace:leave-calendar"));
+            }
             revisions = state.revisions;
             businessDate = state.business_date;
             const name = document.querySelector(".user-name");
             if (name && state.user_name) name.textContent = state.user_name;
-            const unread = document.querySelector("[data-sync-unread]");
-            if (unread) {
-                unread.textContent = state.unread;
-                unread.hidden = !state.unread;
-            }
+            window.dispatchEvent(
+                new CustomEvent("workspace:notifications", {
+                    detail: {
+                        unread: state.unread,
+                        revision: state.revisions.notifications,
+                        startedAt: requestStartedAt,
+                        force,
+                    },
+                }),
+            );
             window.dispatchEvent(
                 new CustomEvent("workspace:attendance", {
                     detail: state.attendance,

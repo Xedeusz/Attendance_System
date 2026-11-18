@@ -4,16 +4,16 @@
         $actor->isHr() => [
             'Overview' => ['hr.dashboard' => ['Dashboard', 'grid']],
             'Workforce' => ['hr.employees.index'=>['Employee Management','users'],'hr.supervisors.index'=>['Supervisors','users'],'hr.branches.index'=>['Branch Management','building'],'hr.departments.index'=>['Departments','building']],
-            'Attendance & leave' => ['attendance'=>['Attendance Monitoring','clock'],'hr.corrections.index'=>['Attendance Corrections','file'],'hr.leave.index'=>['Leave Management','calendar']],
-            'Workspace' => ['reports'=>['Reports and Analytics','chart'],'notifications'=>['Notifications','bell'],'settings'=>['Settings','settings']],
+            'Attendance & leave' => ['attendance'=>['Attendance Monitoring','clock'],'hr.corrections.index'=>['Attendance Corrections','file'],'hr.leave.index'=>['Leave Management','calendar'],'hr.leave.calendar.index'=>['Leave Calendar','calendar']],
+            'Workspace' => ['reports'=>['Reports and Analytics','chart'],'settings'=>['Settings','settings']],
         ],
         $actor->isSupervisor() => [
-            'Leave Management' => ['supervisor.leave.index'=>['Leave Overview','grid'],'supervisor.leave.pending'=>['Pending Leave Requests','calendar'],'supervisor.leave.history'=>['Leave History','file'],'supervisor.leave.notices'=>['Leave Notifications','bell']],
+            'Leave Management' => ['supervisor.leave.index'=>['Leave Overview','grid'],'supervisor.leave.pending'=>['Pending Leave Requests','calendar'],'supervisor.leave.history'=>['Leave History','file'],'supervisor.leave.calendar.index'=>['Team Leave Calendar','calendar']],
             'My account' => array_filter(['employee.leave.index'=>$actor->employee ? ['My Leave','calendar'] : null,'settings'=>['My Account','settings'],'supervisor.signature.show'=>['Electronic Signature','file']]),
         ],
         default => [
-            'My workday' => ['employee.dashboard'=>['Dashboard','grid'],'attendance'=>['Time In / Time Out','clock'],'attendance.history'=>['Attendance History','file'],'employee.leave.index'=>['My Leave','calendar'],'employee.corrections.index'=>['Attendance Corrections','file']],
-            'My account' => ['employee.profile'=>['My Profile','users'],'notifications'=>['Notifications','bell'],'settings'=>['Account Settings','settings']],
+            'My workday' => ['employee.dashboard'=>['Dashboard','grid'],'attendance'=>['Time In / Time Out','clock'],'attendance.history'=>['Attendance History','file'],'employee.leave.index'=>['My Leave','calendar'],'employee.leave.calendar.index'=>['My Leave Calendar','calendar'],'employee.corrections.index'=>['Attendance Corrections','file']],
+            'My account' => ['employee.profile'=>['My Profile','users'],'settings'=>['Account Settings','settings']],
         ],
     };
 @endphp
@@ -25,7 +25,7 @@
 $active = match($name) {
 'attendance' => $actor->isHr() ? request()->routeIs('hr.attendance.*','attendance.show') && !request()->routeIs('hr.corrections.*') : request()->routeIs('employee.attendance','attendance.show'),
 'attendance.history'=>request()->routeIs('employee.attendance.history'),
-'hr.leave.index'=>request()->routeIs('hr.leave.*'),
+'hr.leave.index'=>request()->routeIs('hr.leave.*') && !request()->routeIs('hr.leave.calendar.*'),
 'supervisor.leave.index'=>request()->routeIs('supervisor.leave.index','supervisor.leave.show'),
 default=>request()->routeIs(str_ends_with($name,'.index') ? substr($name,0,-6).'.*' : $name),
 };

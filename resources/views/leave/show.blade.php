@@ -48,10 +48,29 @@
                         <div class="profile-row"><span class="muted">Approved by</span><span>{{ $official->approver_name }}</span></div>
                         <div class="profile-row"><span class="muted">Approval date</span><span>{{ $leave->finalized_at?->timezone($timezone)->format('M j, Y H:i:s T') }}</span></div>
                         <p class="small muted mt-4">{{ $official->template_reference }} · {{ $official->document_reference }}</p>
+                        @if($official->revoked_at)<p class="mt-3 text-sm font-semibold text-amber-900">Document revoked</p>@endif
                         <div class="mt-4 flex flex-wrap gap-3">
+                            <x-button variant="secondary" :href="route('leave.verify.show', $official)">Verify Document</x-button>
+                            @if(!$official->revoked_at)
                             <x-button variant="secondary" :href="route($prefix.'.approved-form', $leave)" target="_blank" rel="noopener">View Approved Form</x-button>
                             <x-button variant="secondary" :href="route($prefix.'.approved-form', [$leave, 'download' => 1])">Download Approved PDF</x-button>
+                            @endif
                         </div>
+                        @if(($scope === 'hr' && !$official->revoked_at) || ($scope === 'supervisor' && $signatureVersion && $leave->form_snapshot))
+                            <details class="mt-4">
+                                <summary class="text-link cursor-pointer">{{ $scope === 'hr' ? 'Revoke approved leave' : 'Sign a replacement PDF' }}</summary>
+                                <form method="POST" class="mt-3" action="{{ route($scope === 'hr' ? 'leave.verify.revoke' : 'leave.verify.replace', $official) }}"
+                                      data-confirm-title="{{ $scope === 'hr' ? 'Revoke this approved leave?' : 'Sign and issue a replacement?' }}"
+                                      data-confirm-text="{{ $scope === 'hr' ? 'This changes the leave request and the issued document to Revoked.' : 'Your signature will be applied to a new version using the original approved application.' }}">
+                                    @csrf
+                                    <input type="hidden" name="confirmation" value="0" data-confirm-on-accept>
+                                    @if($scope === 'supervisor')<input type="hidden" name="signature_version" value="{{ $signatureVersion }}">@endif
+                                    <x-input name="reason" label="Reason for this action" minlength="10" maxlength="500" required />
+                                    <x-password name="current_password" label="Confirm your current password" />
+                                    <x-button type="submit">{{ $scope === 'hr' ? 'Revoke Leave' : 'Sign Replacement' }}</x-button>
+                                </form>
+                            </details>
+                        @endif
                     @else
                         @if($leave->status === 'approved')<p class="small muted mb-3">This historical approval predates the signed PDF workflow.</p>@endif
                         <a class="text-link" href="{{ route($prefix.'.form', $leave) }}" target="_blank" rel="noopener">View Application <span class="small">(opens in a new tab)</span></a>

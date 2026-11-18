@@ -77,6 +77,7 @@ test("private WebSocket updates preserve filters and drafts, reject stale writes
         "Unsaved filter draft",
     );
     expect(navigations).toBe(0);
+
     await viewer.goto(branchUrl);
     await live(viewer);
     await editor.goto(editUrl);
@@ -175,6 +176,39 @@ test("leave submission and final supervisor approval synchronize authorized queu
     await enrollSignature(reviewer, supervisor);
     await reviewer.goto("/supervisor/leave/pending");
     await live(reviewer);
+    const bell = reviewer.getByRole("button", {
+        name: "Notifications",
+        exact: true,
+    });
+    const panel = reviewer.getByRole("region", {
+        name: "Notifications",
+        exact: true,
+    });
+    await reviewer.setViewportSize({ width: 360, height: 740 });
+    await reviewer.route(
+        "**/notifications/dropdown",
+        (route) => route.abort(),
+        { times: 1 },
+    );
+    await bell.focus();
+    await bell.press("Enter");
+    await expect(
+        panel.getByText("Unable to load notifications."),
+    ).toBeVisible();
+    await panel.getByRole("button", { name: "Retry" }).click();
+    await expect(panel.getByText("You’re all caught up")).toBeVisible();
+    const mobileBounds = await panel.boundingBox();
+    expect(mobileBounds.x).toBeGreaterThanOrEqual(12);
+    expect(mobileBounds.x + mobileBounds.width).toBeLessThanOrEqual(348);
+    await reviewer.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
+    await expect(bell).toBeFocused();
+    await reviewer.setViewportSize({ width: 1280, height: 900 });
+    await bell.click();
+    await reviewer.locator(".topbar-title").click();
+    await expect(panel).toBeHidden();
+    await bell.click();
+    await expect(panel).toBeVisible();
     await login(owner, employee);
     await owner.goto("/employee/leave/create");
     await owner.getByRole("radio", { name: "Others (pls specify)" }).check();
@@ -207,13 +241,26 @@ test("leave submission and final supervisor approval synchronize authorized queu
         reviewer.locator('a[href$="/supervisor/leave/' + id + '"]'),
     ).toBeVisible({ timeout: 20000 });
     await expect(reviewer.locator("[data-sync-unread]")).toBeVisible();
+    await expect(
+        panel.getByText("A leave application needs your final decision.", {
+            exact: true,
+        }),
+    ).toHaveCount(1);
     await owner.goto("/employee/leave");
     await live(owner);
     let navigations = 0;
     owner.on("framenavigated", (frame) => {
         if (frame === owner.mainFrame()) navigations++;
     });
-    await reviewer.goto("/supervisor/leave/" + id);
+    await panel
+        .getByRole("button", {
+            name: /^A leave application needs your final decision/,
+        })
+        .click();
+    await expect(reviewer).toHaveURL(
+        new RegExp("/supervisor/leave/" + id + "$"),
+    );
+    await expect(reviewer.locator("[data-sync-unread]")).toBeHidden();
     await reviewer
         .getByLabel("Confirmed chargeable days", { exact: true })
         .fill("2");
@@ -229,6 +276,17 @@ test("leave submission and final supervisor approval synchronize authorized queu
     });
     await expect(owner.locator("main")).toContainText("3.00 days available");
     expect(navigations).toBe(0);
+    await owner
+        .getByRole("button", { name: "Notifications", exact: true })
+        .click();
+    const ownerPanel = owner.getByRole("region", {
+        name: "Notifications",
+        exact: true,
+    });
+    await expect(ownerPanel.getByText(/approved and signed/)).toBeVisible();
+    await ownerPanel.getByRole("button", { name: "Mark all as read" }).click();
+    await expect(owner.locator("[data-sync-unread]")).toBeHidden();
+
     expect(
         (await reviewer.request.get("/hr/attendance/corrections")).status(),
     ).toBe(403);
@@ -303,5 +361,6 @@ test("department edits and employee creation update another HR dashboard from da
     await expect(count).toHaveText(String(before + 1), { timeout: 20000 });
     await expect(viewer.locator("main")).toContainText("Synthetic Realtime");
     expect(navigations).toBe(0);
+
     await Promise.all(contexts.map((context) => context.close()));
 });

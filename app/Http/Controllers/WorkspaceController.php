@@ -14,7 +14,7 @@ class WorkspaceController extends Controller
         $hr = $request->user()->isHr();
         $events = AttendanceEvent::with(['record.employee', 'review'])->when($hr, fn ($query) => $query->where('review_status', 'pending'), fn ($query) => $query->where('employee_id', $request->user()->employee?->id ?? 0)->whereIn('review_status', ['pending', 'approved', 'rejected']))->latest('updated_at')->paginate(15);
 
-        return view('attendance.updates', ['events' => $events, 'hr' => $hr, 'stats' => $hr ? $queries->statistics() : [], 'notices' => $request->user()->notifications()->latest()->paginate(10, ['*'], 'notifications_page')]);
+        return view('attendance.updates', ['events' => $events, 'hr' => $hr, 'stats' => $hr ? $queries->statistics() : [], 'notices' => $request->user()->workspaceNotifications()->latest()->paginate(10, ['*'], 'notifications_page')]);
     }
 
     public function module(string $module): View

@@ -14,3 +14,5 @@ Cancellation is owner-only for either pending state, with a reason and confirmat
 Supervisor decisions set reviewed_at and finalized_at. Authorization and balance checks run against the assigned Supervisor and current policy. Approved PDFs retain the original signature version, name, timestamp and SHA-256 hash. Rejected requests retain an unsigned application and a rejection record. The paper form's Unauthorized Leave block awaits an explicit HR policy. HR monitoring displays the result with no Approve/Reject controls or ordinary decision route. SweetAlert confirmation is interactive; only a successful backend response emits the compact top-right 3000 ms toast.
 
 Reassignment history remains accessible to owner and HR. Current assignment is required for Supervisor details, documents, history and decisions. See [the official form](LIMCOMA_OFFICIAL_LEAVE_FORM.md) and [Supervisor signature setup](SUPERVISOR_E_SIGNATURE.md).
+
+See [QR verification and document versioning](LEAVE_QR_VERIFICATION.md) for verification access, HR revocation and assigned Supervisor reissuance.

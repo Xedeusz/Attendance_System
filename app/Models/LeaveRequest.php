@@ -49,7 +49,7 @@ class LeaveRequest extends Model
 
     public function approvalDocument(): HasOne
     {
-        return $this->hasOne(LeaveApprovalDocument::class);
+        return $this->hasOne(LeaveApprovalDocument::class)->latestOfMany('version');
     }
 
     public function scopeForSupervisor(Builder $query, User $actor): Builder

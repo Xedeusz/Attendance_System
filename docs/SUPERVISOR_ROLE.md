@@ -15,3 +15,5 @@ A Supervisor's own application needs a different assigned Supervisor. Self assig
 ## Direct Supervisor department assignment
 
 HR can now link a Supervisor directly to one existing active department, independently of an Employee profile. New employee assignments and leave scope require both explicit effective assignments and matching active departments. Existing history is preserved; missing/mismatched links require explicit HR resolution. See [Supervisor department linking](SUPERVISOR_DEPARTMENT_LINKING.md) for schema, conflict handling, authorization and verification.
+
+The [Team Leave Calendar](LEAVE_CALENDAR.md) shows schedules for currently authorized employees and opens the existing Supervisor review workflow.

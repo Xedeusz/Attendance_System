@@ -210,6 +210,86 @@ class OfficialLeaveFormTest extends TestCase
         $this->actingAs($employee->user)->get($form)->assertServiceUnavailable();
     }
 
+    public function test_qr_verification_authenticates_checks_integrity_and_tracks_document_versions(): void
+    {
+        config(['leave.verification_url' => 'https://verify.limcoma.test']);
+        $employee = $this->attendee();
+        $supervisor = $this->assign($employee);
+        $hr = $this->reviewer();
+        $leave = $this->submit($employee, LeaveType::factory()->create());
+        $this->get(route('employee.leave.form', $leave))->assertOk()->assertDontSee('Scan to Verify');
+        $this->enroll($supervisor);
+        $tokens = [];
+        $this->mock(LeavePdfRenderer::class, function (MockInterface $mock) use (&$tokens): void {
+            $mock->shouldReceive('render')->twice()->andReturnUsing(function (string $html) use (&$tokens): string {
+                $this->assertSame(1, preg_match('~href="https://verify\.limcoma\.test/verify/leave#([a-f0-9]{64})"~', $html, $matches));
+                $this->assertStringContainsString('Scan to Verify', $html);
+                $this->assertStringContainsString('data:image/svg+xml;base64,', $html);
+                $tokens[] = $matches[1];
+
+                return self::TEST_PDF;
+            });
+        });
+        $this->postJson(route('supervisor.leave.decide', $leave), $this->approval())->assertRedirect();
+        $first = $leave->approvalDocument()->sole();
+        $this->assertSame(hash('sha256', $tokens[0]), $first->verification_token_hash);
+        $show = route('leave.verify.show', $first);
+
+        $this->post('/logout');
+        $this->get(route('leave.verify.landing'))->assertOk()->assertDontSee($first->document_reference);
+        $this->post(route('leave.verify.capture'), ['token' => $tokens[0]])
+            ->assertRedirect(route('login'))->assertSessionHas('leave_scan_hash', $first->verification_token_hash);
+        $this->post('/login', ['email' => $hr->email, 'password' => 'password'])->assertRedirect(route('leave.verify.scan'));
+        $this->get(route('leave.verify.scan'))->assertRedirect($show);
+        $this->get($show)->assertOk()->assertSee(['Valid Approved Record', 'Match', 'View Official PDF']);
+        $this->get(route('leave.verify.search', ['reference' => $first->document_reference]))->assertRedirect($show);
+        $this->get(route('leave.verify.original', $first))->assertOk()->assertContent(self::TEST_PDF);
+
+        $unrelatedEmployee = Employee::factory()->create()->user;
+        $this->actingAs($unrelatedEmployee)->get($show)->assertNotFound()->assertDontSee($first->document_reference);
+        $this->get(route('leave.verify.original', $first))->assertNotFound();
+        $this->actingAs($employee->user)->get($show)->assertOk()->assertSee('Valid Approved Record');
+        $this->actingAs($supervisor)->get($show)->assertOk()->assertSee('Valid Approved Record');
+        $this->post(route('leave.verify.capture'), ['token' => str_repeat('0', 64)])->assertRedirect();
+        $this->get(route('leave.verify.scan'))->assertNotFound()->assertDontSee($first->document_reference);
+
+        Storage::disk('leave')->put($first->storage_path, Crypt::encryptString('altered'));
+        $this->get($show)->assertServiceUnavailable()->assertSee('Mismatch')->assertDontSee('Valid Approved Record');
+        Storage::disk('leave')->put($first->storage_path, Crypt::encryptString(self::TEST_PDF));
+        $decision = ['current_password' => 'password', 'confirmation' => 1, 'reason' => 'Reissue after documented administrative review.'];
+        $this->actingAs($hr)->post(route('leave.verify.replace', $first), $decision + ['signature_version' => 1])->assertForbidden();
+        $this->actingAs($supervisor)->post(route('leave.verify.replace', $first), $decision + ['signature_version' => 1])->assertRedirect();
+        $second = $leave->approvalDocument()->sole();
+        $this->assertSame(2, $second->version);
+        $this->assertSame($second->id, $first->fresh()->superseded_by_document_id);
+        $this->assertNotSame($first->verification_token_hash, $second->verification_token_hash);
+        $this->assertNotSame($first->document_reference, $second->document_reference);
+        $this->get($show)->assertOk()->assertSee('Previous Document Version');
+        $this->get(route('leave.verify.original', $first))->assertOk()->assertContent(self::TEST_PDF);
+        $secondUrl = route('leave.verify.show', $second);
+        $this->get($secondUrl)->assertOk()->assertSee('Valid Approved Record');
+        $this->actingAs($hr)->post(route('leave.verify.revoke', $second), $decision)->assertRedirect($secondUrl);
+        $this->assertSame('revoked', $leave->fresh()->status);
+        $this->post(route('leave.verify.revoke', $second), $decision)->assertConflict();
+        $this->assertSame(1, $hr->unreadNotifications()->where('data->title', 'An approved leave request was revoked by HR.')->where('data->url', route('hr.leave.show', $leave))->count());
+        $this->assertSame(1, $supervisor->unreadNotifications()->where('data->title', 'HR revoked an approved leave request assigned to you.')->where('data->url', route('supervisor.leave.show', $leave))->count());
+        $this->assertSame(1, $employee->user->unreadNotifications()->where('data->title', 'HR revoked your approved leave request.')->where('data->url', route('employee.leave.show', $leave))->count());
+        $this->getJson(route('notifications.dropdown.index'))->assertJsonFragment(['title' => 'An approved leave request was revoked by HR.', 'category' => 'leave']);
+        $this->assertFalse($unrelatedEmployee->notifications()->exists());
+        $this->assertDatabaseHas('leave_reviews', ['leave_request_id' => $leave->id, 'action' => 'revoked', 'reviewer_user_id' => $hr->id]);
+        $this->get($secondUrl)->assertOk()->assertSee('Document Revoked');
+        $this->get(route('leave.verify.original', $second))->assertOk()->assertContent(self::TEST_PDF);
+        $this->get(route('hr.leave.index', ['status' => 'revoked']))->assertOk()->assertSee($employee->full_name);
+        $this->actingAs($employee->user)->get(route('employee.leave.show', $leave))->assertOk()->assertSee('Revoked');
+        $this->actingAs($supervisor)->get(route('supervisor.leave.history', ['status' => 'revoked']))->assertOk()->assertSee($employee->full_name);
+        $this->getJson(route('notifications.dropdown.index'))->assertJsonFragment(['title' => 'HR revoked an approved leave request assigned to you.']);
+        $this->post(route('leave.verify.replace', $second), $decision + ['signature_version' => 1])->assertConflict();
+        $this->post(route('leave.verify.replace', $first), $decision + ['signature_version' => 1])->assertConflict();
+        $this->assertDatabaseCount('leave_approval_documents', 2);
+        $this->assertDatabaseCount('leave_balance_transactions', 0);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'leave.document_verified']);
+    }
+
     public function test_pdf_failure_rolls_back_the_decision_balance_and_document(): void
     {
         $employee = $this->attendee();

@@ -1,6 +1,8 @@
 import Alpine from "alpinejs";
 import { notify, initializeNotifications } from "./notifications";
 import registerProfilePhoto from "./profile-photo";
+import registerNotificationDropdown from "./notification-dropdown";
+import registerLeaveCalendar from "./leave-calendar";
 import focus from "@alpinejs/focus";
 import morph from "@alpinejs/morph";
 import initializeRealtime from "./realtime";
@@ -9,6 +11,8 @@ import registerBranchLocationMap from "./branch-location-map";
 import registerAttendanceLocationMap from "./attendance-location-map";
 
 registerProfilePhoto(Alpine);
+registerNotificationDropdown(Alpine);
+registerLeaveCalendar(Alpine);
 Alpine.plugin(focus);
 Alpine.plugin(morph);
 registerAttendance(Alpine);
