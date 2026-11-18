@@ -21,10 +21,10 @@ class WorkspaceSyncController extends Controller
             'revisions' => DB::table('workspace_revisions')->where('user_id', $user->id)->whereIn('topic', $sync->topics($user))->pluck('revision', 'topic'),
             'unread' => $user->workspaceNotifications()->unread()->count(),
         ];
-        if (! $user->isSupervisor() && $user->employee && $request->boolean('attendance')) {
+        if ($request->boolean('attendance') && ! $user->isSupervisor() && $user->employee) {
             $data['attendance'] = $attendance->availability($user->employee);
             $latest = AttendanceEvent::where('employee_id', $user->employee->id)->latest('id')->first();
-            $data['attendance']['latestResult'] = $latest ? $attendance->result($latest) : null;
+            $data['attendance']['latestResult'] = $latest ? $attendance->result($latest, $user->employee) : null;
         }
 
         return response()->json($data)->header('Cache-Control', 'no-store, private');

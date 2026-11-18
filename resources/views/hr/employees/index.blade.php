@@ -2,8 +2,8 @@
 <x-page-header title="Employee Management" description="Manage your people, work assignments, and account access."><x-button :href="route('hr.employees.create')"><x-icon name="plus" />Register employee</x-button></x-page-header>
 <section class="card"><form method="GET" class="toolbar">
 <div><label for="q" class="field-label">Search employees</label><input id="q" name="q" class="field" value="{{ request('q') }}" placeholder="Number, name or work email" maxlength="100"></div>
-<x-select name="branch_id" label="Branch" :options="$branches->pluck('branch_name', 'id')" :value="request('branch_id')" placeholder="All branches" />
-<x-select name="department_id" label="Department" :options="$departments->pluck('department_name', 'id')" :value="request('department_id')" placeholder="All departments" />
+<x-select name="branch_id" label="Branch" :options="$branches" :value="request('branch_id')" placeholder="All branches" />
+<x-select name="department_id" label="Department" :options="$departments" :value="request('department_id')" placeholder="All departments" />
 
 <x-select name="account_status" label="Account" :options="['active' => 'Active', 'pending_activation' => 'Pending activation', 'deactivated' => 'Deactivated']" :value="request('account_status')" placeholder="All accounts" />
 

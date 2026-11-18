@@ -34,7 +34,7 @@ class LeaveController extends Controller
         if ($scope === 'supervisor') {
             abort_unless($actor->isSupervisor(), 403);
         }
-        $query = LeaveRequest::with(['employee.user', 'employee.department', 'employee.currentAssignment.branch', 'type', 'supervisor']);
+        $query = LeaveRequest::with(['employee.department', 'employee.currentAssignment.branch', 'supervisor']);
         $scope === 'supervisor' ? $query->forSupervisor($actor) : $query->where('employee_id', $actor->employee?->id ?? 0);
         $stats = (clone $query)->selectRaw('status,COUNT(*) AS total')->groupBy('status')->pluck('total', 'status')->all();
         $data = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'status' => ['nullable', 'in:awaiting_supervisor_assignment,pending_supervisor_approval,approved,rejected,cancelled,revoked']]);

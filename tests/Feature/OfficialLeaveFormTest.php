@@ -167,8 +167,8 @@ class OfficialLeaveFormTest extends TestCase
 
         $this->mock(LeavePdfRenderer::class, function (MockInterface $mock) use ($supervisor): void {
             $mock->shouldReceive('render')->once()->withArgs(function (string $html) use ($supervisor): bool {
-                $this->assertSame(1, preg_match('/class="form-watermark" src="data:image\/png;base64,([^"]+)"/', $html, $watermark));
-                $this->assertSame(hash_file('sha256', public_path('LIMCOMA.png')), hash('sha256', base64_decode($watermark[1], true)));
+                $this->assertSame(1, preg_match('/class="form-watermark" src="data:image\/jpeg;base64,([^"]+)"/', $html, $watermark));
+                $this->assertSame(hash_file('sha256', resource_path('images/limcoma-leave-watermark.jpg')), hash('sha256', base64_decode($watermark[1], true)));
                 $this->assertStringContainsString('aria-label="Selected">✓</span> AUTHORIZED LEAVE', $html);
                 $this->assertStringContainsString('aria-label="Unselected"></span> UNAUTHORIZED LEAVE', $html);
                 $this->assertMatchesRegularExpression('/Approved by:.*data:image\/png;base64,.*alt="Supervisor signature".*'.preg_quote(e($supervisor->name), '/').'/s', $html);

@@ -34,7 +34,6 @@ export default function initializeRealtime(Alpine) {
                     : path.includes("notifications")
                       ? ["notifications", "attendance", "leave", "corrections"]
                       : ["account", "employees"];
-    if (path.includes("notifications")) pageTopics.push("notifications");
     let echo,
         channel,
         subscribed = false,
@@ -250,7 +249,11 @@ export default function initializeRealtime(Alpine) {
         clearTimeout(timer);
         timer = setTimeout(() => synchronize(force), 250);
     }
-    if (config.key) {
+    const loopbackHosts = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+    const browserCanReachReverb =
+        !loopbackHosts.has(String(config.host ?? "").toLowerCase()) ||
+        loopbackHosts.has(location.hostname);
+    if (config.key && config.host && browserCanReachReverb) {
         window.Pusher = Pusher;
         echo = new Echo({
             broadcaster: "reverb",

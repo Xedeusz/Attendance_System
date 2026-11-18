@@ -37,6 +37,28 @@ class AttendanceWorkflowTest extends TestCase
         $this->postJson('/employee/attendance/captures', ['action' => 'time_out'])->assertUnprocessable();
     }
 
+    public function test_hr_attendance_filter_includes_both_ends_of_a_work_date_range(): void
+    {
+        $employee = $this->attendee();
+        $branchId = $employee->currentAssignment->branch_id;
+        foreach (['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12'] as $date) {
+            AttendanceRecord::create([
+                'employee_id' => $employee->id,
+                'branch_id' => $branchId,
+                'work_date' => $date.' 12:00:00',
+                'session_status' => 'completed',
+                'verification_status' => 'location_validated',
+                'review_status' => 'not_required',
+            ]);
+        }
+
+        $this->actingAs($this->reviewer())
+            ->get('/hr/attendance?from=2026-11-10&to=2026-11-11&sort=work_date&direction=asc&branch_id='.$branchId)
+            ->assertOk()
+            ->assertViewHas('records', fn ($records) => $records->getCollection()
+                ->map(fn (AttendanceRecord $record): string => $record->work_date->toDateString())->all() === ['2026-11-10', '2026-11-11']);
+    }
+
     public function test_identical_retries_return_original_result_and_conflicting_replays_are_rejected(): void
     {
         $capture = $this->capture($this->attendee());

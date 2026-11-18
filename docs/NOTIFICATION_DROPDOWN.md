@@ -12,7 +12,7 @@ Destination resolution checks the current record and policy before returning a n
 
 ## Live updates
 
-The shared workspace synchronization publishes private user-specific revision signals through Reverb and Echo. The badge updates from the current workspace state, and an open dropdown reloads its bounded list when the notification revision changes. Notifications are keyed by database ID. Reconnects and the established workspace polling fallback resynchronize the dropdown without adding a polling timer.
+The shared workspace synchronization publishes private user-specific revision signals through Reverb and Echo. The badge updates from the current workspace state, and an open dropdown reloads its bounded list when the notification revision changes. Notifications are keyed by database ID. Reopening the dropdown within 15 seconds reuses the latest successful list for that page. A changed revision or unread count, a reconnect, or a workspace fallback refresh invalidates it. Marking notifications read also refreshes an open dropdown. The browser keeps the list in the component's memory for the lifetime of the page.
 
 ## Verification
 

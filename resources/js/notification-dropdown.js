@@ -1,3 +1,5 @@
+const recentNotificationsMs = 15000;
+
 export default function registerNotificationDropdown(Alpine) {
     Alpine.data(
         "notificationDropdown",
@@ -13,6 +15,7 @@ export default function registerNotificationDropdown(Alpine) {
             revision: undefined,
             requestId: 0,
             updatedAt: 0,
+            fetchedAt: 0,
             toggle() {
                 if (this.open) {
                     this.close(true);
@@ -35,9 +38,16 @@ export default function registerNotificationDropdown(Alpine) {
                     this.unread !== state.unread;
                 this.revision = state.revision;
                 this.unread = state.unread;
-                if (this.open && (changed || state.force)) this.refresh();
+                if (changed || state.force) {
+                    this.fetchedAt = 0;
+                    if (this.open) this.refresh(true);
+                }
             },
-            async refresh() {
+            async refresh(force = false) {
+                const fresh =
+                    this.fetchedAt &&
+                    Date.now() - this.fetchedAt < recentNotificationsMs;
+                if (!force && (this.loading || fresh)) return;
                 const requestId = ++this.requestId;
                 this.loading = true;
                 this.loadError = false;
@@ -53,6 +63,7 @@ export default function registerNotificationDropdown(Alpine) {
                     this.items = result.items;
                     this.unread = result.unread;
                     this.loaded = true;
+                    this.fetchedAt = Date.now();
                 } catch {
                     if (requestId === this.requestId) this.loadError = true;
                 } finally {
@@ -62,6 +73,7 @@ export default function registerNotificationDropdown(Alpine) {
             async mark(item, open = false, focusTarget = null) {
                 if (this.busy) return;
                 this.requestId++;
+                this.fetchedAt = 0;
                 this.loading = false;
                 this.busy = true;
                 this.message = "";
@@ -101,7 +113,7 @@ export default function registerNotificationDropdown(Alpine) {
                         "Unable to update notifications. Please try again.";
                 } finally {
                     this.busy = false;
-                    if (this.open) this.refresh();
+                    if (this.open) this.refresh(true);
                 }
             },
         }),

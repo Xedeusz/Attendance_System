@@ -296,7 +296,9 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     ).toBeVisible();
     await page.goto(recordUrl);
     await expect(
-        page.locator(".badge").filter({ hasText: /^Completed$/ }),
+        page
+            .locator(".attendance-branch-details .badge")
+            .filter({ hasText: /^Completed$/ }),
     ).toBeVisible();
     const photos = page.locator('img[alt^="Submitted"]');
     expect(await photos.count()).toBe(2);
@@ -337,8 +339,15 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
         hrPage.locator(".badge").filter({ hasText: /^Completed$/ }),
     ).toBeVisible();
     await hrPage.goto(recordUrl);
+    const technicalLocation = hrPage.locator("[data-attendance-technical]");
+    await technicalLocation
+        .getByText("Technical Attendance Location Details", { exact: true })
+        .click();
     await expect(
-        hrPage.getByText("Employee-reported, untrusted coordinates"),
+        technicalLocation.getByText("Reported latitude", { exact: true }),
+    ).toHaveCount(2);
+    await expect(
+        technicalLocation.getByText("Reported longitude", { exact: true }),
     ).toHaveCount(2);
     await page.evaluate(() => {
         window.qaLocationDenied = false;
@@ -398,8 +407,10 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     });
     await page.goto(pendingUrl);
     await expect(
-        page.locator(".badge").filter({ hasText: /^Exception approved$/ }),
-    ).toHaveCount(2);
+        page
+            .locator(".attendance-branch-details .badge")
+            .filter({ hasText: /^Exception approved$/ }),
+    ).toBeVisible();
     await hrPage.goto("/hr/dashboard");
     await expect(
         hrPage.getByRole("heading", {

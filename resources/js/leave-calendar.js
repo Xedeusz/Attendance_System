@@ -1,5 +1,6 @@
 const dayMilliseconds = 86400000;
 const views = ["month", "week", "list"];
+const visibleLanes = 3;
 const dateFormatter = new Intl.DateTimeFormat("en-PH", {
     timeZone: "UTC",
     month: "short",
@@ -18,7 +19,7 @@ const overlapLabels = {
 };
 const statusColors = {
     approved: "bg-[#E7F7F2] text-[#087C68]",
-    pending_supervisor_approval: "bg-amber-100 text-amber-900",
+    pending_supervisor_approval: "bg-[#FFF4E5] text-[#92400E]",
     awaiting_supervisor_assignment: "bg-[#F0ECF8] text-[#2F1B72]",
     rejected: "bg-red-100 text-red-900",
     revoked: "bg-red-100 text-red-900",
@@ -35,6 +36,71 @@ function iso(date) {
 
 function shift(date, days) {
     return iso(new Date(civil(date).getTime() + days * dayMilliseconds));
+}
+
+function dayIndex(start, date) {
+    return (civil(date) - civil(start)) / dayMilliseconds;
+}
+
+function layoutWeeks(events, { from, to }) {
+    const count = dayIndex(from, to) + 1;
+    const weeks = Array.from({ length: count / 7 }, (_, index) => {
+        const start = shift(from, index * 7);
+        return {
+            start,
+            days: Array.from({ length: 7 }, (_, column) =>
+                shift(start, column),
+            ),
+            segments: [],
+            hidden: [],
+            counts: Array(7).fill(0),
+            more: Array(7).fill(0),
+            laneEnds: [],
+        };
+    });
+    const ordered = [...events].sort(
+        (left, right) =>
+            left.start.localeCompare(right.start) ||
+            right.end.localeCompare(left.end) ||
+            left.title.localeCompare(right.title) ||
+            left.id - right.id,
+    );
+
+    for (const entry of ordered) {
+        const start = Math.max(0, dayIndex(from, entry.start));
+        const end = Math.min(count, dayIndex(from, entry.end) + 1);
+        for (let offset = start; offset < end;) {
+            const week = weeks[Math.floor(offset / 7)];
+            const column = offset % 7;
+            const span = Math.min(7 - column, end - offset);
+            // Use the first lane free for the whole segment to keep the bar continuous.
+            let lane = week.laneEnds.findIndex(
+                (endColumn) => endColumn <= column,
+            );
+            if (lane === -1) lane = week.laneEnds.length;
+            const segment = {
+                entry,
+                column,
+                span,
+                lane,
+                continuesBefore: week.days[column] > entry.start,
+                continuesAfter: column + span === 7 && week.days[6] < entry.end,
+            };
+            const hidden = lane >= visibleLanes;
+            if (hidden) {
+                week.hidden.push(segment);
+            } else {
+                week.laneEnds[lane] = column + span;
+                week.segments.push(segment);
+            }
+            for (let day = column; day < column + span; day++) {
+                week.counts[day]++;
+                if (hidden) week.more[day]++;
+            }
+            offset += span;
+        }
+    }
+    return weeks;
 }
 
 function monthStart(date) {
@@ -74,7 +140,8 @@ export default function registerLeaveCalendar(Alpine) {
             view: "month",
             filters: {},
             events: [],
-            byDay: {},
+            weeks: [],
+            dayPanel: null,
             staffing: null,
             team: [],
             cursor: null,
@@ -99,6 +166,8 @@ export default function registerLeaveCalendar(Alpine) {
                 this.filters = Object.fromEntries(
                     filterNames.map((key) => [key, query.get(key) || ""]),
                 );
+                if (this.view !== "list")
+                    this.weeks = layoutWeeks([], this.range);
                 this.load();
             },
             destroy() {
@@ -145,7 +214,25 @@ export default function registerLeaveCalendar(Alpine) {
                 );
             },
             get selectedEvents() {
-                return this.byDay[this.selectedDay] || [];
+                if (this.dayPanel === "overflow") {
+                    const week = this.weeks.find(({ days }) =>
+                        days.includes(this.selectedDay),
+                    );
+                    const column = week?.days.indexOf(this.selectedDay);
+                    return (
+                        week?.hidden
+                            .filter(
+                                (segment) =>
+                                    column >= segment.column &&
+                                    column < segment.column + segment.span,
+                            )
+                            .map(({ entry }) => entry) || []
+                    );
+                }
+                return this.events.filter(
+                    ({ start, end }) =>
+                        start <= this.selectedDay && this.selectedDay <= end,
+                );
             },
             get legend() {
                 if (this.filters.status) return [this.filters.status];
@@ -187,6 +274,22 @@ export default function registerLeaveCalendar(Alpine) {
                       ? "Afternoon half-day"
                       : "";
             },
+            eventLabel(entry) {
+                return [
+                    entry.title,
+                    this.statuses[entry.status],
+                    this.dates(entry.start, entry.end),
+                    this.halfDay(entry),
+                ]
+                    .filter(Boolean)
+                    .join(" · ");
+            },
+            showDay(day, panel = "all") {
+                this.selectedDay = day;
+                this.dayPanel = panel;
+                if (panel === "overflow")
+                    this.$nextTick(() => this.$refs.dayDetails.focus());
+            },
             dayNumber(date) {
                 return civil(date).getUTCDate();
             },
@@ -201,6 +304,7 @@ export default function registerLeaveCalendar(Alpine) {
                 if (!validDate(date)) return;
                 this.anchor = date;
                 this.selectedDay = date;
+                this.dayPanel = null;
                 this.change();
             },
             changeView(view) {
@@ -226,16 +330,19 @@ export default function registerLeaveCalendar(Alpine) {
                     "",
                     location.pathname + "?" + query,
                 );
-                this.schedule(delay);
+                this.schedule(delay, true);
             },
-            schedule(delay = 100) {
+            schedule(delay = 100, reset = false) {
                 clearTimeout(this.refreshTimer);
                 this.eventRequest++;
                 this.loading = true;
                 this.error = false;
-                this.events = [];
-                this.byDay = {};
-                this.staffing = null;
+                if (reset) {
+                    this.events = [];
+                    this.weeks =
+                        this.view === "list" ? [] : layoutWeeks([], this.range);
+                    this.staffing = null;
+                }
                 this.cursor = null;
                 this.refreshTimer = setTimeout(() => this.load(), delay);
                 if (this.detailId) this.fetchDetails(this.detailId);
@@ -282,17 +389,8 @@ export default function registerLeaveCalendar(Alpine) {
                             return;
                         }
                     }
-                    const byDay = {};
-                    for (const entry of this.events) {
-                        for (
-                            let day = entry.start < from ? from : entry.start;
-                            day <= entry.end && day <= to;
-                            day = shift(day, 1)
-                        ) {
-                            (byDay[day] ??= []).push(entry);
-                        }
-                    }
-                    this.byDay = byDay;
+                    if (this.view !== "list")
+                        this.weeks = layoutWeeks(this.events, { from, to });
                 } catch {
                     if (request === this.eventRequest) this.error = true;
                 } finally {

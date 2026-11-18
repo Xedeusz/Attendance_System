@@ -1,6 +1,3 @@
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-
 function popup(title, lines) {
     const element = document.createElement("div");
     const heading = document.createElement("strong");
@@ -13,24 +10,24 @@ function popup(title, lines) {
     }
     return element;
 }
-const branchIcon = L.divIcon({
+const branchIcon = {
     className: "attendance-branch-marker",
     html: '<span aria-hidden="true"></span>',
     iconSize: [28, 34],
     iconAnchor: [14, 34],
-});
-const employeeIcon = L.divIcon({
+};
+const employeeIcon = {
     className: "attendance-employee-marker",
     html: '<span aria-hidden="true"></span>',
     iconSize: [22, 22],
     iconAnchor: [11, 11],
-});
-const timeOutIcon = L.divIcon({
+};
+const timeOutIcon = {
     className: "attendance-time-out-marker",
     html: '<span aria-hidden="true"></span>',
     iconSize: [34, 34],
     iconAnchor: [17, 17],
-});
+};
 const validPoint = (point) =>
     Array.isArray(point) &&
     point.length === 2 &&
@@ -62,7 +59,7 @@ export default function registerAttendanceLocationMap(Alpine) {
                 }
                 this.$nextTick(() => this.startMap());
             },
-            startMap() {
+            async startMap() {
                 if (
                     disposed ||
                     map ||
@@ -74,6 +71,8 @@ export default function registerAttendanceLocationMap(Alpine) {
                 )
                     return;
                 try {
+                    const { default: L } = await import("./leaflet-map");
+                    if (disposed || map) return;
                     map = L.map(this.$refs.map, {
                         scrollWheelZoom: true,
                         zoomAnimation: false,
@@ -105,7 +104,7 @@ export default function registerAttendanceLocationMap(Alpine) {
                     tiles.addTo(map);
                     if (validPoint(config.branch)) {
                         const branchMarker = L.marker(config.branch, {
-                            icon: branchIcon,
+                            icon: L.divIcon(branchIcon),
                             draggable: false,
                             title: "Recorded branch: " + config.branchName,
                             alt: "Recorded branch location",
@@ -142,7 +141,7 @@ export default function registerAttendanceLocationMap(Alpine) {
                         if (!validPoint(event.employee)) continue;
                         const timeOut = event.type === "time_out";
                         const eventMarker = L.marker(event.employee, {
-                            icon: timeOut ? timeOutIcon : employeeIcon,
+                            icon: L.divIcon(timeOut ? timeOutIcon : employeeIcon),
                             draggable: false,
                             title:
                                 event.employeeName +

@@ -30,7 +30,7 @@ class WorkspaceSync
     /** @param array<string, mixed> $metadata */
     public function record(string $action, Model $subject, array $metadata = []): void
     {
-        if (in_array($action, ['attendance.validation_failed', 'leave.review_opened', 'leave.signing_confirmed', 'leave.official_pdf_generated', 'leave.approved_pdf_accessed', 'leave.qr_issued', 'leave.document_verified'], true)) {
+        if (in_array($action, ['attendance.validation_failed', 'attendance.submitted', 'leave.review_opened', 'leave.signing_confirmed', 'leave.official_pdf_generated', 'leave.approved_pdf_accessed', 'leave.qr_issued', 'leave.document_verified'], true)) {
             return;
         }
         if ($subject instanceof LeaveSupportingDocument) {
@@ -103,11 +103,13 @@ class WorkspaceSync
             return;
         }
         $revisions = [];
+        $rows = [];
         foreach ($topics as $topic) {
             $revision = (string) Str::uuid();
-            DB::table('workspace_revisions')->upsert([['user_id' => $user->id, 'topic' => $topic, 'revision' => $revision]], ['user_id', 'topic'], ['revision']);
+            $rows[] = ['user_id' => $user->id, 'topic' => $topic, 'revision' => $revision];
             $revisions[$topic] = $revision;
         }
+        DB::table('workspace_revisions')->upsert($rows, ['user_id', 'topic'], ['revision']);
         $userId = $user->id;
         $sessionVersion = $user->session_version;
         $roleId = $user->role_id;

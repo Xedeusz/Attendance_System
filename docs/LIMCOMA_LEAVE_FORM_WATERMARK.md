@@ -4,7 +4,7 @@ The **LMPC Leave Application Form (HRD No. 23/Rev.2)** uses the original [LIMCOM
 
 The shared Blade template centers the image behind the form at **10% opacity**. The image box takes up 44% of the form width, with proportional scaling. Form text, borders, checkbox markings and the Supervisor signature are on the foreground layer. The employee signature line is blank.
 
-Authorized HTML previews load the original PNG from the same origin. The existing Playwright/Chromium PDF renderer receives the exact PNG bytes embedded as a data URL, allowing Windows/XAMPP to render it without an asset request. It is a positioned image, so normal print output retains it independently of the browser’s background graphics preference.
+Authorized HTML previews load the original PNG from the same origin. The Playwright/Chromium renderer embeds a [640 × 640 print image](../resources/images/limcoma-leave-watermark.jpg) derived from that artwork. The smaller file retains the same proportions and uses a data URL to render without an asset request. It is a positioned image, so normal print output retains it independently of the browser’s background graphics preference.
 
 ## Document verification and privacy
 

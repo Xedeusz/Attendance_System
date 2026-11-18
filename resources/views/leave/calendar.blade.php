@@ -59,8 +59,8 @@
                     </label>
                 @endif
                 <label class="min-w-0 flex-[1_1_11rem] text-sm font-semibold">
-                    Status
-                    <select class="field mt-1" x-model="filters.status" @change="change()">
+                    <span id="calendar-status-label">Status</span>
+                    <select class="field mt-1" aria-labelledby="calendar-status-label" x-model="filters.status" @change="change()">
                         <option value="">Active leave</option>
                         @foreach($statuses as $value => $label)<option value="{{ $value }}">{{ $label }}</option>@endforeach
                     </select>
@@ -121,40 +121,56 @@
                         <div class="py-2">{{ $day }}</div>
                     @endforeach
                 </div>
-                <div class="grid grid-cols-7 border-l border-slate-200" aria-label="Calendar days">
-                    <template x-for="day in days" :key="day">
-                        <div class="min-w-0 border-r border-b border-slate-200 px-0.5 pb-1 sm:px-1"
-                             :class="[selectedDay === day ? 'bg-[#F0ECF8]' : view === 'month' && day.slice(0, 7) !== anchor.slice(0, 7) ? 'bg-slate-50' : 'bg-white', view === 'week' ? 'min-h-18 sm:min-h-36' : 'min-h-14 sm:min-h-24']">
-                            <button type="button" class="flex min-h-8 w-full items-center justify-between gap-1 rounded px-1 text-left text-xs hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-[#2F1B72]"
-                                    :aria-label="format(day) + ', ' + (byDay[day]?.length || 0) + ' leave requests' + (staffing?.days[day]?.overlaps.length ? ', overlaps' : '')"
-                                    :aria-current="day === today ? 'date' : null" :aria-pressed="selectedDay === day" @click="selectedDay = day">
-                                <span :class="day === today ? 'font-bold text-[#087C68]' : 'font-semibold text-slate-700'" x-text="dayNumber(day)"></span>
-                                <span x-show="staffing?.days[day]?.overlaps.length" class="text-amber-900" aria-hidden="true">!</span>
-                            </button>
-                            <button type="button" class="min-h-5 w-full rounded text-center text-xs font-semibold text-[#2F1B72] sm:hidden"
-                                    x-show="byDay[day]?.length" @click="selectedDay = day"
-                                    :aria-label="'Show leave for ' + format(day)" x-text="byDay[day]?.length"></button>
-                            <div class="hidden space-y-1 sm:block">
-                                <template x-for="entry in (byDay[day] || []).slice(0, 2)" :key="entry.id">
-                                    <button type="button" class="w-full min-w-0 rounded px-1.5 py-0.5 text-left text-xs leading-tight focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#2F1B72]"
-                                            :class="statusColor(entry.status)" @click="openDetails(entry.id)"
-                                            :title="entry.title + ' · ' + statuses[entry.status] + (entry.half_day ? ' · ' + halfDay(entry) : '')">
-                                        <span class="block truncate font-semibold" x-text="entry.title"></span>
-                                        <span class="block truncate" x-text="shortStatus(entry.status) + (entry.half_day ? ' · ' + entry.half_day.toUpperCase() : '')"></span>
-                                    </button>
-                                </template>
-                                <button type="button" class="text-link block w-full px-1.5 text-left text-xs" x-show="(byDay[day]?.length || 0) > 2"
-                                        @click="selectedDay = day; $nextTick(() => $refs.dayDetails.focus())"
-                                        :aria-label="'Show all leave for ' + format(day)" x-text="'+' + ((byDay[day]?.length || 0) - 2) + ' more'"></button>
-                            </div>
+                <div class="border-l border-slate-200" aria-label="Calendar days">
+                    <template x-for="week in weeks" :key="week.start">
+                        <div class="isolate grid grid-cols-7 border-b border-slate-200"
+                             :data-week-start="week.start"
+                             :style="{ gridTemplateRows: '2rem ' + (week.laneEnds.length ? 'repeat(' + week.laneEnds.length + ', minmax(1.75rem, auto)) ' : '') + 'minmax(1.5rem, auto)' }">
+                            <template x-for="(day, column) in week.days" :key="day">
+                                <div class="min-w-0 border-r border-slate-200"
+                                     :style="{ gridColumn: column + 1, gridRow: '1 / -1' }"
+                                     :class="selectedDay === day ? 'bg-[#F0ECF8]' : view === 'month' && day.slice(0, 7) !== anchor.slice(0, 7) ? 'bg-slate-50' : 'bg-white'"
+                                     aria-hidden="true"></div>
+                            </template>
+                            <template x-for="(day, column) in week.days" :key="day">
+                                <button type="button" class="z-10 flex min-w-0 items-center justify-between gap-1 rounded px-1.5 text-left text-xs hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#2F1B72]"
+                                        :style="{ gridColumn: column + 1, gridRow: 1 }"
+                                        :aria-label="format(day) + ', ' + week.counts[column] + ' leave requests' + (staffing?.days[day]?.overlaps.length ? ', overlaps' : '')"
+                                        :aria-current="day === today ? 'date' : null" :aria-pressed="selectedDay === day" @click="showDay(day)">
+                                    <span :class="day === today ? 'font-bold text-[#087C68]' : 'font-semibold text-slate-700'" x-text="dayNumber(day)"></span>
+                                    <span x-show="staffing?.days[day]?.overlaps.length" class="text-amber-900" aria-hidden="true">!</span>
+                                </button>
+                            </template>
+                            <template x-for="segment in week.segments" :key="segment.entry.id">
+                                <button type="button"
+                                        class="@container z-10 my-0.5 flex min-h-6 min-w-0 items-center gap-0.5 overflow-hidden px-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#2F1B72] sm:gap-1 sm:px-1.5"
+                                        :data-leave-id="segment.entry.id"
+                                        :style="{ gridColumn: (segment.column + 1) + ' / span ' + segment.span, gridRow: segment.lane + 2 }"
+                                        :class="[statusColor(segment.entry.status), segment.continuesBefore ? '' : 'ml-0.5 rounded-l-md', segment.continuesAfter ? '' : 'mr-0.5 rounded-r-md']"
+                                        :aria-label="eventLabel(segment.entry)" :title="eventLabel(segment.entry)" @click="openDetails(segment.entry.id)">
+                                    <span class="block min-w-0 truncate" aria-hidden="true">
+                                        <span class="font-semibold" x-text="segment.entry.title"></span><span class="hidden @min-[7.5rem]:inline"
+                                              x-text="' · ' + shortStatus(segment.entry.status) + (segment.entry.half_day ? ' · ' + segment.entry.half_day.toUpperCase() : '')"></span>
+                                    </span>
+                                </button>
+                            </template>
+                            <template x-for="(hiddenCount, column) in week.more" :key="column">
+                                <button type="button" class="text-link z-10 min-w-0 truncate px-1 text-left text-[11px] sm:px-1.5 sm:text-xs"
+                                        x-show="hiddenCount" :style="{ gridColumn: column + 1, gridRow: '-2 / -1' }"
+                                        @click="showDay(week.days[column], 'overflow')"
+                                        :aria-label="'Show ' + hiddenCount + ' more for ' + format(week.days[column])"
+                                        :aria-expanded="dayPanel === 'overflow' && selectedDay === week.days[column]" aria-controls="calendar-day-details">
+                                    <span x-text="'+' + hiddenCount"></span><span class="hidden sm:inline"> more</span>
+                                </button>
+                            </template>
                         </div>
                     </template>
                 </div>
 
-                <section x-ref="dayDetails" tabindex="-1" class="space-y-2 px-4 py-3" aria-label="Selected day leave">
-                    <h3 class="text-sm font-bold text-[#2F1B72]" x-text="format(selectedDay)"></h3>
+                <section id="calendar-day-details" x-show="dayPanel" x-ref="dayDetails" tabindex="-1" class="space-y-2 px-4 py-3" aria-label="Selected day leave">
+                    <h3 class="text-sm font-bold text-[#2F1B72]" x-text="(dayPanel === 'overflow' ? 'More leave for ' : '') + format(selectedDay)"></h3>
                     <p x-show="!loading && !error && !selectedEvents.length" class="text-sm text-slate-600">No matching leave on this date.</p>
-                    <template x-for="entry in selectedEvents" :key="entry.id">
+                    <template x-for="entry in (dayPanel ? selectedEvents : [])" :key="entry.id">
                         <x-leave-calendar-event />
                     </template>
                 </section>
@@ -176,7 +192,7 @@
                     <h2>Leave staffing summary</h2>
                     <label class="text-sm">Summary date
                         <input class="field mt-1" type="date" :value="selectedDay" :min="range.from" :max="range.to"
-                               @change="if (days.includes($event.target.value)) selectedDay = $event.target.value">
+                               @change="if (days.includes($event.target.value)) showDay($event.target.value)">
                     </label>
                 </div>
                 <div class="card-body">

@@ -27,6 +27,8 @@ class LeaveApplicationDocumentService
 
     public const WATERMARK_ASSET = 'LIMCOMA.png';
 
+    private const PDF_WATERMARK = 'images/limcoma-leave-watermark.jpg';
+
     public function __construct(private LeavePdfRenderer $renderer, private SupervisorSignatureService $signatures, private AuditService $audit) {}
 
     public function snapshot(Employee $employee, LeaveType $type, ?string $other): array
@@ -84,7 +86,7 @@ class LeaveApplicationDocumentService
             $html = view('leave.official-form', [
                 'fields' => $this->fields($leave),
                 'templateReference' => self::TEMPLATE,
-                'watermarkSource' => 'data:image/png;base64,'.base64_encode(File::get(public_path(self::WATERMARK_ASSET))),
+                'watermarkSource' => 'data:image/jpeg;base64,'.base64_encode(File::get(resource_path(self::PDF_WATERMARK))),
                 'approval' => [
                     'name' => $approver->name,
                     'signedAt' => $approvedAt->copy()->timezone(config('attendance.timezone'))->format('M j, Y H:i:s T'),

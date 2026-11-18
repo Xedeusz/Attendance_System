@@ -143,7 +143,7 @@ class AttendanceService
                 if ($capture->consumed_at) {
                     abort_unless(hash_equals($capture->request_hash, $fingerprint), 409, 'This capture was already used with different evidence.');
 
-                    return $this->result($capture->event);
+                    return $this->result($capture->event, $employee);
                 }
                 $this->freshCapture($capture, $employee);
                 $open = $this->ensureAction($employee, $capture->action);
@@ -170,7 +170,7 @@ class AttendanceService
                 $this->audit->record('attendance.submitted', $event);
                 $linked = true;
 
-                return $this->result($event);
+                return $this->result($event, $employee);
             });
             $kept = $linked;
 
@@ -236,14 +236,14 @@ class AttendanceService
             $capture = AttendanceCaptureSession::whereKey($capture->id)->lockForUpdate()->firstOrFail();
             $this->authorizeCapture($fresh, $capture);
             if ($capture->consumed_at) {
-                return ['status' => 'succeeded', 'submitted' => true, 'result' => $this->result($capture->event)];
+                return ['status' => 'succeeded', 'submitted' => true, 'result' => $this->result($capture->event, $employee)];
             }
 
             return ['status' => $capture->expires_at->isPast() ? 'not_recorded' : 'unknown', 'submitted' => false, 'expired' => $capture->expires_at->isPast(), 'attendance' => $this->availability($employee)];
         });
     }
 
-    public function result(AttendanceEvent $event): array
+    public function result(AttendanceEvent $event, ?Employee $employee = null): array
     {
         $message = match ($event->verification_status) {
             'pending_review' => 'Submission saved as Pending HR Review. It is not location-validated attendance.',
@@ -252,7 +252,7 @@ class AttendanceService
             default => 'Attendance saved. Reported location passed the configured checks; photo origin and physical presence are not independently proven.',
         };
 
-        return ['event_id' => $event->id, 'record_id' => $event->attendance_record_id, 'action' => $event->event_type, 'occurred_at' => $event->occurred_at->toIso8601String(), 'verification_status' => $event->verification_status, 'review_status' => $event->review_status, 'attendance' => $this->availability(Employee::findOrFail($event->employee_id)), 'geofence_status' => $event->geofence_status, 'branch' => $event->branch_snapshot['branch_name'], 'message' => $message, 'record_url' => route('attendance.show', $event->attendance_record_id)];
+        return ['event_id' => $event->id, 'record_id' => $event->attendance_record_id, 'action' => $event->event_type, 'occurred_at' => $event->occurred_at->toIso8601String(), 'verification_status' => $event->verification_status, 'review_status' => $event->review_status, 'attendance' => $this->availability($employee ?? Employee::findOrFail($event->employee_id)), 'geofence_status' => $event->geofence_status, 'branch' => $event->branch_snapshot['branch_name'], 'message' => $message, 'record_url' => route('attendance.show', $event->attendance_record_id)];
     }
 
     public function requestAssistance(User $actor, array $data): void

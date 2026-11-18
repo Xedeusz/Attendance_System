@@ -1,12 +1,10 @@
 import { notify } from "./notifications";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-const officeIcon = L.divIcon({
+const officeIcon = {
     className: "office-marker",
     html: '<span aria-hidden="true"></span>',
     iconSize: [26, 32],
     iconAnchor: [13, 31],
-});
+};
 const detailLimits = {
     branch_name: 150,
     address: 255,
@@ -17,7 +15,9 @@ const detailLimits = {
 
 export default function registerBranchLocationMap(Alpine) {
     Alpine.data("branchLocationMap", () => {
-        let map, marker, circle, tiles, observer, form, onSubmit;
+        let L, map, marker, circle, tiles, observer, form, onSubmit;
+        let disposed = false;
+        let loadingMap = false;
         let config;
         let searchController;
         let searchSequence = 0;
@@ -163,7 +163,7 @@ export default function registerBranchLocationMap(Alpine) {
                 searchSequence++;
                 searchController?.abort();
                 this.searchBusy = false;
-                this.selectLocation(L.latLng(latitude, longitude));
+                this.selectLocation({ lat: latitude, lng: longitude });
                 this.fillBranchDetails(result.details);
                 this.searchResults = [];
                 this.searchMessage = "";
@@ -239,14 +239,18 @@ export default function registerBranchLocationMap(Alpine) {
                 );
             },
 
-            startMap() {
+            async startMap() {
+                if (disposed || loadingMap) return;
                 this.mapError = "";
+                loadingMap = true;
                 try {
                     if (map) {
                         tiles.redraw();
                         map.invalidateSize();
                         return;
                     }
+                    L ??= (await import("./leaflet-map")).default;
+                    if (disposed) return;
                     map = L.map(this.$refs.map, {
                         scrollWheelZoom: true,
                         dragging: this.panning,
@@ -297,11 +301,13 @@ export default function registerBranchLocationMap(Alpine) {
                     map?.remove();
                     map = marker = circle = tiles = null;
                     this.ready = false;
+                } finally {
+                    loadingMap = false;
                 }
             },
 
             selectLocation(latlng) {
-                const point = latlng.wrap();
+                const point = latlng.wrap?.() ?? latlng;
                 this.latitude = point.lat.toFixed(7);
                 this.longitude = point.lng.toFixed(7);
                 this.locationError = "";
@@ -320,7 +326,7 @@ export default function registerBranchLocationMap(Alpine) {
                 const center = [Number(this.latitude), Number(this.longitude)];
                 if (!marker) {
                     marker = L.marker(center, {
-                        icon: officeIcon,
+                        icon: L.divIcon(officeIcon),
                         draggable: !config.readonly,
                         title: config.readonly
                             ? "Saved branch location"
@@ -385,6 +391,7 @@ export default function registerBranchLocationMap(Alpine) {
             },
 
             destroy() {
+                disposed = true;
                 searchSequence++;
                 searchController?.abort();
                 if (form && onDetailsEdited) {

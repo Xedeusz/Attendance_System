@@ -172,8 +172,8 @@ test("employee submission, final Supervisor decision, private document and HR co
     await supPage.goto(
         "/supervisor/leave/calendar?view=week&date=" + supervisor.from,
     );
-    const pendingDay = supPage.locator('[aria-label="Selected day leave"]');
-    await pendingDay
+    const weekGrid = supPage.getByLabel("Calendar days");
+    await weekGrid
         .getByRole("button", {
             name: /Synthetic Employee.*Pending Supervisor approval/,
         })

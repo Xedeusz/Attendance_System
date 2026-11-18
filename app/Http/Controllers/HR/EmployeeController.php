@@ -34,7 +34,7 @@ class EmployeeController extends Controller
             ->when($filters['account_status'] ?? null, fn ($query, $status) => $query->whereHas('user', fn ($user) => $user->where('account_status', $status)))
             ->orderBy($filters['sort'] ?? 'created_at', $filters['direction'] ?? 'desc')->orderBy('id')->paginate(15)->withQueryString();
 
-        return view('hr.employees.index', ['employees' => $employees, 'branches' => Branch::orderBy('branch_name')->get(), 'departments' => Department::orderBy('department_name')->get()]);
+        return view('hr.employees.index', ['employees' => $employees, 'branches' => Branch::orderBy('branch_name')->pluck('branch_name', 'id'), 'departments' => Department::orderBy('department_name')->pluck('department_name', 'id')]);
     }
 
     public function create(): View

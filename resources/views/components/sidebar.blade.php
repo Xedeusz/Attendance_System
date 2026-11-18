@@ -26,6 +26,7 @@ $active = match($name) {
 'attendance' => $actor->isHr() ? request()->routeIs('hr.attendance.*','attendance.show') && !request()->routeIs('hr.corrections.*') : request()->routeIs('employee.attendance','attendance.show'),
 'attendance.history'=>request()->routeIs('employee.attendance.history'),
 'hr.leave.index'=>request()->routeIs('hr.leave.*') && !request()->routeIs('hr.leave.calendar.*'),
+'employee.leave.index'=>request()->routeIs('employee.leave.*') && !request()->routeIs('employee.leave.calendar.*'),
 'supervisor.leave.index'=>request()->routeIs('supervisor.leave.index','supervisor.leave.show'),
 default=>request()->routeIs(str_ends_with($name,'.index') ? substr($name,0,-6).'.*' : $name),
 };
