@@ -270,7 +270,6 @@ test("leave submission and final supervisor approval synchronize authorized queu
     await reviewer
         .getByRole("button", { name: "Approve & Sign", exact: true })
         .click();
-    await reviewer.locator(".swal2-confirm").click();
     await expect(owner.locator("main")).toContainText("Approved", {
         timeout: 20000,
     });

@@ -234,23 +234,31 @@ test("employee submission, final Supervisor decision, private document and HR co
     await supPage
         .getByLabel("Confirmed chargeable days", { exact: true })
         .fill("2");
-    await supPage
-        .getByLabel("Confirm your current password", { exact: true })
-        .fill(supervisor.password);
-    await supPage
-        .getByRole("button", { name: "Approve & Sign", exact: true })
-        .click();
-    await expect(supPage.locator("#swal2-title")).toHaveText(
-        "Approve and Sign Leave?",
+    const approvalPassword = supPage.getByLabel(
+        "Confirm your current password",
+        { exact: true },
     );
-    await supPage.locator(".swal2-cancel").click();
-    await expect(
-        supPage.getByRole("heading", { name: "Final Supervisor decision" }),
-    ).toBeVisible();
-    await supPage
-        .getByRole("button", { name: "Approve & Sign", exact: true })
-        .click();
-    await supPage.locator(".swal2-confirm").click();
+    const approvalButton = supPage.getByRole("button", {
+        name: "Approve & Sign",
+        exact: true,
+    });
+    await expect(approvalPassword).toHaveCount(1);
+    await approvalPassword.fill(supervisor.password);
+    await supPage.evaluate(
+        () =>
+            new Promise((resolve) => {
+                window.addEventListener(
+                    "workspace:notifications",
+                    () => resolve(),
+                    { once: true },
+                );
+                window.dispatchEvent(new Event("online"));
+            }),
+    );
+    await expect(approvalPassword).toHaveCount(1);
+    await expect(approvalPassword).toHaveValue(supervisor.password);
+    await expect(approvalButton).toHaveCount(1);
+    await approvalButton.click();
     await expect(supPage.locator(".limcoma-compact-toast")).toContainText(
         "Leave application approved and signed.",
     );

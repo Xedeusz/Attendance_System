@@ -36,6 +36,72 @@ test("profile preview, save, cross-session avatars, replacement, removal and res
             "Live",
             { timeout: 20000 },
         );
+        const identity = dashboard.getByRole("region", {
+            name: "Employee identification",
+        });
+        const attendance = dashboard.getByRole("region", {
+            name: "My Attendance",
+        });
+        const avatar = identity.locator(".avatar");
+        await expect(identity.getByRole("heading")).toHaveCSS(
+            "color",
+            "rgb(231, 247, 242)",
+        );
+        await expect(avatar).toHaveText("SE");
+        await expect(
+            attendance.getByText("Not Clocked In", { exact: true }),
+        ).toBeVisible();
+        for (const width of [1440, 768, 390, 320]) {
+            await dashboard.setViewportSize({ width, height: 900 });
+            const idBox = await identity.boundingBox();
+            const attendanceBox = await attendance.boundingBox();
+            if (width >= 768) {
+                expect(attendanceBox.x).toBeGreaterThan(idBox.x + idBox.width);
+                expect(attendanceBox.y).toBe(idBox.y);
+            } else {
+                expect(attendanceBox.y).toBeGreaterThanOrEqual(
+                    idBox.y + idBox.height,
+                );
+            }
+            expect(
+                await dashboard.evaluate(
+                    () => document.documentElement.scrollWidth,
+                ),
+            ).toBeLessThanOrEqual(width);
+            if (width === 390) {
+                await expect
+                    .poll(() =>
+                        dashboard
+                            .locator("#workspace-navigation")
+                            .evaluate(
+                                (nav) => nav.getBoundingClientRect().right,
+                            ),
+                    )
+                    .toBeLessThanOrEqual(0);
+                const entry = await attendance
+                    .getByRole("link", { name: "Open attendance" })
+                    .boundingBox();
+                const history = await attendance
+                    .getByRole("link", { name: "Attendance history" })
+                    .boundingBox();
+                expect(history.y).toBeGreaterThanOrEqual(
+                    entry.y + entry.height,
+                );
+                expect(history.width).toBe(entry.width);
+            }
+            if (width === 1440 || width === 390) {
+                await dashboard.screenshot({
+                    path: `test-results/screenshots/workday-${width}.png`,
+                    fullPage: true,
+                });
+            }
+        }
+        await expect(
+            attendance.getByRole("link", { name: "Open attendance" }),
+        ).toHaveAttribute("href", /\/employee\/attendance$/);
+        await expect(
+            attendance.getByRole("link", { name: "Attendance history" }),
+        ).toHaveAttribute("href", /\/employee\/attendance\/history$/);
         await page.goto("/employee/profile");
         let navigations = 0;
         page.on("framenavigated", (frame) => {
@@ -78,9 +144,7 @@ test("profile preview, save, cross-session avatars, replacement, removal and res
         ).toBeVisible({
             timeout: 20000,
         });
-        await expect(dashboard.locator("main .avatar img")).toBeVisible({
-            timeout: 20000,
-        });
+        await expect(avatar.locator("img")).toBeVisible({ timeout: 20000 });
         await page
             .locator("input[type=file]")
             .setInputFiles("resources/images/limcoma logo.jpg");
@@ -113,6 +177,8 @@ test("profile preview, save, cross-session avatars, replacement, removal and res
         ).toBeHidden({
             timeout: 20000,
         });
+        await expect(avatar.locator("img")).toBeHidden({ timeout: 20000 });
+        await expect(avatar).toHaveText("SE");
         expect(navigations).toBe(0);
         expect(errors).toEqual([]);
     } finally {

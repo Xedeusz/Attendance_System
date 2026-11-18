@@ -114,34 +114,33 @@
                 <section class="card"><div class="card-heading"><h2>Applicable balance</h2></div><div class="card-body"><p>{{ $balance ? $balance->available_days.' days available · '.$balance->policy_period : 'No balance configured for this type/year.' }}</p></div></section>
             @endif
             @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
-                <section class="card">
+                <section class="card" key="leave-decision-{{ $leave->id }}">
                     <div class="card-heading"><h2>Final Supervisor decision</h2></div>
                     <div class="card-body">
-                        @error('decision')<p class="field-error mb-3">{{ $message }}</p>@enderror
-                        @error('signature_version')<p class="field-error mb-3">{{ $message }}</p>@enderror
-                        @error('confirmation')<p class="field-error mb-3">{{ $message }}</p>@enderror
+                        <div key="leave-decision-errors">
+                            @error('decision')<p class="field-error mb-3">{{ $message }}</p>@enderror
+                            @error('signature_version')<p class="field-error mb-3">{{ $message }}</p>@enderror
+                            @error('confirmation')<p class="field-error mb-3">{{ $message }}</p>@enderror
+                        </div>
                         @if($signatureVersion)
                             <p class="small mb-4">Electronic signature registered · Version {{ $signatureVersion }}</p>
-                            <form method="POST" action="{{ route('supervisor.leave.decide', $leave) }}"
-                                  data-confirm-title="Approve and Sign Leave?"
-                                  data-confirm-text="Your registered electronic signature will be applied to the official LIMCOMA Leave Application Form. This will finalize the leave decision. {{ $name }} · {{ $typeName }} · {{ $dates }} · {{ $days }} days"
-                                  data-confirm-button="Approve &amp; Sign">
+                            <form method="POST" action="{{ route('supervisor.leave.decide', $leave) }}" key="approve-leave-{{ $leave->id }}">
                                 @csrf
                                 <input type="hidden" name="decision" value="approved">
                                 <input type="hidden" name="signature_version" value="{{ $signatureVersion }}">
-                                <input type="hidden" name="confirmation" value="0" data-confirm-on-accept>
                                 @if($leave->type->affects_balance)
                                     <x-input name="chargeable_days" label="Confirmed chargeable days" type="number" step="0.5" min="0" :max="$leave->requested_duration" required />
                                     <p class="small muted mb-4">Confirm days using the actual work schedule and holidays.</p>
                                 @endif
                                 <x-password name="current_password" label="Confirm your current password" />
-                                <x-button type="submit">Approve &amp; Sign</x-button>
+                                <p class="small muted mb-3">Approve &amp; Sign applies your registered electronic signature and finalizes this decision.</p>
+                                <x-button type="submit" name="confirmation" value="1">Approve &amp; Sign</x-button>
                             </form>
                         @else
                             <p class="small mb-3">Register your electronic signature to approve an application.</p>
                             <x-button variant="secondary" :href="route('supervisor.signature.show')">Register signature</x-button>
                         @endif
-                        <form method="POST" class="mt-5 border-t border-slate-200 pt-5" action="{{ route('supervisor.leave.decide', $leave) }}"
+                        <form method="POST" class="mt-5 border-t border-slate-200 pt-5" action="{{ route('supervisor.leave.decide', $leave) }}" key="reject-leave-{{ $leave->id }}"
                               data-confirm-title="Reject Leave Application?" data-confirm-text="Reject this leave application with the remarks entered?" data-confirm-button="Reject Leave" data-confirm-danger="true">
                             @csrf
                             <input type="hidden" name="decision" value="rejected">

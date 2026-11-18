@@ -178,13 +178,16 @@ test("representative HR and Employee screens retain accessible workflows across 
                 const action = await employeePage
                     .getByRole("link", { name: "Open attendance", exact: true })
                     .boundingBox();
-                const employmentHeading = await employeePage
-                    .getByRole("heading", {
-                        name: "My employment details",
-                        exact: true,
-                    })
+                const identity = await employeePage
+                    .getByRole("region", { name: "Employee identification" })
                     .boundingBox();
-                expect(action.y).toBeLessThan(employmentHeading.y);
+                const attendance = await employeePage
+                    .getByRole("region", { name: "My Attendance" })
+                    .boundingBox();
+                expect(attendance.y).toBeGreaterThanOrEqual(
+                    identity.y + identity.height,
+                );
+                expect(action.y).toBeGreaterThan(attendance.y);
             }
             await employeePage.screenshot({
                 path: `${screenshotRoot}/${path.replaceAll("/", "-")}-employee-${width}.png`,

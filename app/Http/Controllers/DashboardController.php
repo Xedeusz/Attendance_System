@@ -54,7 +54,29 @@ class DashboardController extends Controller
     public function employee(Request $request, AttendanceService $attendance): View
     {
         $user = $request->user()->loadMissing(['employee.department', 'employee.currentAssignment.branch']);
+        $employee = $user->employee;
+        $employeeId = $employee?->id ?? 0;
+        $workday = now(config('attendance.timezone'));
+        $records = AttendanceRecord::where('employee_id', $employeeId);
+        $open = $employee ? $attendance->open($employee) : null;
+        $attendanceRecord = $open;
 
-        return view('employee.dashboard', ['recentLeave' => LeaveRequest::where('employee_id', $user->employee?->id ?? 0)->latest('id')->limit(3)->get(), 'pendingLeave' => LeaveRequest::where('employee_id', $user->employee?->id ?? 0)->whereIn('status', LeaveRequest::PENDING)->count(), 'user' => $user, 'open' => $user->employee ? $attendance->open($user->employee) : null, 'records' => AttendanceRecord::where('employee_id', $user->employee?->id ?? 0)->with('branch')->latest('id')->limit(5)->get()]);
+        if ($employee && ! $attendanceRecord) {
+            $attendanceRecord = (clone $records)
+                ->where('work_date', '>=', $workday->toDateString())
+                ->where('work_date', '<', $workday->copy()->addDay()->toDateString())
+                ->latest('id')->first();
+        }
+
+        return view('employee.dashboard', [
+            'user' => $user,
+            'employee' => $employee,
+            'workday' => $workday,
+            'open' => $open,
+            'attendanceRecord' => $attendanceRecord,
+            'records' => $records->with('branch')->latest('id')->limit(5)->get(),
+            'recentLeave' => LeaveRequest::where('employee_id', $employeeId)->latest('id')->limit(3)->get(),
+            'pendingLeave' => LeaveRequest::where('employee_id', $employeeId)->whereIn('status', LeaveRequest::PENDING)->count(),
+        ]);
     }
 }

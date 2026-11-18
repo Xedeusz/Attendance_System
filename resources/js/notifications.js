@@ -272,6 +272,7 @@ export function initializeNotifications() {
             form.querySelector('[name="confirmation"]');
         const review =
             form.querySelector('[name="decision"]') &&
+            !form.querySelector('button[type="submit"][name="confirmation"]') &&
             form.querySelector('[name="confirmation"]');
         const deleting = form.elements.namedItem("_method")?.value === "DELETE";
         if (

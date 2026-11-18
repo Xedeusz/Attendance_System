@@ -2303,39 +2303,22 @@ nav[role="navigation"] [aria-current="page"] > span {
     gap: 24px;
     align-items: start;
 }
-.workday-focus {
-    border-top: 3px solid var(--limcoma-purple);
+.card.workday-panel {
+    box-shadow: 0 2px 6px rgb(30 41 59 / 5%);
 }
-.workday-name {
-    font-size: 18px;
-    font-weight: 650;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-}
-.workday-guidance {
-    margin: 18px 0;
-    font-size: 13px;
-    line-height: 1.7;
-    color: #475569;
-    max-width: 600px;
-}
-.workday-timestamp {
-    margin-top: 16px;
-    font-size: 13px;
+.workday-id-label {
+    color: var(--limcoma-teal-light);
+    font-size: 11px;
     font-weight: 600;
 }
-.workday-timestamp span {
-    color: var(--text-secondary);
-    font-weight: 400;
+.workday-status .icon {
+    width: 14px;
+    height: 14px;
 }
-.workday-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 12px 20px;
-}
-.workday-layout .profile-row {
-    grid-template-columns: minmax(100px, 1fr) minmax(0, 1.4fr);
+.avatar.workday-id-avatar {
+    width: clamp(56px, 6vw, 72px);
+    height: clamp(56px, 6vw, 72px);
+    font-size: 20px;
 }
 .utility-link {
     display: flex;
@@ -2532,12 +2515,6 @@ nav[role="navigation"] [aria-current="page"] > span {
     }
     .form-grid {
         gap: 0;
-    }
-    .workday-layout .profile-row {
-        grid-template-columns: minmax(0, 1fr);
-    }
-    .workday-actions > .button {
-        width: 100%;
     }
     .toolbar {
         gap: 12px;
