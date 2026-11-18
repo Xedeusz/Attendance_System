@@ -1,6 +1,18 @@
 # Phase 5 implementation report
 Implemented 2026-11-16 in the existing Laravel 13 / PHP 8.5 / Fortify / Blade / Tailwind / Alpine / MariaDB project. Earlier uncommitted UI, branch map/Photon and attendance improvements were retained. No new dependency, public deployment or Phase 6 implementation was added.
 
+## Official leave form enhancement
+
+The online request now creates a saved preview of the **LMPC Leave Application Form — HRD No. 23/Rev.2**. An assigned Supervisor uses their registered electronic signature and current password to approve and generate a private signed PDF in the existing final decision workflow. Rejection keeps the application unsigned. Employee signature implementation is deferred. HR retains monitoring and routing authority.
+
+The additive migration adds submission snapshots, supervisor signature versions and one immutable approved document per request. The existing balance ledger and notification flow are reused.
+
+See [form fields and renderer](LIMCOMA_OFFICIAL_LEAVE_FORM.md), [signature setup](SUPERVISOR_E_SIGNATURE.md), and [decision workflow](LEAVE_APPROVAL_WORKFLOW.md). Authorized LIMCOMA HR must approve the form and signing procedure for production.
+
+### Enhancement verification
+
+The local MariaDB migration and Vite production build succeeded. The full PHPUnit suite passed all 252 tests. After a browser check identified a missing page-header property, the property was supplied and all nine official-form feature cases passed again. Two focused Playwright tests passed against local MariaDB and Reverb. They exercised signature enrollment, approval confirmation, mobile and desktop widths, signed PDF access and download, HR attendance correction regression, and leave updates across authorized sessions. The generated synthetic PDF was rendered and checked visually against the form photograph. It was one A4 landscape page with the signature beneath Approved by and a blank employee signature line.
+
 ## A. Implemented modules
 Supervisor accounts and dated explicit assignments; strict leave-only workspace; Employee leave submission/history/cancellation; HR type/policy and balance ledger configuration; single-stage final Supervisor approval/rejection; encrypted private supporting documents; HR leave monitoring; Employee attendance corrections with HR-only review; standard Laravel persistent notifications; shared top-right SweetAlert confirmations/feedback; real dashboard summaries.
 
@@ -12,7 +24,7 @@ The leave workflow is Employee → Assigned Supervisor → Approved/Rejected. Th
 See [role](SUPERVISOR_ROLE.md), [permissions](RBAC_PERMISSIONS.md), [assignments](SUPERVISOR_ASSIGNMENTS.md) and [workflow](LEAVE_APPROVAL_WORKFLOW.md).
 
 ## F. Leave policy, balances and private documents
-No official company types, entitlement credits, schedules/holidays or accrual rules are seeded. HR configures verified types, document/half-day/balance settings and authorized yearly ledger adjustments with reasons. Requests record requested days; the Supervisor confirms chargeable days against actual work policy. No automatic calendar-day deduction. Submission never debits; one final approval may debit a configured sufficient balance once. Pending-only cancellation is supported; approved reversal is intentionally outside the automated workflow until company policy exists.
+No official company types, entitlement credits, schedules/holidays or accrual rules are seeded. HR configures verified types, document/half-day/balance settings and authorized yearly ledger adjustments with reasons. The employee form calculates requested days from the inclusive dates. The Supervisor confirms chargeable days against actual work policy. No automatic calendar-day deduction. Submission never debits; one final approval may debit a configured sufficient balance once. Pending-only cancellation is supported; approved reversal is intentionally outside the automated workflow until company policy exists.
 
 Private PDF/JPEG/PNG documents are content/size validated, encrypted and downloaded through authorized attachment endpoints. The file-size default is 5120 KB. Retention defaults to null until confirmed; configured new-upload expiry is enforced by scheduled purge while metadata/history remain. Camera-only rules still apply to attendance photos, not leave documents.
 

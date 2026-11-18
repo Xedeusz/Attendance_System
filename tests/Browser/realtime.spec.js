@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { enrollSignature } from "./leave-signature.js";
 import { execFileSync } from "node:child_process";
 const php = process.env.PHP_BINARY || "C:\\xampp\\php\\php.exe";
 let hr, employee, supervisor;
@@ -171,16 +172,20 @@ test("leave submission and final supervisor approval synchronize authorized queu
     await admin.locator(".swal2-confirm").click();
     await expect(admin.locator("table")).toContainText("Synthetic Employee");
     await login(reviewer, supervisor);
+    await enrollSignature(reviewer, supervisor);
     await reviewer.goto("/supervisor/leave/pending");
     await live(reviewer);
     await login(owner, employee);
     await owner.goto("/employee/leave/create");
-    await owner
-        .getByLabel("Leave Type", { exact: true })
-        .selectOption(String(supervisor.type_id));
+    await owner.getByRole("radio", { name: "Others (pls specify)" }).check();
+    if (await owner.locator("#leave-type-choice").isVisible()) {
+        await owner
+            .getByLabel("Specify leave type")
+            .selectOption(String(supervisor.type_id));
+    }
     await owner.getByLabel("Start Date", { exact: true }).fill(supervisor.from);
     await owner.getByLabel("End Date", { exact: true }).fill(supervisor.until);
-    await owner.getByLabel("Requested days", { exact: true }).fill("2");
+    await expect(owner.locator("#leave-day-count")).toHaveText("2");
     await owner
         .getByLabel("Reason", { exact: true })
         .fill("Synthetic request to verify secure real-time decisions.");
@@ -194,7 +199,7 @@ test("leave submission and final supervisor approval synchronize authorized queu
             ),
         });
     await owner
-        .getByRole("button", { name: "Submit leave application", exact: true })
+        .getByRole("button", { name: "Submit Application", exact: true })
         .click();
     await expect(owner).toHaveURL(/employee\/leave\/\d+$/);
     const id = owner.url().split("/").at(-1);
@@ -210,10 +215,13 @@ test("leave submission and final supervisor approval synchronize authorized queu
     });
     await reviewer.goto("/supervisor/leave/" + id);
     await reviewer
-        .getByLabel("Decision remarks / rejection reason")
-        .fill("Reviewed the request and confirmed the chargeable work dates.");
+        .getByLabel("Confirmed chargeable days", { exact: true })
+        .fill("2");
     await reviewer
-        .getByRole("button", { name: "Approve Leave", exact: true })
+        .getByLabel("Confirm your current password", { exact: true })
+        .fill(supervisor.password);
+    await reviewer
+        .getByRole("button", { name: "Approve & Sign", exact: true })
         .click();
     await reviewer.locator(".swal2-confirm").click();
     await expect(owner.locator("main")).toContainText("Approved", {

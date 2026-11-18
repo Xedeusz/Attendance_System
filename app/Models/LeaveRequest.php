@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class LeaveRequest extends Model
 {
@@ -14,11 +15,11 @@ class LeaveRequest extends Model
 
     public const PENDING = ['awaiting_supervisor_assignment', 'pending_supervisor_approval'];
 
-    protected $fillable = ['employee_id', 'leave_type_id', 'assigned_supervisor_user_id', 'start_date', 'end_date', 'requested_duration', 'charged_duration', 'half_day', 'reason', 'type_snapshot', 'status', 'submitted_at', 'reviewed_at', 'finalized_at', 'cancelled_at'];
+    protected $fillable = ['employee_id', 'leave_type_id', 'assigned_supervisor_user_id', 'start_date', 'end_date', 'requested_duration', 'charged_duration', 'half_day', 'reason', 'type_snapshot', 'form_snapshot', 'status', 'submitted_at', 'reviewed_at', 'finalized_at', 'cancelled_at'];
 
     protected function casts(): array
     {
-        return ['start_date' => 'date', 'end_date' => 'date', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'finalized_at' => 'datetime', 'cancelled_at' => 'datetime', 'requested_duration' => 'decimal:2', 'charged_duration' => 'decimal:2', 'reason' => 'encrypted', 'type_snapshot' => 'array'];
+        return ['start_date' => 'date', 'end_date' => 'date', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'finalized_at' => 'datetime', 'cancelled_at' => 'datetime', 'requested_duration' => 'decimal:2', 'charged_duration' => 'decimal:2', 'reason' => 'encrypted', 'type_snapshot' => 'array', 'form_snapshot' => 'encrypted:array'];
     }
 
     public function employee(): BelongsTo
@@ -44,6 +45,11 @@ class LeaveRequest extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(LeaveSupportingDocument::class);
+    }
+
+    public function approvalDocument(): HasOne
+    {
+        return $this->hasOne(LeaveApprovalDocument::class);
     }
 
     public function scopeForSupervisor(Builder $query, User $actor): Builder

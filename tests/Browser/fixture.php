@@ -14,6 +14,7 @@ use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeBranchAssignment;
 use App\Models\EmployeeLeaveBalance;
+use App\Models\LeaveApprovalDocument;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\LeaveReview;
@@ -22,6 +23,7 @@ use App\Models\LeaveType;
 use App\Models\LocalMailMessage;
 use App\Models\Role;
 use App\Models\SupervisorAssignment;
+use App\Models\SupervisorSignature;
 use App\Models\User;
 use App\Services\LeaveService;
 use Illuminate\Contracts\Console\Kernel;
@@ -66,7 +68,7 @@ if (($argv[1] ?? '') === 'create') {
     $password = bin2hex(random_bytes(20)).'aA!';
     $supervisor = User::create(['name' => 'Synthetic Leave Supervisor', 'email' => strtolower($prefix).'-supervisor@example.test', 'password' => $password]);
     $supervisor->forceFill(['supervisor_department_id' => $employee->department_id, 'role_id' => Role::SUPERVISOR, 'account_status' => 'active', 'email_verified_at' => now()])->save();
-    $type = LeaveType::factory()->create(['code' => $prefix.'-LEAVE', 'name' => $prefix.' Synthetic Leave', 'affects_balance' => true, 'requires_document' => true]);
+    $type = LeaveType::factory()->create(['code' => $prefix.'-LEAVE', 'name' => ($argv[3] ?? null) === 'generic-other' ? 'Others' : $prefix.' Synthetic Leave', 'affects_balance' => true, 'requires_document' => true]);
     Auth::login($actor);
     app(LeaveService::class)->adjustBalance($actor, ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'policy_period' => now()->format('Y'), 'amount' => 5, 'reason' => 'Synthetic browser test credit; not company policy.']);
     echo json_encode(['id' => $supervisor->id, 'email' => $supervisor->email, 'password' => $password, 'employee_id' => $employee->id, 'type_id' => $type->id, 'type' => $type->name, 'from' => now(config('attendance.timezone'))->addDays(4)->toDateString(), 'until' => now(config('attendance.timezone'))->addDays(5)->toDateString(), 'correction_date' => now(config('attendance.timezone'))->subDay()->toDateString()]);
@@ -88,6 +90,14 @@ if (($argv[1] ?? '') === 'create') {
         foreach (LeaveSupportingDocument::whereIn('leave_request_id', $leaveIds)->get() as $document) {
             Storage::disk('leave')->delete($document->storage_path);
             $document->delete();
+        }
+        foreach (LeaveApprovalDocument::whereIn('leave_request_id', $leaveIds)->whereIn('approved_by_user_id', $userIds)->get() as $document) {
+            Storage::disk('leave')->delete($document->storage_path);
+            $document->delete();
+        }
+        foreach (SupervisorSignature::whereIn('supervisor_user_id', $userIds)->get() as $signature) {
+            Storage::disk('leave')->delete($signature->storage_path);
+            $signature->delete();
         }
         LeaveReview::whereIn('leave_request_id', $leaveIds)->delete();
         $balanceIds = EmployeeLeaveBalance::whereIn('employee_id', $employees->pluck('id'))->pluck('id');

@@ -30,7 +30,7 @@ class WorkspaceSecurityHeaders
             }
         }
         $response->headers->set('X-Content-Type-Options', 'nosniff');
-        $response->headers->set('X-Frame-Options', 'DENY');
+        $response->headers->set('X-Frame-Options', $request->routeIs('supervisor.leave.form') ? 'SAMEORIGIN' : 'DENY');
         $response->headers->set('Referrer-Policy', 'same-origin');
         $capturePage = $request->routeIs('employee.attendance');
         $response->headers->set('Permissions-Policy', $capturePage ? 'camera=(self), microphone=(), geolocation=(self)' : 'camera=(), microphone=(), geolocation=()');

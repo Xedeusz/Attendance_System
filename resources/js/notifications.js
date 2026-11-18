@@ -320,6 +320,10 @@ export function initializeNotifications() {
                     : !review && action !== "reactivate",
             });
             if (confirmed && form.isConnected) {
+                const confirmation = form.querySelector(
+                    "[data-confirm-on-accept]",
+                );
+                if (confirmation) confirmation.value = "1";
                 approved.add(form);
                 form.requestSubmit(event.submitter || undefined);
             }

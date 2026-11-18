@@ -30,7 +30,7 @@ class WorkspaceSync
     /** @param array<string, mixed> $metadata */
     public function record(string $action, Model $subject, array $metadata = []): void
     {
-        if ($action === 'attendance.validation_failed') {
+        if (in_array($action, ['attendance.validation_failed', 'leave.review_opened', 'leave.signing_confirmed', 'leave.official_pdf_generated', 'leave.approved_pdf_accessed'], true)) {
             return;
         }
         if ($subject instanceof LeaveSupportingDocument) {

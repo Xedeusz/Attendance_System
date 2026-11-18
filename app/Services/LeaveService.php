@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
+use App\Models\LeaveApprovalDocument;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\LeaveReview;
@@ -11,6 +12,7 @@ use App\Models\LeaveSupportingDocument;
 use App\Models\LeaveType;
 use App\Models\Role;
 use App\Models\SupervisorAssignment;
+use App\Models\SupervisorSignature;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -24,7 +26,7 @@ use Throwable;
 
 class LeaveService
 {
-    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices) {}
+    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private LeaveApplicationDocumentService $formDocuments) {}
 
     private function fail(string $field, string $message): never
     {
@@ -51,17 +53,25 @@ class LeaveService
                 if (! $type) {
                     $this->fail('leave_type_id', 'Choose an active leave type.');
                 }
+                if (isset($data['leave_category']) && $data['leave_category'] !== $this->formDocuments->categoryFor($type)) {
+                    $this->fail('leave_type_id', 'Choose a leave type that matches the selected box.');
+                }
                 $start = Carbon::parse($data['start_date']);
                 $end = Carbon::parse($data['end_date']);
                 $span = (int) $start->diffInDays($end) + 1;
-                if ($span > config('leave.max_request_calendar_days') || (float) $data['requested_duration'] > $span) {
-                    $this->fail('requested_duration', 'Requested days must fit the requested dates (maximum 366 calendar dates).');
+                $halfDay = $data['half_day'] ?? null;
+                $duration = (float) ($data['requested_duration'] ?? ($halfDay ? 0.5 : $span));
+                if ($span > config('leave.max_request_calendar_days')) {
+                    $this->fail('end_date', 'The date range can span a maximum of '.config('leave.max_request_calendar_days').' calendar days.');
                 }
-                $fraction = (float) $data['requested_duration'] !== floor((float) $data['requested_duration']);
-                if ($fraction && (! $type->allows_half_day || $span !== 1 || (float) $data['requested_duration'] !== 0.5 || empty($data['half_day']))) {
-                    $this->fail('half_day', 'Half-day leave requires an enabled type, one date, 0.5 day and AM or PM.');
+                if ($duration > $span) {
+                    $this->fail('requested_duration', 'Requested days must fit the requested dates.');
                 }
-                if (! $fraction && ! empty($data['half_day'])) {
+                $fraction = $duration !== floor($duration);
+                if ($fraction && (! $type->allows_half_day || $span !== 1 || $duration !== 0.5 || ! $halfDay)) {
+                    $this->fail('half_day', 'Half-day leave requires an enabled type, one date and AM or PM.');
+                }
+                if (! $fraction && $halfDay) {
                     $this->fail('half_day', 'AM/PM applies only to a single half-day request.');
                 }
                 if ($type->affects_balance && $start->year !== $end->year) {
@@ -73,7 +83,8 @@ class LeaveService
                 if ($type->requires_document && ! $file) {
                     $this->fail('supporting_document', 'This leave type requires a supporting document.');
                 }
-                $leave = LeaveRequest::create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'start_date' => $data['start_date'], 'end_date' => $data['end_date'], 'requested_duration' => $data['requested_duration'], 'half_day' => $data['half_day'] ?? null, 'reason' => $data['reason'], 'type_snapshot' => $type->only(['name', 'requires_document', 'affects_balance', 'allows_half_day', 'duration_policy']), 'status' => 'awaiting_supervisor_assignment', 'submitted_at' => now()]);
+                $formSnapshot = $this->formDocuments->snapshot($employee, $type, $data['other_leave_type'] ?? null);
+                $leave = LeaveRequest::create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'start_date' => $data['start_date'], 'end_date' => $data['end_date'], 'requested_duration' => $duration, 'half_day' => $halfDay, 'reason' => $data['reason'], 'type_snapshot' => $type->only(['name', 'requires_document', 'affects_balance', 'allows_half_day', 'duration_policy']), 'form_snapshot' => $formSnapshot, 'status' => 'awaiting_supervisor_assignment', 'submitted_at' => now()]);
                 if ($file) {
                     $this->document($leave, $file, $storedPath);
                 }
@@ -167,54 +178,91 @@ class LeaveService
 
     public function decide(User $actor, LeaveRequest $target, array $data): LeaveRequest
     {
-        return $this->transactions->run($actor, function (User $fresh) use ($target, $data) {
-            $leave = LeaveRequest::whereKey($target->id)->lockForUpdate()->firstOrFail();
-            Gate::forUser($fresh)->authorize('review', $leave);
-            abort_unless($leave->status === 'pending_supervisor_approval', 409, 'This request already has a decision or requires assignment.');
-            if ($data['decision'] === 'approved') {
-                $this->employee($leave->employee->user);
-                if (! $leave->employee->user->canAuthenticate()) {
-                    $this->fail('decision', 'The requesting account is inactive. Contact HR.');
-                }
-                $type = $leave->type()->lockForUpdate()->firstOrFail();
-                if (! $type->is_active || (bool) $leave->type_snapshot['affects_balance'] !== $type->affects_balance || $leave->type_snapshot['duration_policy'] !== $type->duration_policy) {
-                    $this->fail('decision', 'The leave policy changed or is inactive. Ask HR to review the configuration; submit a new request if needed.');
-                }
-                if ((float) $leave->requested_duration === 0.5 && ! $type->allows_half_day) {
-                    $this->fail('decision', 'This type no longer permits half-day requests.');
-                }
-                if ($type->requires_document && ! $leave->documents()->whereNull('purged_at')->exists()) {
-                    $this->fail('decision', 'A required supporting document is unavailable.');
-                }
-                $charge = $type->affects_balance ? ($data['chargeable_days'] ?? null) : 0;
-                if ($charge === null) {
-                    $this->fail('chargeable_days', 'Confirm chargeable days using the applicable work schedule/policy.');
-                }
-                $span = (int) $leave->start_date->diffInDays($leave->end_date) + 1;
-                if ((float) $charge > $span || (float) $charge > (float) $leave->requested_duration || (! $type->allows_half_day && (float) $charge !== floor((float) $charge))) {
-                    $this->fail('chargeable_days', 'Chargeable days must not exceed the requested days and must follow the half-day policy.');
-                }
-                if ($type->affects_balance) {
-                    $balance = EmployeeLeaveBalance::where('employee_id', $leave->employee_id)->where('leave_type_id', $type->id)->where('policy_period', $leave->start_date->format('Y'))->lockForUpdate()->first();
-                    if (! $balance) {
-                        $this->fail('chargeable_days', 'No balance is configured for this employee, leave type and policy year. HR must configure it first.');
+        $path = 'leave-approval-documents/'.Str::uuid().'.bin';
+        try {
+            return $this->transactions->run($actor, function (User $fresh) use ($target, $data, $path): LeaveRequest {
+                $leave = LeaveRequest::whereKey($target->id)->lockForUpdate()->firstOrFail();
+                $decisionAt = now();
+                $metadata = ['previous_status' => $leave->status];
+                Gate::forUser($fresh)->authorize('review', $leave);
+                abort_unless($leave->status === 'pending_supervisor_approval', 409, 'This request already has a decision or requires assignment.');
+                if ($data['decision'] === 'approved') {
+                    $this->employee($leave->employee->user);
+                    if (! $leave->employee->user->canAuthenticate()) {
+                        $this->fail('decision', 'The requesting account is inactive. Contact HR.');
                     }
-                    $remaining = (int) round((float) $balance->available_days * 2) - (int) round((float) $charge * 2);
-                    if ($remaining < 0) {
-                        $this->fail('chargeable_days', 'Insufficient configured leave balance.');
+                    $type = $leave->type()->lockForUpdate()->firstOrFail();
+                    if (! $type->is_active || (bool) $leave->type_snapshot['affects_balance'] !== $type->affects_balance || $leave->type_snapshot['duration_policy'] !== $type->duration_policy) {
+                        $this->fail('decision', 'The leave policy changed or is inactive. Ask HR to review the configuration; submit a new request if needed.');
                     }
-                    $balance->update(['available_days' => number_format($remaining / 2, 2, '.', '')]);
-                    LeaveBalanceTransaction::create(['employee_leave_balance_id' => $balance->id, 'leave_request_id' => $leave->id, 'authorized_by_user_id' => $fresh->id, 'transaction_type' => 'approved_debit', 'amount' => -(float) $charge, 'reason' => 'Final Supervisor approval']);
+                    if ((float) $leave->requested_duration === 0.5 && ! $type->allows_half_day) {
+                        $this->fail('decision', 'This type no longer permits half-day requests.');
+                    }
+                    if ($type->requires_document && ! $leave->documents()->whereNull('purged_at')->get()->contains(
+                        fn (LeaveSupportingDocument $document): bool => Storage::disk('leave')->exists($document->storage_path)
+                    )) {
+                        $this->fail('decision', 'A required supporting document is unavailable.');
+                    }
+                    $charge = $type->affects_balance ? ($data['chargeable_days'] ?? null) : 0;
+                    if ($charge === null) {
+                        $this->fail('chargeable_days', 'Confirm chargeable days using the applicable work schedule/policy.');
+                    }
+                    $span = (int) $leave->start_date->diffInDays($leave->end_date) + 1;
+                    if ((float) $charge > $span || (float) $charge > (float) $leave->requested_duration || (! $type->allows_half_day && (float) $charge !== floor((float) $charge))) {
+                        $this->fail('chargeable_days', 'Chargeable days must not exceed the requested days and must follow the half-day policy.');
+                    }
+                    if ($type->affects_balance) {
+                        $balance = EmployeeLeaveBalance::where('employee_id', $leave->employee_id)->where('leave_type_id', $type->id)->where('policy_period', $leave->start_date->format('Y'))->lockForUpdate()->first();
+                        if (! $balance) {
+                            $this->fail('chargeable_days', 'No balance is configured for this employee, leave type and policy year. HR must configure it first.');
+                        }
+                        $remaining = (int) round((float) $balance->available_days * 2) - (int) round((float) $charge * 2);
+                        if ($remaining < 0) {
+                            $this->fail('chargeable_days', 'Insufficient configured leave balance.');
+                        }
+                        $balance->update(['available_days' => number_format($remaining / 2, 2, '.', '')]);
+                        LeaveBalanceTransaction::create(['employee_leave_balance_id' => $balance->id, 'leave_request_id' => $leave->id, 'authorized_by_user_id' => $fresh->id, 'transaction_type' => 'approved_debit', 'amount' => -(float) $charge, 'reason' => 'Final Supervisor approval']);
+                    }
+                    $signature = SupervisorSignature::activeFor($fresh)->first();
+                    if (! $signature || $signature->version !== (int) ($data['signature_version'] ?? 0)) {
+                        $this->fail('decision', 'Register an electronic signature or reload this application to confirm the current signature version.');
+                    }
+                    if (empty($data['confirmation'])) {
+                        $this->fail('confirmation', 'Explicit confirmation is required to apply your signature.');
+                    }
+                    $leave->charged_duration = $charge;
+                    $leave->form_snapshot ??= $this->formDocuments->legacySnapshot($leave);
+                    $metadata['signature_version'] = $signature->version;
+                    $decisionAt = now();
+                    $document = $this->formDocuments->generate($leave, $fresh, $signature, $decisionAt, $path);
+                    $metadata['document_reference'] = $document->document_reference;
+                    $this->audit->record('leave.signing_confirmed', $leave, $metadata);
+                    $this->audit->record('leave.official_pdf_generated', $leave, $metadata);
                 }
-                $leave->charged_duration = $charge;
-            }
-            $leave->fill(['status' => $data['decision'], 'reviewed_at' => now(), 'finalized_at' => now()])->save();
-            $this->history($leave, $data['decision'], $data['remarks'], ['charged_duration' => $leave->charged_duration]);
-            $this->audit->record('leave.'.$data['decision'], $leave, ['employee_id' => $leave->employee_id, 'charged_duration' => $leave->charged_duration]);
-            $this->notices->send($leave->employee->user, 'leave', 'Your leave application was '.$data['decision'].'.', route('employee.leave.show', $leave), $leave->id);
+                $leave->fill(['status' => $data['decision'], 'reviewed_at' => $decisionAt, 'finalized_at' => $decisionAt])->save();
+                $metadata += ['status' => $leave->status, 'charged_duration' => $leave->charged_duration];
+                $this->history($leave, $data['decision'], $data['remarks'] ?? null, $metadata);
+                $this->audit->record('leave.'.$data['decision'], $leave, $metadata + ['employee_id' => $leave->employee_id]);
+                $message = $data['decision'] === 'approved'
+                    ? 'Your leave application was approved and signed. Your official form is available.'
+                    : 'Your leave application was rejected.';
+                $this->notices->send($leave->employee->user, 'leave', $message, route('employee.leave.show', $leave), $leave->id);
 
-            return $leave;
-        });
+                return $leave;
+            });
+        } catch (Throwable $exception) {
+            if ($data['decision'] === 'approved') {
+                try {
+                    if (! LeaveApprovalDocument::where('storage_path', $path)->exists()) {
+                        Storage::disk('leave')->delete($path);
+                    }
+                } catch (Throwable $cleanupException) {
+                    report($cleanupException);
+                }
+            }
+
+            throw $exception;
+        }
     }
 
     public function cancel(User $actor, LeaveRequest $target, string $reason): void

@@ -5,6 +5,7 @@ use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\HR\LeaveAdministrationController;
 use App\Http\Controllers\HR\SupervisorController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\SupervisorSignatureController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'auth.session'])->group(function () {
@@ -25,10 +26,17 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::post('leave/balances', [LeaveAdministrationController::class, 'adjust'])->middleware('password.confirm')->name('leave.balances.adjust');
         Route::get('leave/documents/{document}', [LeaveController::class, 'document'])->name('leave.document');
         Route::get('leave/{leave}', [LeaveController::class, 'show'])->name('leave.show');
+        Route::get('leave/{leave}/form', [LeaveController::class, 'preview'])->name('leave.form');
+        Route::get('leave/{leave}/approved-form', [LeaveController::class, 'approvedForm'])->middleware('throttle:60,1,leave-approved-form:')->name('leave.approved-form');
         Route::post('leave/{leave}/route', [LeaveAdministrationController::class, 'route'])->name('leave.route');
         Route::get('attendance/corrections', [AttendanceCorrectionController::class, 'index'])->name('corrections.index');
         Route::get('attendance/corrections/{correction}', [AttendanceCorrectionController::class, 'show'])->name('corrections.show');
         Route::post('attendance/corrections/{correction}/decision', [AttendanceCorrectionController::class, 'decide'])->name('corrections.decide');
+    });
+    Route::prefix('supervisor/account/electronic-signature')->name('supervisor.signature.')->group(function () {
+        Route::get('/', [SupervisorSignatureController::class, 'show'])->name('show');
+        Route::get('image', [SupervisorSignatureController::class, 'image'])->middleware('throttle:60,1,leave-signature-read:')->name('image');
+        Route::post('/', [SupervisorSignatureController::class, 'store'])->middleware('throttle:10,1,leave-signature-write:')->name('store');
     });
     Route::prefix('supervisor/leave')->name('supervisor.leave.')->group(function () {
         Route::get('/', [LeaveController::class, 'index'])->name('index');
@@ -39,6 +47,8 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::post('notifications/{notice}/read', [LeaveController::class, 'readNotice'])->name('notices.read');
         Route::get('documents/{document}', [LeaveController::class, 'document'])->name('document');
         Route::get('{leave}', [LeaveController::class, 'show'])->name('show');
+        Route::get('{leave}/form', [LeaveController::class, 'preview'])->name('form');
+        Route::get('{leave}/approved-form', [LeaveController::class, 'approvedForm'])->middleware('throttle:60,1,leave-approved-form:')->name('approved-form');
         Route::post('{leave}/decision', [LeaveController::class, 'decide'])->middleware('throttle:30,1')->name('decide');
     });
     Route::prefix('employee/leave')->name('employee.leave.')->group(function () {
@@ -47,6 +57,8 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
         Route::post('/', [LeaveController::class, 'store'])->middleware('throttle:10,1')->name('store');
         Route::get('documents/{document}', [LeaveController::class, 'document'])->name('document');
         Route::get('{leave}', [LeaveController::class, 'show'])->name('show');
+        Route::get('{leave}/form', [LeaveController::class, 'preview'])->name('form');
+        Route::get('{leave}/approved-form', [LeaveController::class, 'approvedForm'])->middleware('throttle:60,1,leave-approved-form:')->name('approved-form');
         Route::post('{leave}/cancel', [LeaveController::class, 'cancel'])->name('cancel');
     });
     Route::prefix('employee/attendance/corrections')->name('employee.corrections.')->group(function () {

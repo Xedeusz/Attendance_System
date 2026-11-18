@@ -9,7 +9,7 @@
         ],
         $actor->isSupervisor() => [
             'Leave Management' => ['supervisor.leave.index'=>['Leave Overview','grid'],'supervisor.leave.pending'=>['Pending Leave Requests','calendar'],'supervisor.leave.history'=>['Leave History','file'],'supervisor.leave.notices'=>['Leave Notifications','bell']],
-            'My account' => array_filter(['employee.leave.index'=>$actor->employee ? ['My Leave','calendar'] : null,'settings'=>['My Account','settings']]),
+            'My account' => array_filter(['employee.leave.index'=>$actor->employee ? ['My Leave','calendar'] : null,'settings'=>['My Account','settings'],'supervisor.signature.show'=>['Electronic Signature','file']]),
         ],
         default => [
             'My workday' => ['employee.dashboard'=>['Dashboard','grid'],'attendance'=>['Time In / Time Out','clock'],'attendance.history'=>['Attendance History','file'],'employee.leave.index'=>['My Leave','calendar'],'employee.corrections.index'=>['Attendance Corrections','file']],

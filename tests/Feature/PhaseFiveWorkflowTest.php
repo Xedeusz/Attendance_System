@@ -14,6 +14,7 @@ use App\Models\LeaveType;
 use App\Models\Role;
 use App\Models\SupervisorAssignment;
 use App\Models\User;
+use App\Services\LeavePdfRenderer;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -54,7 +55,17 @@ class PhaseFiveWorkflowTest extends TestCase
 
     private function decision(LeaveRequest $leave, array $overrides = []): TestResponse
     {
-        return $this->postJson('/supervisor/leave/'.$leave->id.'/decision', array_replace(['decision' => 'approved', 'remarks' => 'Reviewed the actual work dates and supporting information.', 'confirmation' => 1], $overrides));
+        return $this->postJson('/supervisor/leave/'.$leave->id.'/decision', array_replace(['decision' => 'approved', 'remarks' => 'Reviewed the actual work dates and supporting information.', 'confirmation' => 1, 'current_password' => 'password', 'signature_version' => 1], $overrides));
+    }
+
+    private function enroll(User $supervisor): void
+    {
+        Storage::fake('leave');
+        $this->mock(LeavePdfRenderer::class)->shouldReceive('render')->once()->andReturn("%PDF-1.4\n%%EOF");
+        $this->actingAs($supervisor)->post(route('supervisor.signature.store'), [
+            'current_password' => 'password',
+            'signature' => UploadedFile::fake()->image('signature.png', 160, 45),
+        ])->assertRedirect()->assertSessionHasNoErrors();
     }
 
     public function test_unassigned_application_is_saved_and_hr_assignment_routes_it_without_resetting_submission(): void
@@ -76,6 +87,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->assertSame($submitted, $leave->submitted_at->toIso8601String());
         $this->actingAs($supervisor)->get('/supervisor/leave')->assertOk()->assertSee($employee->employee_number);
         $this->get('/supervisor/leave/'.$leave->id)->assertOk()->assertSee('Final Supervisor decision');
+        $this->enroll($supervisor);
         $this->decision($leave)->assertRedirect();
         $this->assertSame('approved', $leave->fresh()->status);
         $this->assertNotNull($leave->fresh()->finalized_at);
@@ -96,13 +108,14 @@ class PhaseFiveWorkflowTest extends TestCase
         $balance = EmployeeLeaveBalance::sole();
         $this->assertSame('7.00', $balance->available_days);
         $this->actingAs($supervisor);
+        $this->enroll($supervisor);
         $this->decision($leave, ['chargeable_days' => 2.5])->assertRedirect();
         $this->assertSame('4.50', $balance->fresh()->available_days);
         $this->assertSame('2.50', $leave->fresh()->charged_duration);
         $this->decision($leave, ['chargeable_days' => 2.5])->assertConflict();
         $this->assertSame(1, LeaveBalanceTransaction::where('leave_request_id', $leave->id)->count());
         $this->assertSame(1, $leave->reviews()->whereIn('action', ['approved', 'rejected'])->count());
-        $this->assertTrue($employee->user->notifications()->where('data->title', 'Your leave application was approved.')->exists());
+        $this->assertTrue($employee->user->notifications()->where('data->title', 'Your leave application was approved and signed. Your official form is available.')->exists());
         $this->actingAs($employee->user)->post('/employee/leave/'.$leave->id.'/cancel', ['reason' => 'Please cancel this approved application.', 'confirmation' => 1])->assertConflict();
     }
 
@@ -254,6 +267,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $leave = $this->apply($employee, $type, ['end_date' => $day, 'requested_duration' => 0.5, 'half_day' => 'pm']);
         $this->actingAs($supervisor);
         $this->decision($leave, ['chargeable_days' => 1])->assertUnprocessable();
+        $this->enroll($supervisor);
         $this->decision($leave, ['chargeable_days' => 0.5])->assertRedirect();
         $this->assertSame('1.50', EmployeeLeaveBalance::sole()->available_days);
     }
