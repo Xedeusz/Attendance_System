@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AttendanceCorrectionRequest extends Model
 {
@@ -30,6 +32,16 @@ class AttendanceCorrectionRequest extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function computations(): HasMany
+    {
+        return $this->hasMany(AttendanceComputation::class);
+    }
+
+    public function computation(): HasOne
+    {
+        return $this->hasOne(AttendanceComputation::class)->latestOfMany('version');
     }
 
     public function reviewer(): BelongsTo

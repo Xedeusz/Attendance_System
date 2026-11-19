@@ -3,7 +3,8 @@
     <span class="min-w-0">
         <span class="block font-semibold break-words text-slate-900" x-text="entry.title"></span>
         <span class="mt-1 block text-xs text-slate-600" x-text="dates(entry.start, entry.end)"></span>
+        <span x-show="entry.period" class="mt-1 block text-xs text-slate-600">Leave period: <span class="capitalize" x-text="entry.period"></span></span>
         <span x-show="entry.half_day" class="mt-0.5 block text-xs text-slate-600" x-text="halfDay(entry)"></span>
     </span>
-    <span class="max-w-[45%] shrink-0 rounded-full px-2 py-1 text-xs font-semibold" :class="statusColor(entry.status)" x-text="statuses[entry.status]"></span>
+    <span class="max-w-[45%] shrink-0 rounded-full px-2 py-1 text-xs font-semibold" :class="statusColor(entry.status, entry.period)" x-text="displayStatus(entry.status, entry.period)"></span>
 </button>

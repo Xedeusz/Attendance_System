@@ -6,13 +6,22 @@ use App\Services\InvitationService;
 use App\Services\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Illuminate\Http\Response;
 
 class ActivationController extends Controller
 {
-    public function show(): View
+    public function show(Request $request, InvitationService $invitations): Response|JsonResponse
     {
-        return view('auth.activate');
+        if ($request->expectsJson()) {
+            $state = $invitations->setupState((string) $request->bearerToken());
+
+            return response()->json([
+                'state' => $state,
+                'form' => $state === 'ready' ? view('auth.activation-form')->render() : null,
+            ])->header('Cache-Control', 'private, no-store');
+        }
+
+        return response()->view('auth.activate')->header('Cache-Control', 'private, no-store');
     }
 
     public function store(Request $request, InvitationService $invitations): JsonResponse

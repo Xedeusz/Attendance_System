@@ -209,3 +209,119 @@ test("representative HR and Employee screens retain accessible workflows across 
     await employeeContext.close();
     expect(errors).toEqual([]);
 });
+
+test("attendance filters align and submit at desktop, tablet, and mobile widths", async ({
+    page,
+}) => {
+    await login(page, hr);
+    await page.goto("/hr/attendance");
+    const search = page.getByLabel("Employee search");
+    const dateTo = page.getByLabel("Work date to");
+    const submit = page.getByRole("button", { name: "Apply filters" });
+    for (const width of [1440, 768, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await fits(page);
+        const [field, button] = await Promise.all([
+            dateTo.boundingBox(),
+            submit.boundingBox(),
+        ]);
+        if (width === 1440) {
+            expect(button.x).toBeGreaterThan(field.x + field.width);
+            expect(button.y).toBeCloseTo(field.y, 0);
+            expect(button.height).toBeCloseTo(field.height, 0);
+        } else {
+            expect(button.y).toBeGreaterThan(field.y);
+            if (width === 390) expect(button.width).toBeCloseTo(field.width, 0);
+        }
+    }
+    await page.getByText("More filters", { exact: true }).click();
+    await page.getByLabel("Session status").selectOption("completed");
+    await search.fill("Synthetic");
+    await search.press("Enter");
+    await expect(page).toHaveURL(/q=Synthetic/);
+    await expect(page.getByLabel("Session status")).toHaveValue("completed");
+});
+
+test("work calendar opens date details with the keyboard and filters the compact month", async ({
+    page,
+}) => {
+    await login(page, employee);
+    await page.goto("/employee/attendance/calendar?month=2026-11");
+    const selectedDay = page.getByRole("link", {
+        name: /Thursday, November 19, 2026/,
+    });
+    for (const width of [1440, 768, 390]) {
+        await page.setViewportSize({ width, height: 900 });
+        await fits(page);
+        await selectedDay.press("Enter");
+        const dialog = page.getByRole("dialog", { name: "Date details" });
+        await expect(
+            dialog.getByRole("heading", {
+                name: "Thursday, November 19, 2026",
+            }),
+        ).toBeVisible();
+        await expect(
+            dialog.getByText("No work schedule configured"),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+    }
+
+    await page.getByText("Filters", { exact: true }).click();
+    await page.getByRole("checkbox", { name: "Work schedule" }).uncheck();
+    await expect(selectedDay.getByText("No schedule")).toBeHidden();
+    await page.getByRole("button", { name: "Reset filters" }).click();
+    await expect(
+        page.getByRole("checkbox", { name: "Work schedule" }),
+    ).toBeChecked();
+    await page.getByRole("link", { name: "Next month" }).click();
+    await expect(
+        page.getByRole("heading", { name: "December 2026", exact: true }),
+    ).toBeVisible();
+});
+
+test("work policy pages fit desktop and mobile and preview paid and unpaid breaks", async ({
+    browser,
+}) => {
+    test.setTimeout(120000);
+    const hrContext = await browser.newContext();
+    const hrPage = await hrContext.newPage();
+    await login(hrPage, hr);
+    await hrPage.goto("/hr/attendance/schedules/create");
+    await hrPage.getByLabel("Work start", { exact: true }).fill("08:00");
+    await hrPage.getByLabel("Work end", { exact: true }).fill("16:00");
+    await hrPage.getByLabel("Break start", { exact: true }).fill("12:00");
+    await hrPage.getByLabel("Break end", { exact: true }).fill("13:00");
+    const preview = hrPage.getByLabel("Schedule duration preview");
+    await expect(preview.locator("dd")).toHaveText(["480", "60", "60", "420"]);
+    await hrPage.getByLabel("Break classification").selectOption("1");
+    await expect(preview.locator("dd")).toHaveText(["480", "60", "0", "480"]);
+
+    const employeeContext = await browser.newContext();
+    const employeePage = await employeeContext.newPage();
+    await login(employeePage, employee);
+    for (const width of [1440, 390]) {
+        await hrPage.setViewportSize({ width, height: 1000 });
+        await fits(hrPage);
+        await employeePage.setViewportSize({ width, height: 1000 });
+        for (const [page, path, heading] of [
+            [hrPage, "/hr/attendance/schedules", "Schedules & Policies"],
+            [
+                hrPage,
+                "/hr/attendance/holidays?view=month",
+                "Holiday Management",
+            ],
+            [employeePage, "/employee/attendance/calendar", "My Work Calendar"],
+        ]) {
+            expect((await page.goto(path)).status()).toBe(200);
+            await expect(
+                page.getByRole("heading", { name: heading, exact: true }),
+            ).toBeVisible();
+            await fits(page);
+        }
+        await hrPage.goto("/hr/attendance/schedules/create");
+    }
+
+    await employeeContext.close();
+    await hrContext.close();
+});

@@ -18,6 +18,9 @@ const overlapLabels = {
     pending_pending: "Multiple pending requests overlap",
 };
 const statusColors = {
+    upcoming: "bg-blue-100 text-blue-900",
+    ongoing: "bg-[#E7F7F2] text-[#087C68]",
+    completed: "bg-slate-100 text-slate-700",
     approved: "bg-[#E7F7F2] text-[#087C68]",
     pending_supervisor_approval: "bg-[#FFF4E5] text-[#92400E]",
     awaiting_supervisor_assignment: "bg-[#F0ECF8] text-[#2F1B72]",
@@ -235,12 +238,21 @@ export default function registerLeaveCalendar(Alpine) {
                 );
             },
             get legend() {
-                if (this.filters.status) return [this.filters.status];
+                if (this.filters.status)
+                    return this.filters.status === "approved"
+                        ? ["upcoming", "ongoing", "completed"]
+                        : [this.filters.status];
                 return [
-                    "approved",
+                    "upcoming",
+                    "ongoing",
+                    "completed",
                     "pending_supervisor_approval",
                     "awaiting_supervisor_assignment",
-                ].filter((status) => this.statuses[status]);
+                ].filter((status) =>
+                    ["upcoming", "ongoing", "completed"].includes(status)
+                        ? this.statuses.approved
+                        : this.statuses[status],
+                );
             },
             get detailLinkLabel() {
                 if (this.role === "employee") return "View My Leave Details";
@@ -259,13 +271,25 @@ export default function registerLeaveCalendar(Alpine) {
                     ? this.format(start)
                     : this.format(start) + " – " + this.format(end);
             },
-            statusColor(status) {
-                return statusColors[status] || statusColors.cancelled;
+            displayStatus(status, period = null) {
+                if (status === "approved" && period)
+                    return period[0].toUpperCase() + period.slice(1);
+                if (["upcoming", "ongoing", "completed"].includes(status))
+                    return status[0].toUpperCase() + status.slice(1);
+                return this.statuses[status] || status;
             },
-            shortStatus(status) {
+            statusColor(status, period = null) {
+                return (
+                    statusColors[status === "approved" ? period : status] ||
+                    statusColors.cancelled
+                );
+            },
+            shortStatus(status, period = null) {
+                if (status === "approved" && period)
+                    return this.displayStatus(status, period);
                 return status === "pending_supervisor_approval"
                     ? "Pending"
-                    : this.statuses[status];
+                    : this.displayStatus(status);
             },
             halfDay(event) {
                 return event.half_day === "am"
@@ -277,7 +301,9 @@ export default function registerLeaveCalendar(Alpine) {
             eventLabel(entry) {
                 return [
                     entry.title,
-                    this.statuses[entry.status],
+                    entry.status === "approved"
+                        ? null
+                        : this.displayStatus(entry.status),
                     this.dates(entry.start, entry.end),
                     this.halfDay(entry),
                 ]

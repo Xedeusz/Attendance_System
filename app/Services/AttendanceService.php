@@ -8,6 +8,7 @@ use App\Models\AttendanceEvent;
 use App\Models\AttendancePhotoEvidence;
 use App\Models\AttendanceRecord;
 use App\Models\AttendanceReview;
+use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Role;
 use App\Models\User;
@@ -21,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 
 class AttendanceService
 {
-    public function __construct(private GeofencingService $geofencing, private AttendancePhotoStorage $photos, private AuditService $audit) {}
+    public function __construct(private GeofencingService $geofencing, private AttendancePhotoStorage $photos, private AuditService $audit, private AttendanceComputationService $computations) {}
 
     public function employee(User $actor): Employee
     {
@@ -159,13 +160,14 @@ class AttendanceService
                 }
                 $verification = $needsReview ? 'pending_review' : 'location_validated';
                 $review = $needsReview ? 'pending' : 'not_required';
-                $record = $open ?? AttendanceRecord::create(['employee_id' => $employee->id, 'branch_id' => $capture->branch_id, 'work_date' => $receivedAt->copy()->timezone(config('attendance.timezone'))->toDateString(), 'session_status' => 'pending', 'verification_status' => $verification, 'review_status' => $review]);
+                $initialPolicy = $open ? null : $this->computations->initialPolicy($employee, Branch::findOrFail($capture->branch_id), $receivedAt);
+                $record = $open ?? AttendanceRecord::create(['employee_id' => $employee->id, 'branch_id' => $capture->branch_id, 'work_date' => $initialPolicy['date'], 'session_status' => 'pending', 'verification_status' => $verification, 'review_status' => $review]);
                 $location = isset($data['latitude']) ? collect($data)->only(['latitude', 'longitude', 'accuracy', 'retrieved_at'])->all() : null;
                 $event = AttendanceEvent::create(['attendance_record_id' => $record->id, 'employee_id' => $employee->id, 'branch_id' => $capture->branch_id, 'capture_session_id' => $capture->id, 'event_type' => $capture->action, 'occurred_at' => $receivedAt, 'location' => $location, 'accuracy_meters' => $data['accuracy'] ?? null, 'distance_meters' => $geo['distance'], 'geofence_status' => $geo['status'], 'verification_status' => $verification, 'review_status' => $review, 'exception_reason' => $needsReview ? ($reused ? 'Repeated image signal. ' : '').$data['exception_reason'] : null, 'branch_snapshot' => $capture->branch_snapshot]);
                 $event->photo()->create([...collect($photo)->except('bytes')->all(), 'storage_disk' => 'attendance', 'storage_path' => $path, 'mime_type' => 'image/jpeg']);
                 $capture->update(['consumed_at' => now(), 'request_hash' => $fingerprint]);
                 $employee->increment('attendance_version');
-                $this->refreshRecord($record);
+                $this->refreshRecord($record, $initialPolicy);
                 $this->audit->record($needsReview ? 'attendance.flagged' : 'attendance.'.$capture->action.'_recorded', $event, ['record_id' => $record->id, 'geofence_status' => $geo['status']]);
                 $this->audit->record('attendance.submitted', $event);
                 $linked = true;
@@ -182,7 +184,7 @@ class AttendanceService
         }
     }
 
-    private function refreshRecord(AttendanceRecord $record): void
+    private function refreshRecord(AttendanceRecord $record, ?array $initialPolicy = null): void
     {
         $events = $record->events()->orderBy('id')->get();
         $accepted = $events->whereIn('verification_status', ['location_validated', 'exception_approved']);
@@ -192,6 +194,7 @@ class AttendanceService
         $status = $in ? ($out ? 'completed' : 'open') : ($pending ? 'pending' : 'cancelled');
         $verification = $pending ? 'pending_review' : ($accepted->contains('verification_status', 'exception_approved') ? 'exception_approved' : ($in ? 'location_validated' : 'rejected'));
         $record->update(['time_in_at' => $in?->occurred_at, 'time_out_at' => $out?->occurred_at, 'session_status' => $status, 'verification_status' => $verification, 'review_status' => $pending ? 'pending' : ($events->contains('review_status', 'approved') ? 'approved' : ($events->contains('review_status', 'rejected') ? 'rejected' : 'not_required'))]);
+        $this->computations->capture($record, initialPolicy: $initialPolicy);
     }
 
     public function review(User $actor, AttendanceEvent $event, string $decision, string $remarks): void

@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEssentialEmail;
 use App\Mail\AccountInvitationMail;
 use App\Models\AccountInvitation;
 use App\Models\AuditLog;
 use App\Models\Branch;
+use App\Models\EssentialEmail;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
@@ -14,6 +16,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\Support\Phase3Data;
 use Tests\TestCase;
 
@@ -101,9 +105,16 @@ class EmployeeManagementTest extends TestCase
     {
         $this->actingAs($this->hr());
         $data = $this->employeeData();
-        config(['mail.default' => 'smtp']);
-        Mail::shouldReceive('to')->andThrow(new \RuntimeException('Synthetic delivery failure'));
-        $this->post('/hr/employees', $data)->assertRedirect()->assertSessionHas('status', fn ($message) => str_contains($message, 'delivery failed'));
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
+        Queue::fake([SendEssentialEmail::class]);
+        Mail::shouldReceive('mailer')->with('smtp')->andThrow(new TransportException('Synthetic SMTP authentication failure', 535));
+        $this->post('/hr/employees', $data)->assertRedirect()->assertSessionHas('status', fn ($message) => str_contains($message, 'scheduled'));
+        $delivery = EssentialEmail::sole();
+        $this->assertSame('queued', $delivery->status);
+
+        app()->call([new SendEssentialEmail($delivery->id), 'handle']);
+
+        $this->assertSame('smtp_authentication_failed', $delivery->fresh()->failure_reason);
         $this->assertSame('pending_activation', User::where('email', $data['work_email'])->firstOrFail()->account_status);
         $this->assertSame('failed', AccountInvitation::sole()->delivery_status);
     }

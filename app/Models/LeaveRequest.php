@@ -15,6 +15,36 @@ class LeaveRequest extends Model
 
     public const PENDING = ['awaiting_supervisor_assignment', 'pending_supervisor_approval'];
 
+    public const PERIODS = ['upcoming' => 'Upcoming', 'ongoing' => 'Ongoing', 'completed' => 'Completed'];
+
+    public function periodStatus(): ?string
+    {
+        if ($this->status !== 'approved') {
+            return null;
+        }
+
+        $today = now(config('attendance.timezone'))->toDateString();
+
+        return match (true) {
+            $this->start_date->toDateString() > $today => 'upcoming',
+            $this->end_date->toDateString() < $today => 'completed',
+            default => 'ongoing',
+        };
+    }
+
+    public function scopeInPeriod(Builder $query, string $period): Builder
+    {
+        $today = now(config('attendance.timezone'))->startOfDay();
+        $tomorrow = $today->copy()->addDay()->toDateString();
+        $query->where('status', 'approved');
+
+        return match ($period) {
+            'upcoming' => $query->where('start_date', '>=', $tomorrow),
+            'completed' => $query->where('end_date', '<', $today->toDateString()),
+            'ongoing' => $query->where('start_date', '<', $tomorrow)->where('end_date', '>=', $today->toDateString()),
+        };
+    }
+
     protected $fillable = ['employee_id', 'leave_type_id', 'assigned_supervisor_user_id', 'start_date', 'end_date', 'requested_duration', 'charged_duration', 'half_day', 'reason', 'type_snapshot', 'form_snapshot', 'status', 'submitted_at', 'reviewed_at', 'finalized_at', 'cancelled_at'];
 
     protected function casts(): array
@@ -45,6 +75,11 @@ class LeaveRequest extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(LeaveSupportingDocument::class);
+    }
+
+    public function documentsOfApproval(): HasMany
+    {
+        return $this->hasMany(LeaveApprovalDocument::class);
     }
 
     public function approvalDocument(): HasOne

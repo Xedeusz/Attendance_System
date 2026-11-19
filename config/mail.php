@@ -1,5 +1,9 @@
 <?php
 
+$smtpHost = (string) env('MAIL_HOST', '127.0.0.1');
+$smtpPassword = env('MAIL_PASSWORD');
+$gmail = strtolower($smtpHost) === 'smtp.gmail.com';
+
 return [
 
     /*
@@ -42,11 +46,12 @@ return [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
             'url' => env('MAIL_URL'),
-            'host' => env('MAIL_HOST', '127.0.0.1'),
+            'host' => $smtpHost,
             'port' => env('MAIL_PORT', 2525),
             'username' => env('MAIL_USERNAME'),
-            'password' => env('MAIL_PASSWORD'),
-            'timeout' => null,
+            'password' => $gmail && is_string($smtpPassword) ? str_replace(' ', '', $smtpPassword) : $smtpPassword,
+            'require_tls' => env('MAIL_REQUIRE_TLS', $gmail),
+            'timeout' => (int) env('MAIL_TIMEOUT', 15),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
@@ -111,8 +116,14 @@ return [
     |
     */
 
+    'essential' => [
+        'link_base' => env('MAIL_LINK_BASE_URL'),
+        'max_message_bytes' => (int) env('MAIL_MAX_MESSAGE_BYTES', 20 * 1024 * 1024),
+        'daily_limit' => (int) env('MAIL_DAILY_LIMIT', 400),
+    ],
+
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        'address' => $gmail && env('MAIL_MAILER') === 'smtp' ? env('MAIL_USERNAME') : env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 

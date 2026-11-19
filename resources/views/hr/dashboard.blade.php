@@ -27,7 +27,8 @@
             @endforeach
         </div>
         <dl class="workforce-attendance-secondary">@foreach(['Time Ins today', 'Time Outs today', 'Open over 24 hours', 'Rejected submissions', 'Geofence exceptions today'] as $label)<div data-metric="{{ $label }}"><dt>{{ $label }}</dt><dd>{{ number_format($attendanceStats[$label]) }}</dd></div>@endforeach</dl>
-        <p class="workforce-note">Punch totals include location-validated and approved exceptions. Open and review counts cover all dates; rejected submissions are an all-time total.</p>
+        <dl class="workforce-attendance-secondary" aria-label="Attendance and work obligations">@foreach($dailyPolicyStats as $label => $count)<div data-metric="{{ $label }}"><dt>{{ $label }}</dt><dd>{{ number_format($count) }}</dd></div>@endforeach</dl>
+        <p class="workforce-note">Attendance and work obligation categories can overlap. Daily working-hour totals combine accepted sessions for each employee. Punch totals include location-validated and approved exceptions. Open and review counts cover all dates; rejected submissions are an all-time total.</p>
     </section>
     <div class="workforce-insights">
         <section class="workforce-panel" aria-labelledby="activity-heading">
@@ -54,6 +55,7 @@
             @php
                 $attention = array_filter([
                     ['count' => $attendanceStats['Pending HR review'], 'title' => 'Attendance pending HR review', 'detail' => 'Review submitted evidence', 'icon' => 'file', 'tone' => 'amber', 'url' => route('hr.attendance.index', ['verification_status' => 'pending_review'])],
+                    ['count' => $attendanceStats['Geofence exceptions today'], 'title' => 'Geofence exceptions today', 'detail' => 'Inspect attendance location evidence', 'icon' => 'pin', 'tone' => 'amber', 'url' => route('hr.attendance.index', ['from' => $businessDate->toDateString(), 'to' => $businessDate->toDateString()])],
                     ['count' => $attendanceStats['Open over 24 hours'], 'title' => 'Open sessions over 24 hours', 'detail' => 'Inspect open attendance sessions', 'icon' => 'clock', 'tone' => 'red', 'url' => route('hr.attendance.index', ['session_status' => 'open'])],
                     ['count' => $stats['Pending account activations'], 'title' => 'Pending account activations', 'detail' => 'View employee account details', 'icon' => 'lock', 'tone' => 'purple', 'url' => route('hr.employees.index', ['account_status' => 'pending_activation'])],
                 ], fn ($item) => $item['count'] > 0);
@@ -80,6 +82,6 @@
         <section class="workforce-panel" aria-labelledby="branches-heading"><div class="workforce-panel-heading"><div><h2 id="branches-heading">Branch Overview</h2><p>Current primary assignments across up to ten offices.</p></div><a class="workforce-text-link" href="{{ route('hr.branches.index') }}">Manage branches <x-icon name="arrow" /></a></div><x-table :columns="['Branch', 'Assigned employees', 'Status']" caption="Company branch overview">@forelse($branches as $branch)<tr><td><a href="{{ route('hr.branches.show', $branch) }}">{{ $branch->branch_name }}</a></td><td>{{ $branch->current_assignments_count }}</td><td><x-state :value="$branch->status" /></td></tr>@empty<tr><td colspan="3"><div class="workforce-empty"><h3>No branches configured</h3><p>Add an official office to begin assigning employees.</p><a class="workforce-text-link" href="{{ route('hr.branches.create') }}">Add branch <x-icon name="arrow" /></a></div></td></tr>@endforelse</x-table></section>
         <section class="workforce-panel" aria-labelledby="activation-heading"><div class="workforce-panel-heading"><div><h2 id="activation-heading">Pending Activations</h2><p>Newest accounts awaiting employee activation.</p></div></div><div class="workforce-activation-list">@forelse($pending as $employee)<a href="{{ route('hr.employees.show', $employee) }}" class="workforce-activation"><span><strong>{{ $employee->full_name }}</strong><small>Added {{ $employee->created_at->timezone(config('attendance.timezone'))->format('M j, Y') }}</small></span><x-state value="pending_activation" /></a>@empty<div class="workforce-empty"><span class="workforce-icon"><x-icon name="lock" /></span><h3>No pending account activations.</h3><p>Accounts awaiting activation will appear here.</p></div>@endforelse</div></section>
     </div>
-    <nav class="workforce-shortcuts" aria-label="Workforce shortcuts"><span>Workspace tools</span><a href="{{ route('hr.departments.index') }}">Departments <x-icon name="arrow" /></a><a href="{{ route('hr.accounts.index') }}">HR accounts <x-icon name="arrow" /></a><a href="{{ route('hr.audit') }}">Audit logs <x-icon name="arrow" /></a><a href="{{ route('employee.dashboard') }}">My Workday <x-icon name="arrow" /></a></nav>
+    <nav class="workforce-shortcuts" aria-label="Workforce shortcuts"><span>Workspace tools</span><a href="{{ route('hr.departments.index') }}">Departments <x-icon name="arrow" /></a><a href="{{ route('hr.accounts.index') }}">HR accounts <x-icon name="arrow" /></a><a href="{{ route('hr.audit') }}">Audit logs <x-icon name="arrow" /></a></nav>
 </div>
 </x-layouts.app>

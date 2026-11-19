@@ -65,6 +65,30 @@ class LeaveCalendarTest extends TestCase
         $this->getJson(route('supervisor.leave.calendar.details', $visible))->assertNotFound();
     }
 
+    public function test_approved_event_titles_use_period_status_and_details_preserve_approval(): void
+    {
+        $this->travelTo(now('Asia/Manila')->setDate(2026, 11, 19)->setTime(10, 0));
+        $employee = Employee::factory()->create();
+        $upcoming = $this->leave($employee, ['status' => 'approved', 'start_date' => '2026-11-25', 'end_date' => '2026-11-26']);
+        $ongoing = $this->leave($employee, ['status' => 'approved', 'start_date' => '2026-11-18', 'end_date' => '2026-11-20']);
+        $completed = $this->leave($employee, ['status' => 'approved', 'start_date' => '2026-11-10', 'end_date' => '2026-11-12']);
+        $pending = $this->leave($employee, ['status' => 'pending_supervisor_approval', 'start_date' => '2026-11-25', 'end_date' => '2026-11-26']);
+
+        $this->actingAs($employee->user);
+        $this->getJson(route('employee.leave.calendar.events', ['from' => '2026-11-01', 'to' => '2026-11-30']))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $upcoming->id, 'title' => $employee->full_name.' · Upcoming', 'status' => 'approved', 'period' => 'upcoming'])
+            ->assertJsonFragment(['id' => $ongoing->id, 'title' => $employee->full_name.' · Ongoing', 'status' => 'approved', 'period' => 'ongoing'])
+            ->assertJsonFragment(['id' => $completed->id, 'title' => $employee->full_name.' · Completed', 'status' => 'approved', 'period' => 'completed'])
+            ->assertJsonFragment(['id' => $pending->id, 'status' => 'pending_supervisor_approval'])
+            ->assertJsonPath('events.3.period', null);
+
+        $this->getJson(route('employee.leave.calendar.details', $ongoing))
+            ->assertOk()
+            ->assertJsonPath('status', 'approved')
+            ->assertJsonPath('period', 'ongoing');
+    }
+
     public function test_hr_filters_and_date_ranges_preserve_inclusive_and_half_day_data(): void
     {
         $this->travelTo(now('UTC')->setDate(2026, 11, 17)->setTime(16, 15));

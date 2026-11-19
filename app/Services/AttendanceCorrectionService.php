@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class AttendanceCorrectionService
 {
-    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices) {}
+    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private AttendanceComputationService $computations, private AttendancePolicyResolver $policies) {}
 
     private function fail(string $field, string $message): never
     {
@@ -78,7 +78,7 @@ class AttendanceCorrectionService
             if (! $record && AttendanceCorrectionRequest::where('employee_id', $employee->id)->whereNull('attendance_record_id')->whereDate('requested_date', $data['requested_date'])->where('status', 'approved')->exists()) {
                 $this->fail('requested_date', 'An approved manual entry already exists for this date. Contact HR; duplicate entries are not permitted.');
             }
-            $correction = AttendanceCorrectionRequest::create(['employee_id' => $employee->id, 'attendance_record_id' => $record?->id, 'branch_id' => $record?->branch_id ?? $employee->currentAssignment?->branch_id, 'correction_type' => $data['correction_type'], 'requested_date' => $data['requested_date'], 'requested_time_in_at' => $effectiveIn, 'requested_time_out_at' => $effectiveOut, 'original_values' => $record?->only(['time_in_at', 'time_out_at', 'effective_time_in_at', 'effective_time_out_at', 'session_status', 'verification_status', 'review_status']) ?? [], 'record_revision' => $record?->correction_version ?? 0, 'reason' => $data['reason'], 'status' => 'pending', 'pending_key' => $key, 'submitted_at' => now()]);
+            $correction = AttendanceCorrectionRequest::create(['employee_id' => $employee->id, 'attendance_record_id' => $record?->id, 'branch_id' => $record?->branch_id ?? $this->policies->branchFor($employee, $data['requested_date'])?->id, 'correction_type' => $data['correction_type'], 'requested_date' => $data['requested_date'], 'requested_time_in_at' => $effectiveIn, 'requested_time_out_at' => $effectiveOut, 'original_values' => $record?->only(['time_in_at', 'time_out_at', 'effective_time_in_at', 'effective_time_out_at', 'session_status', 'verification_status', 'review_status']) ?? [], 'record_revision' => $record?->correction_version ?? 0, 'reason' => $data['reason'], 'status' => 'pending', 'pending_key' => $key, 'submitted_at' => now()]);
             $this->audit->record('attendance.correction_submitted', $correction, ['employee_id' => $employee->id, 'attendance_record_id' => $record?->id]);
             $this->notices->hr('correction', 'An attendance correction needs HR review.', route('hr.corrections.show', $correction), $correction->id);
             $this->notices->send($fresh, 'correction', 'Attendance correction submitted for HR review.', route('employee.corrections.show', $correction), $correction->id);
@@ -114,7 +114,11 @@ class AttendanceCorrectionService
                     $this->fail('decision', 'The proposed effective attendance overlaps another recorded or manually corrected session.');
                 }
                 if ($record) {
+                    $this->computations->capture($record, 'correction_baseline');
                     $record->forceFill(['effective_time_in_at' => $in, 'effective_time_out_at' => $out, 'correction_version' => $record->correction_version + 1])->save();
+                    $this->computations->capture($record, 'correction');
+                } else {
+                    $this->computations->captureManual($correction);
                 }
             }
             $correction->update(['status' => $data['decision'], 'pending_key' => null, 'reviewed_by_user_id' => $fresh->id, 'reviewed_at' => now(), 'review_remarks' => $data['remarks']]);

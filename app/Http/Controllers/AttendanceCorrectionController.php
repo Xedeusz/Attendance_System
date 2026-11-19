@@ -53,7 +53,7 @@ class AttendanceCorrectionController extends Controller
             abort_unless($correction->employee->user_id === $request->user()->id, 403);
         }
 
-        return view('corrections.show', ['correction' => $correction->load(['employee.user', 'branch', 'reviewer', 'record.events.photo']), 'hr' => $request->routeIs('hr.*'), 'history' => AttendanceCorrectionRequest::where('employee_id', $correction->employee_id)->when($correction->attendance_record_id, fn ($q, $id) => $q->where('attendance_record_id', $id), fn ($q) => $q->whereNull('attendance_record_id')->whereDate('requested_date', $correction->requested_date))->latest('id')->get()]);
+        return view('corrections.show', ['correction' => $correction->load(['employee.user', 'branch', 'reviewer', 'record.events.photo', 'computation']), 'hr' => $request->routeIs('hr.*'), 'history' => AttendanceCorrectionRequest::where('employee_id', $correction->employee_id)->when($correction->attendance_record_id, fn ($q, $id) => $q->where('attendance_record_id', $id), fn ($q) => $q->whereNull('attendance_record_id')->whereDate('requested_date', $correction->requested_date))->latest('id')->get()]);
     }
 
     public function decide(CorrectionDecisionRequest $request, AttendanceCorrectionRequest $correction, AttendanceCorrectionService $service): RedirectResponse

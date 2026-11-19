@@ -14,6 +14,7 @@ use App\Models\Role;
 use App\Models\SupervisorAssignment;
 use App\Models\SupervisorSignature;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
@@ -26,7 +27,7 @@ use Throwable;
 
 class LeaveService
 {
-    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private LeaveApplicationDocumentService $formDocuments) {}
+    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private LeaveApplicationDocumentService $formDocuments, private AttendancePolicyResolver $attendancePolicy, private EssentialEmailOutbox $emails) {}
 
     private function fail(string $field, string $message): never
     {
@@ -84,12 +85,23 @@ class LeaveService
                     $this->fail('supporting_document', 'This leave type requires a supporting document.');
                 }
                 $formSnapshot = $this->formDocuments->snapshot($employee, $type, $data['other_leave_type'] ?? null);
+                $from = CarbonImmutable::parse($data['start_date']);
+                $until = CarbonImmutable::parse($data['end_date']);
+                $overlaps = $this->attendancePolicy->leaveHolidayDates($employee, $from, $until);
+                $excluded = $type->duration_policy === 'exclude_nonworking_holidays' && $type->affects_balance
+                    ? $this->attendancePolicy->leaveHolidayDates($employee, $from, $until, nonWorkingOnly: true)
+                    : [];
+                $formSnapshot['attendance_policy'] = [
+                    'holiday_dates' => $overlaps, 'excluded_dates' => $excluded,
+                    'maximum_charge' => min($duration, $span - count($excluded)),
+                ];
                 $leave = LeaveRequest::create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'start_date' => $data['start_date'], 'end_date' => $data['end_date'], 'requested_duration' => $duration, 'half_day' => $halfDay, 'reason' => $data['reason'], 'type_snapshot' => $type->only(['name', 'requires_document', 'affects_balance', 'allows_half_day', 'duration_policy']), 'form_snapshot' => $formSnapshot, 'status' => 'awaiting_supervisor_assignment', 'submitted_at' => now()]);
                 if ($file) {
                     $this->document($leave, $file, $storedPath);
                 }
                 $this->history($leave, 'submitted', null);
                 $routed = $this->routeRequest($leave);
+                $this->emails->submitted($leave);
                 if (! $routed) {
                     $this->notices->hr('leave', 'Leave application awaiting Supervisor assignment.', route('hr.leave.show', $leave), $leave->id);
                 }
@@ -135,9 +147,9 @@ class LeaveService
         return $path;
     }
 
-    public function history(LeaveRequest $leave, string $action, ?string $remarks, array $metadata = []): void
+    public function history(LeaveRequest $leave, string $action, ?string $remarks, array $metadata = []): LeaveReview
     {
-        LeaveReview::create(['leave_request_id' => $leave->id, 'reviewer_user_id' => auth()->id(), 'action' => $action, 'remarks' => $remarks, 'metadata' => $metadata, 'reviewed_at' => now()]);
+        return LeaveReview::create(['leave_request_id' => $leave->id, 'reviewer_user_id' => auth()->id(), 'action' => $action, 'remarks' => $remarks, 'metadata' => $metadata, 'reviewed_at' => now()]);
     }
 
     public function routeRequest(LeaveRequest $leave): bool
@@ -183,6 +195,7 @@ class LeaveService
             return $this->transactions->run($actor, function (User $fresh) use ($target, $data, $path): LeaveRequest {
                 $leave = LeaveRequest::whereKey($target->id)->lockForUpdate()->firstOrFail();
                 $decisionAt = now();
+                $document = null;
                 $metadata = ['previous_status' => $leave->status];
                 Gate::forUser($fresh)->authorize('review', $leave);
                 abort_unless($leave->status === 'pending_supervisor_approval', 409, 'This request already has a decision or requires assignment.');
@@ -208,8 +221,9 @@ class LeaveService
                         $this->fail('chargeable_days', 'Confirm chargeable days using the applicable work schedule/policy.');
                     }
                     $span = (int) $leave->start_date->diffInDays($leave->end_date) + 1;
-                    if ((float) $charge > $span || (float) $charge > (float) $leave->requested_duration || (! $type->allows_half_day && (float) $charge !== floor((float) $charge))) {
-                        $this->fail('chargeable_days', 'Chargeable days must not exceed the requested days and must follow the half-day policy.');
+                    $maximumCharge = data_get($leave->form_snapshot, 'attendance_policy.maximum_charge', $leave->requested_duration);
+                    if ((float) $charge > $span || (float) $charge > (float) $maximumCharge || (! $type->allows_half_day && (float) $charge !== floor((float) $charge))) {
+                        $this->fail('chargeable_days', 'Chargeable days must fit the saved leave duration policy and half-day rules.');
                     }
                     if ($type->affects_balance) {
                         $balance = EmployeeLeaveBalance::where('employee_id', $leave->employee_id)->where('leave_type_id', $type->id)->where('policy_period', $leave->start_date->format('Y'))->lockForUpdate()->first();
@@ -241,7 +255,8 @@ class LeaveService
                 }
                 $leave->fill(['status' => $data['decision'], 'reviewed_at' => $decisionAt, 'finalized_at' => $decisionAt])->save();
                 $metadata += ['status' => $leave->status, 'charged_duration' => $leave->charged_duration];
-                $this->history($leave, $data['decision'], $data['remarks'] ?? null, $metadata);
+                $review = $this->history($leave, $data['decision'], $data['remarks'] ?? null, $metadata);
+                $this->emails->decision($leave, $review, $document);
                 $this->audit->record('leave.'.$data['decision'], $leave, $metadata + ['employee_id' => $leave->employee_id]);
                 $message = $data['decision'] === 'approved'
                     ? 'Your leave application was approved and signed. Your official form is available.'

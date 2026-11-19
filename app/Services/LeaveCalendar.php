@@ -66,10 +66,13 @@ class LeaveCalendar
             'today' => $today->toDateString(),
             'events' => $events->getCollection()->map(fn (LeaveRequest $leave): array => [
                 'id' => $leave->id,
-                'title' => $role === 'employee' ? ($leave->type_snapshot['name'] ?? 'Leave') : $leave->employee->full_name,
+                'title' => $leave->status === 'approved'
+                    ? $leave->employee->full_name.' · '.ucfirst((string) $leave->periodStatus())
+                    : ($role === 'employee' ? ($leave->type_snapshot['name'] ?? 'Leave') : $leave->employee->full_name),
                 'start' => $leave->start_date->toDateString(),
                 'end' => $leave->end_date->toDateString(),
                 'status' => $leave->status,
+                'period' => $leave->periodStatus(),
                 'half_day' => $leave->half_day,
             ]),
             'next_cursor' => $events->nextCursor()?->encode(),

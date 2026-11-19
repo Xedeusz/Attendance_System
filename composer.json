@@ -45,7 +45,7 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently --kill-others --names=server,reverb,queue,vite \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 serve\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 reverb\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 queue\" \"npm run dev\""
+            "npx concurrently --kill-others --names=server,reverb,queue,mail,vite \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 serve\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 reverb\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 queue\" \"powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 mail\" \"npm run dev\""
         ],
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",

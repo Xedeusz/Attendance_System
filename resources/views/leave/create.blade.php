@@ -2,6 +2,7 @@
     <x-page-header title="Apply for Leave" description="Complete the LMPC leave application." />
 
     @php
+        $today = now(config('attendance.timezone'))->toDateString();
         $leaveLabels = ['vacation' => 'Vacation Leave', 'sick' => 'Sick Leave', 'other' => 'Others (pls specify)'];
         $unavailableTypes = array_diff_key($leaveLabels, $leaveChoices->all());
     @endphp
@@ -13,6 +14,7 @@
     <form method="POST" enctype="multipart/form-data" action="{{ route('employee.leave.store') }}"
           class="max-w-5xl"
           x-data="{
+              today: @js($today),
               choices: @js($leaveChoices),
               category: @js((string) old('leave_category', '')),
               selected: @js((string) old('leave_type_id', '')),
@@ -69,8 +71,8 @@
                         <fieldset class="@container min-w-0">
                             <legend class="mb-2 font-semibold">Inclusive Dates</legend>
                             <div class="grid gap-x-3 @min-[25rem]:grid-cols-2">
-                                <x-input name="start_date" label="Start Date" type="date" required x-model="start" x-on:change="halfDay = ''" />
-                                <x-input name="end_date" label="End Date" type="date" required x-model="end" x-bind:min="start || null" x-on:change="halfDay = ''" />
+                                <x-input name="start_date" label="Start Date" type="date" required :min="$today" x-model="start" x-on:change="if (end && end < $event.target.value) end = ''; halfDay = ''" />
+                                <x-input name="end_date" label="End Date" type="date" required :min="$today" x-model="end" x-bind:min="start > today ? start : today" x-on:change="halfDay = ''" />
                             </div>
                         </fieldset>
                         <div x-show="allowsHalfDay" x-cloak>

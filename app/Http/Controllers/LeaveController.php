@@ -11,16 +11,19 @@ use App\Models\LeaveSupportingDocument;
 use App\Models\LeaveType;
 use App\Models\SupervisorAssignment;
 use App\Models\SupervisorSignature;
+use App\Services\AttendancePolicyResolver;
 use App\Services\AuditService;
 use App\Services\LeaveApplicationDocumentService;
 use App\Services\LeaveService;
 use App\Services\WorkspaceSync;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -37,7 +40,7 @@ class LeaveController extends Controller
         $query = LeaveRequest::with(['employee.department', 'employee.currentAssignment.branch', 'supervisor']);
         $scope === 'supervisor' ? $query->forSupervisor($actor) : $query->where('employee_id', $actor->employee?->id ?? 0);
         $stats = (clone $query)->selectRaw('status,COUNT(*) AS total')->groupBy('status')->pluck('total', 'status')->all();
-        $data = $request->validate(['q' => ['nullable', 'string', 'max:100'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'status' => ['nullable', 'in:awaiting_supervisor_assignment,pending_supervisor_approval,approved,rejected,cancelled,revoked']]);
+        $data = $request->validate(['period' => ['nullable', Rule::in(array_keys(LeaveRequest::PERIODS))], 'q' => ['nullable', 'string', 'max:100'], 'from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'], 'status' => ['nullable', 'in:awaiting_supervisor_assignment,pending_supervisor_approval,approved,rejected,cancelled,revoked']]);
         if ($request->routeIs('supervisor.leave.pending')) {
             $query->where('status', 'pending_supervisor_approval');
         }
@@ -47,6 +50,7 @@ class LeaveController extends Controller
         $query->when($data['q'] ?? null, fn ($q, $term) => $q->whereHas('employee', fn ($q) => $q->where(fn ($q) => $q->where('first_name', 'like', '%'.$term.'%')->orWhere('last_name', 'like', '%'.$term.'%')->orWhere('employee_number', 'like', '%'.$term.'%'))))->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('end_date', '>=', $date))->when($data['to'] ?? null, fn ($q, $date) => $q->whereDate('start_date', '<=', $date));
         $query->when($data['status'] ?? null, fn ($q, $status) => $q->where('status', $status));
 
+        $query->when($data['period'] ?? null, fn ($query, $period) => $query->inPeriod($period));
         $leaves = $query->latest('id')->paginate(15)->withQueryString();
         $profileEmployeeIds = $scope === 'supervisor' ? SupervisorAssignment::current()->whereNull('revoked_at')->where('supervisor_user_id', $actor->id)->whereIn('employee_id', $leaves->pluck('employee_id'))->pluck('employee_id')->all() : [];
 
@@ -80,7 +84,7 @@ class LeaveController extends Controller
         return redirect()->route('employee.leave.show', $leave)->with('status', $leave->status === 'awaiting_supervisor_assignment' ? 'Your leave application is awaiting Supervisor assignment.' : 'Leave application submitted.');
     }
 
-    public function show(Request $request, LeaveRequest $leave): View
+    public function show(Request $request, LeaveRequest $leave, AttendancePolicyResolver $policy): View
     {
         $scope = $this->authorizeFormView($request, $leave);
         $leave->load(['employee.user', 'employee.department', 'employee.currentAssignment.branch', 'supervisor', 'type', 'reviews.reviewer', 'documents', 'approvalDocument']);
@@ -88,6 +92,7 @@ class LeaveController extends Controller
         return view('leave.show', [
             'leave' => $leave,
             'scope' => $scope,
+            'holidayOverlap' => $policy->leaveHolidayDates($leave->employee, CarbonImmutable::parse($leave->start_date->toDateString()), CarbonImmutable::parse($leave->end_date->toDateString())),
             'signatureVersion' => $scope === 'supervisor' && in_array($leave->status, ['pending_supervisor_approval', 'approved'], true)
                 ? SupervisorSignature::activeFor($request->user())->value('version')
                 : null,
@@ -198,11 +203,19 @@ class LeaveController extends Controller
         }
         Gate::authorize('view', $leave);
         abort_if($document->purged_at || ! Storage::disk('leave')->exists($document->storage_path), 404);
+        $preview = $request->boolean('preview');
+        if ($preview && $request->routeIs('supervisor.leave.document')) {
+            Gate::authorize('review', $leave);
+        }
         $bytes = Crypt::decryptString(Storage::disk('leave')->get($document->storage_path));
+        if ($preview) {
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes);
+            abort_unless($mime === $document->mime_type && in_array($mime, ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'], true), 415);
+        }
 
-        return response()->streamDownload(function () use ($bytes) {
+        return response()->streamDownload(function () use ($bytes): void {
             echo $bytes;
-        }, $document->original_name, ['Content-Type' => $document->mime_type, 'Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff', 'Content-Security-Policy' => 'sandbox']);
+        }, $document->original_name, ['Content-Type' => $document->mime_type, 'Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff', 'Content-Security-Policy' => 'sandbox'], $preview ? 'inline' : 'attachment');
     }
 
     public function notices(Request $request): View

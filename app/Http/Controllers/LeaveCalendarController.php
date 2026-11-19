@@ -100,6 +100,7 @@ class LeaveCalendarController extends Controller
             'duration' => $leave->requested_duration,
             'half_day' => $leave->half_day,
             'status' => $leave->status,
+            'period' => $leave->periodStatus(),
             'supervisor' => $leave->supervisor?->name,
             'submitted' => $leave->submitted_at->timezone($timezone)->format('M j, Y H:i'),
             'decision' => ($leave->status === 'revoked' ? $leave->approvalDocument?->revoked_at : $leave->reviewed_at)?->timezone($timezone)->format('M j, Y H:i'),

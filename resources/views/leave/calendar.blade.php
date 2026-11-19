@@ -146,11 +146,11 @@
                                         class="@container z-10 my-0.5 flex min-h-6 min-w-0 items-center gap-0.5 overflow-hidden px-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#2F1B72] sm:gap-1 sm:px-1.5"
                                         :data-leave-id="segment.entry.id"
                                         :style="{ gridColumn: (segment.column + 1) + ' / span ' + segment.span, gridRow: segment.lane + 2 }"
-                                        :class="[statusColor(segment.entry.status), segment.continuesBefore ? '' : 'ml-0.5 rounded-l-md', segment.continuesAfter ? '' : 'mr-0.5 rounded-r-md']"
+                                        :class="[statusColor(segment.entry.status, segment.entry.period), segment.continuesBefore ? '' : 'ml-0.5 rounded-l-md', segment.continuesAfter ? '' : 'mr-0.5 rounded-r-md']"
                                         :aria-label="eventLabel(segment.entry)" :title="eventLabel(segment.entry)" @click="openDetails(segment.entry.id)">
                                     <span class="block min-w-0 truncate" aria-hidden="true">
                                         <span class="font-semibold" x-text="segment.entry.title"></span><span class="hidden @min-[7.5rem]:inline"
-                                              x-text="' · ' + shortStatus(segment.entry.status) + (segment.entry.half_day ? ' · ' + segment.entry.half_day.toUpperCase() : '')"></span>
+                                              x-text="(segment.entry.status === 'approved' ? '' : ' · ' + shortStatus(segment.entry.status)) + (segment.entry.half_day ? ' · ' + segment.entry.half_day.toUpperCase() : '')"></span>
                                     </span>
                                 </button>
                             </template>
@@ -231,8 +231,9 @@
                         <dl class="my-3 text-sm">
                             <template x-for="[label, value] in Object.entries({
                                 'Employee number': detail.employee_number, Department: detail.department, Branch: detail.branch,
-                                'Leave type': role === 'employee' ? null : detail.type, 'Inclusive dates': dates(detail.start, detail.end),
+                                'Leave type': detail.type, 'Inclusive dates': dates(detail.start, detail.end),
                                 'Requested days': detail.duration, Session: halfDay(detail), Status: statuses[detail.status],
+                                'Leave period': detail.period && (detail.period[0].toUpperCase() + detail.period.slice(1)),
                                 Supervisor: detail.supervisor, Submitted: detail.submitted, Decision: detail.decision, Remarks: detail.remarks,
                             })" :key="label">
                                 <div x-show="value" class="profile-row gap-2"><dt class="text-slate-600" x-text="label"></dt><dd class="min-w-0 break-words" x-text="value"></dd></div>

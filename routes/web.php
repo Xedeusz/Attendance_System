@@ -4,6 +4,7 @@ use App\Http\Controllers\ActivationController;
 use App\Http\Controllers\AttendanceEvidenceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeAttendanceController;
+use App\Http\Controllers\EmployeeWorkCalendarController;
 use App\Http\Controllers\HR;
 use App\Http\Controllers\HR\AttendanceController;
 use App\Http\Controllers\HR\AttendanceReviewController;
@@ -42,6 +43,7 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::get('/attendance', fn () => redirect()->route(auth()->user()->isHr() ? 'hr.attendance.index' : 'employee.attendance'))->name('attendance');
     Route::get('/attendance-history', fn () => redirect()->route('employee.attendance.history'))->name('attendance.history');
     Route::get('/employee/attendance', [EmployeeAttendanceController::class, 'index'])->name('employee.attendance');
+    Route::get('/employee/attendance/calendar', EmployeeWorkCalendarController::class)->name('employee.work-calendar');
     Route::get('/employee/attendance/history', [EmployeeAttendanceController::class, 'history'])->name('employee.attendance.history');
     Route::get('/employee/attendance/records/{record}', [EmployeeAttendanceController::class, 'show'])->name('attendance.show');
     Route::get('/attendance/photos/{photo}', [AttendanceEvidenceController::class, 'show'])->middleware('throttle:120,1')->name('attendance.photo');
@@ -53,6 +55,17 @@ Route::middleware(['auth', 'auth.session'])->group(function () {
     Route::middleware('hr')->prefix('hr')->name('hr.')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'hr'])->name('dashboard');
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::prefix('attendance')->group(function () {
+            Route::resource('schedules', HR\WorkScheduleController::class)->except(['show', 'destroy']);
+            Route::patch('schedules/{schedule}/deactivate', [HR\WorkScheduleController::class, 'deactivate'])->name('schedules.deactivate');
+            Route::post('schedule-exceptions', [HR\WorkScheduleController::class, 'storeException'])->name('schedule-exceptions.store');
+            Route::patch('schedule-exceptions/{exception}/cancel', [HR\WorkScheduleController::class, 'cancelException'])->name('schedule-exceptions.cancel');
+            Route::resource('holidays', HR\AttendanceHolidayController::class)->except('destroy');
+            Route::get('holiday-import', [HR\AttendanceHolidayController::class, 'importForm'])->name('holiday-import.index');
+            Route::get('holiday-import/preview', [HR\AttendanceHolidayController::class, 'reviewImport'])->name('holiday-import.review');
+            Route::post('holiday-import/preview', [HR\AttendanceHolidayController::class, 'importPreview'])->middleware('throttle:20,1')->name('holiday-import.preview');
+            Route::post('holiday-import', [HR\AttendanceHolidayController::class, 'importConfirm'])->middleware('throttle:20,1')->name('holiday-import.store');
+        });
         Route::post('/attendance/events/{event}/review', [AttendanceReviewController::class, 'store'])->middleware('throttle:30,1')->name('attendance.review');
         Route::post('/attendance/assistance/{assistance}', [AttendanceReviewController::class, 'assistance'])->name('attendance.assistance.review');
         Route::resource('employees', HR\EmployeeController::class)->except('destroy');

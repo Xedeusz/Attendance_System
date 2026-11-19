@@ -3,6 +3,7 @@
 use App\Models\AccountInvitation;
 use App\Models\AttendanceAssistanceRequest;
 use App\Models\AttendanceCaptureSession;
+use App\Models\AttendanceComputation;
 use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceEvent;
 use App\Models\AttendancePhotoEvidence;
@@ -72,6 +73,37 @@ if (($argv[1] ?? '') === 'create') {
     Auth::login($actor);
     app(LeaveService::class)->adjustBalance($actor, ['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'policy_period' => now()->format('Y'), 'amount' => 5, 'reason' => 'Synthetic browser test credit; not company policy.']);
     echo json_encode(['id' => $supervisor->id, 'email' => $supervisor->email, 'password' => $password, 'employee_id' => $employee->id, 'type_id' => $type->id, 'type' => $type->name, 'from' => now(config('attendance.timezone'))->addDays(4)->toDateString(), 'until' => now(config('attendance.timezone'))->addDays(5)->toDateString(), 'correction_date' => now(config('attendance.timezone'))->subDay()->toDateString()]);
+} elseif (($argv[1] ?? '') === 'leave-layout') {
+    $actor = User::findOrFail((int) ($argv[2] ?? 0));
+    if (! preg_match('/^browser-qa-([a-f0-9]{20})@example\.test$/', $actor->email, $matches)) {
+        throw new RuntimeException('Fixture account required.');
+    }
+    $prefix = 'QA-'.substr($matches[1], 0, 10);
+    $employee = Employee::where('employee_number', $prefix.'-EMP')->sole();
+    $supervisor = User::where('email', strtolower($prefix).'-supervisor@example.test')->sole();
+    $leave = LeaveRequest::factory()->create([
+        'employee_id' => $employee->id,
+        'leave_type_id' => LeaveType::where('code', $prefix.'-LEAVE')->sole()->id,
+        'assigned_supervisor_user_id' => $supervisor->id,
+        'status' => 'approved',
+        'finalized_at' => now(),
+        'reason' => str_repeat('LongLeaveReason', 18),
+    ]);
+    $signature = SupervisorSignature::factory()->create(['supervisor_user_id' => $supervisor->id]);
+    LeaveApprovalDocument::factory()->create(['leave_request_id' => $leave->id, 'supervisor_signature_id' => $signature->id]);
+    $leave->documents()->create([
+        'original_name' => str_repeat('SupportingDocument', 12).'.pdf',
+        'storage_path' => 'browser-fixture/'.$prefix.'.pdf',
+        'mime_type' => 'application/pdf',
+        'file_size' => 100,
+    ]);
+    $leave->reviews()->create([
+        'reviewer_user_id' => $supervisor->id,
+        'action' => 'approved',
+        'reviewed_at' => now(),
+        'remarks' => 'Approved for the requested dates.',
+    ]);
+    echo json_encode(['id' => $leave->id]);
 } elseif (($argv[1] ?? '') === 'cleanup') {
     $actor = User::findOrFail((int) ($argv[2] ?? 0));
     if (! preg_match('/^browser-qa-([a-f0-9]{20})@example\.test$/', $actor->email, $matches)) {
@@ -104,6 +136,7 @@ if (($argv[1] ?? '') === 'create') {
         LeaveBalanceTransaction::whereIn('employee_leave_balance_id', $balanceIds)->delete();
         EmployeeLeaveBalance::whereIn('id', $balanceIds)->delete();
         LeaveRequest::whereIn('id', $leaveIds)->delete();
+        AttendanceComputation::whereIn('attendance_correction_request_id', $correctionIds)->delete();
         AttendanceCorrectionRequest::whereIn('id', $correctionIds)->delete();
         SupervisorAssignment::whereIn('employee_id', $employees->pluck('id'))->orWhereIn('supervisor_user_id', $userIds)->delete();
         LeaveType::where('code', $prefix.'-LEAVE')->delete();
@@ -121,6 +154,7 @@ if (($argv[1] ?? '') === 'create') {
         AttendanceReview::whereIn('attendance_event_id', $eventIds)->delete();
         AttendanceEvent::whereIn('id', $eventIds)->delete();
         AttendanceCaptureSession::whereIn('employee_id', $employees->pluck('id'))->delete();
+        AttendanceComputation::whereIn('attendance_record_id', $recordIds)->delete();
         AttendanceRecord::whereIn('id', $recordIds)->delete();
         AttendanceAssistanceRequest::whereIn('id', $assistanceIds)->delete();
         $invitationIds = AccountInvitation::whereIn('user_id', $userIds)->pluck('id');

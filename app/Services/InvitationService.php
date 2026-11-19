@@ -15,7 +15,7 @@ use Throwable;
 
 class InvitationService
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(private AuditService $audit, private EssentialEmailOutbox $emails) {}
 
     public function revoke(User $user): void
     {
@@ -41,11 +41,14 @@ class InvitationService
         $token = bin2hex(random_bytes(32));
         $invitation = AccountInvitation::create(['user_id' => $user->id, 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addHours(24)]);
         $this->audit->record('invitation.issued', $invitation, ['expires_in_hours' => 24]);
+        if ($this->emails->enabled()) {
+            $this->emails->accountSetup($invitation, $token);
+        }
 
         return compact('invitation', 'token');
     }
 
-    public function deliver(array $issued): string
+    public function deliver(#[\SensitiveParameter] array $issued): string
     {
         $invitation = $issued['invitation']->fresh();
         if ($invitation->revoked_at || $invitation->used_at || $invitation->user->account_status !== 'pending_activation') {
@@ -58,12 +61,15 @@ class InvitationService
             return 'Account saved as pending. Invitation delivery is not configured; configure mail and resend.';
         }
         try {
+            if ($this->emails->enabled()) {
+                return 'Account saved as pending. The activation email was scheduled for delivery.';
+            }
+
             $link = route('activation.show').'#'.$issued['token'];
             Mail::to($invitation->user->email)->send(new AccountInvitationMail($link));
-            $local = $mailer === 'private_local';
-            $invitation->update(['delivery_status' => $local ? 'local_preview' : 'submitted']);
+            $invitation->update(['delivery_status' => 'local_preview']);
 
-            return $local ? 'Account saved as pending. Invitation captured in the protected local mail inbox; no email was delivered externally.' : 'Account saved as pending. Invitation submitted to the configured SMTP server; inbox delivery is not guaranteed.';
+            return 'Account saved as pending. Invitation captured in the protected local mail inbox; no email was delivered externally.';
         } catch (Throwable) {
             $invitation->update(['delivery_status' => 'failed']);
             $this->audit->record('invitation.delivery_failed', $invitation);
@@ -72,27 +78,45 @@ class InvitationService
         }
     }
 
-    public function activate(string $token, string $password): void
+    public function setupState(#[\SensitiveParameter] string $token): string
+    {
+        if (! preg_match('/^[a-f0-9]{64}$/D', $token)) {
+            return 'invalid';
+        }
+
+        $invitation = AccountInvitation::with('user.employee')->where('token_hash', hash('sha256', $token))->first();
+
+        return $invitation && $invitation->user ? $this->state($invitation, $invitation->user) : 'invalid';
+    }
+
+    private function state(AccountInvitation $invitation, User $user): string
+    {
+        if ($invitation->revoked_at || $invitation->expires_at->isPast()) {
+            return 'invalid';
+        }
+        if ($invitation->used_at && $user->account_status === 'active') {
+            return 'activated';
+        }
+        if ($invitation->used_at || $user->account_status !== 'pending_activation' || $user->email_verified_at
+            || ($user->employee && $user->employee->employment_status !== 'active')) {
+            return 'invalid';
+        }
+
+        return 'ready';
+    }
+
+    public function activate(#[\SensitiveParameter] string $token, string $password): void
     {
         DB::transaction(function () use ($token, $password) {
             Role::whereKey(Role::HR)->lockForUpdate()->firstOrFail();
             $candidate = AccountInvitation::where('token_hash', hash('sha256', $token))->first();
             if (! $candidate) {
-                throw ValidationException::withMessages(['token' => 'This invitation is invalid. Ask HR for a new invitation.']);
+                throw ValidationException::withMessages(['token' => 'This invitation is invalid or expired.']);
             }
             $user = User::whereKey($candidate->user_id)->lockForUpdate()->firstOrFail();
             $invitation = AccountInvitation::whereKey($candidate->id)->lockForUpdate()->firstOrFail();
-            $reason = match (true) {
-                (bool) $invitation->used_at => 'This invitation has already been used.',
-                (bool) $invitation->revoked_at => 'This invitation was revoked or replaced. Ask HR for the latest invitation.',
-                $invitation->expires_at->isPast() => 'This invitation has expired. Ask HR to resend it.',
-                $user->account_status === 'deactivated' => 'This account is deactivated. Contact HR.',
-                $user->account_status !== 'pending_activation' => 'This account is not awaiting activation.',
-                $user->employee && $user->employee->employment_status !== 'active' => 'This employee record is inactive. Contact HR.',
-                default => null,
-            };
-            if ($reason) {
-                throw ValidationException::withMessages(['token' => $reason]);
+            if ($this->state($invitation, $user) !== 'ready') {
+                throw ValidationException::withMessages(['token' => 'This invitation is invalid or expired.']);
             }
             $user->forceFill(['password' => $password, 'account_status' => 'active', 'email_verified_at' => now(), 'remember_token' => Str::random(60), 'session_version' => $user->session_version + 1])->save();
             $invitation->update(['used_at' => now()]);

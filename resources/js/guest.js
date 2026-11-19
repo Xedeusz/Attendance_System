@@ -6,23 +6,39 @@ Alpine.data("accountActivation", () => ({
     token: "",
     error: "",
     busy: false,
-    init() {
+    state: "checking",
+    form: "",
+    async init() {
         this.token = window.location.hash.slice(1);
         window.history.replaceState(null, "", window.location.pathname);
         if (!/^[a-f0-9]{64}$/.test(this.token)) {
             this.token = "";
-            this.error =
-                "A complete, valid invitation link is required. Contact HR.";
+            this.state = "invalid";
+            return;
+        }
+        try {
+            const response = await fetch(location.pathname, {
+                headers: { Accept: "application/json", Authorization: "Bearer " + this.token },
+                cache: "no-store",
+            });
+            if (!response.ok) throw new Error();
+            const result = await response.json();
+            this.state = result.state;
+            this.form = result.form || "";
+        } catch {
+            this.state = "error";
+            this.error = "Could not check the invitation. Reopen the original link and try again.";
         }
     },
-    async submit() {
+    async submit(event) {
         if (this.busy || !this.token) return;
         this.busy = true;
         this.error = "";
-        const body = new FormData(this.$el);
+        const form = event.currentTarget;
+        const body = new FormData(form);
         body.set("token", this.token);
         try {
-            const response = await fetch(this.$el.action, {
+            const response = await fetch(form.action, {
                 method: "POST",
                 body,
                 headers: { Accept: "application/json" },
@@ -30,6 +46,11 @@ Alpine.data("accountActivation", () => ({
             });
             const result = await response.json();
             if (!response.ok) {
+                if (result.errors?.token) {
+                    this.form = "";
+                    this.state = "invalid";
+                    return;
+                }
                 this.error =
                     Object.values(result.errors || {})
                         .flat()
@@ -39,7 +60,7 @@ Alpine.data("accountActivation", () => ({
                 return;
             }
             this.token = "";
-            window.location.assign(result.redirect);
+            window.location.replace(result.redirect);
         } catch {
             notify.ajaxError();
             this.error =

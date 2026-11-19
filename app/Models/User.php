@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Services\EssentialEmailOutbox;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -90,9 +91,16 @@ class User extends Authenticatable
         return in_array((int) $this->role_id, [Role::HR, Role::EMPLOYEE, Role::SUPERVISOR], true) && $this->account_status === 'active' && (! $this->employee || $this->employee->employment_status === 'active');
     }
 
-    public function sendPasswordResetNotification($token): void
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
-        if ($this->canAuthenticate()) {
+        if (! $this->canAuthenticate()) {
+            return;
+        }
+
+        $emails = app(EssentialEmailOutbox::class);
+        if ($emails->enabled()) {
+            $emails->reset($this, $token);
+        } elseif ((config('mail.default') === 'private_local' && app()->isLocal()) || config('mail.default') === 'array') {
             $this->notify(new ResetPassword($token));
         }
     }

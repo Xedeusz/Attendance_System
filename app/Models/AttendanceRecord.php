@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class AttendanceRecord extends Model
 {
@@ -23,6 +24,16 @@ class AttendanceRecord extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function computations(): HasMany
+    {
+        return $this->hasMany(AttendanceComputation::class);
+    }
+
+    public function computation(): HasOne
+    {
+        return $this->hasOne(AttendanceComputation::class)->latestOfMany('version');
     }
 
     public function events(): HasMany

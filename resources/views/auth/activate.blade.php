@@ -1,14 +1,15 @@
 <x-layouts.guest title="Activate your account">
     <div class="empty-icon"><x-icon name="shield" /></div>
-    <h1>Your workspace awaits</h1>
-    <p class="auth-subtitle">Set a private password to activate the account created by HR. Use 12+ characters with mixed case, a number and a symbol.</p>
-    <form x-data="accountActivation" @submit.prevent="submit" method="POST" action="{{ route('activation.store') }}">
-        @csrf
-        <div class="mb-5" x-show="error" x-cloak><x-alert variant="error"><span x-text="error"></span></x-alert></div>
-        <p class="small muted leading-6 mb-5" x-show="!token">Open the complete invitation link supplied by HR. The invitation code is required.</p>
-        <x-password label="New password" autocomplete="new-password" />
-        <x-password name="password_confirmation" label="Confirm password" autocomplete="new-password" />
-        <x-button class="full" type="submit" x-bind:disabled="busy || !token"><span x-text="busy ? 'Activating…' : 'Activate account'">Activate account</span></x-button>
-    </form>
-    <div class="auth-help"><a href="{{ route('login') }}">Back to sign in</a><br>Invitation expired or unavailable? Contact HR.</div>
+    <div x-data="accountActivation">
+        <p x-show="state === 'checking'">Checking your invitation…</p>
+        <noscript>Enable JavaScript to check your invitation.</noscript>
+        <div x-cloak x-show="state === 'activated'">
+            <h1>Account already activated</h1>
+            <p>Your LIMCOMA account has already been set up. Sign in with your registered email and password.</p>
+        </div>
+        <p x-cloak x-show="state === 'invalid'">This invitation is invalid or expired. Contact HR for assistance.</p>
+        <div x-cloak x-show="error" role="alert"><x-alert variant="error"><span x-text="error"></span></x-alert></div>
+        <div x-html="form"></div>
+        <div class="auth-help"><a href="{{ route('login') }}">Go to login</a></div>
+    </div>
 </x-layouts.guest>

@@ -2,7 +2,29 @@
 <x-attendance-identity :employee="$record->employee" :branch-name="$record->branch->branch_name" class="mb-6" />
 @if($record->employee->user_id===auth()->id())<div class="action-row mb-6"><x-button variant="secondary" :href="route('employee.corrections.create',['record_id'=>$record->id])">Request correction</x-button></div>@endif
 @if($record->correction_version)<section class="card mb-6"><div class="card-heading"><h2>Effective attendance · manual HR correction</h2></div><div class="card-body"><p>Time In: {{ ($record->effective_time_in_at ?? $record->time_in_at)?->timezone(config('attendance.timezone'))->format('M j, Y H:i') ?? 'Not recorded' }}<br>Time Out: {{ ($record->effective_time_out_at ?? $record->time_out_at)?->timezone(config('attendance.timezone'))->format('M j, Y H:i') ?? 'Not recorded' }}</p><p class="small muted mt-3">The original timestamps, photos and GPS results below remain unchanged. Manual correction does not verify location or camera evidence.</p><a class="text-link mt-3" href="{{ route($hr ? 'hr.corrections.index' : 'employee.corrections.index') }}">Correction history</a></div></section>@endif
-<section class="card mb-6"><div class="card-body flex flex-wrap gap-4"><x-state :value="$record->session_status" /><x-state :value="$record->verification_status" /><x-state :value="$record->review_status" /><p class="small muted">Work date follows the original Time In across midnight. No schedule-based classification is assigned.</p></div></section>
+<section class="card mb-6"><div class="card-body flex flex-wrap gap-4"><x-state :value="$record->session_status" /><x-state :value="$record->verification_status" /><x-state :value="$record->review_status" /><p class="small muted">Time In and Time Out are displayed in {{ config('attendance.timezone') }}.</p></div></section>
+
+<section class="card mb-6">
+    <div class="card-heading"><h2>Working hours breakdown</h2></div>
+    <div class="card-body space-y-3">
+        <x-attendance-computation :calculation="$record->computation" />
+        @if($record->computation)<p class="small muted">Durations are rounded down to whole minutes. A dash indicates an unavailable or inapplicable value.</p>@endif
+    </div>
+    @if($hr && $versions->isNotEmpty())
+        <details class="card-body">
+            <summary>Computation history</summary>
+            <div class="mt-4 stack">
+                @foreach($versions as $version)
+                    <div class="border-t border-slate-200 pt-3">
+                        <p class="small mb-2">Version {{ $version->version }} · {{ $version->created_at->timezone(config('attendance.timezone'))->format('M j, Y H:i') }} · {{ str_replace('_', ' ', $version->trigger) }}@if($version->actor_id) · Account #{{ $version->actor_id }}@endif</p>
+                        @if($version->reason)<p class="small mb-2">{{ $version->reason }}</p>@endif
+                        <x-attendance-computation :calculation="$version" />
+                    </div>
+                @endforeach
+            </div>
+        </details>
+    @endif
+</section>
 
 @php($day = app(\App\Services\AttendanceLocationEvidence::class)->day($record))
 <div class="stack" data-attendance-record>

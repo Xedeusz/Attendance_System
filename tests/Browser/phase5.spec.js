@@ -429,3 +429,56 @@ test("employee submission, final Supervisor decision, private document and HR co
     expect(errors).toEqual([]);
     for (const context of contexts) await context.close();
 });
+
+test("approved leave details form two aligned rows on desktop and stack on smaller screens", async ({
+    page: hrPage,
+}) => {
+    const leave = fixture("leave-layout", hr.id);
+    await login(hrPage, hr);
+    await hrPage.goto("/hr/leave/" + leave.id);
+    await expect(hrPage.getByRole("link", { name: "Verify Document", exact: true })).toHaveCount(0);
+    for (const link of [
+        "View Approved Form",
+        "Download Approved PDF",
+        "Download document",
+    ]) {
+        await expect(
+            hrPage.getByRole("link", { name: link, exact: true }),
+        ).toHaveAttribute("href", /.+/);
+    }
+    await expect(
+        hrPage.getByText("Approved for the requested dates."),
+    ).toBeVisible();
+    const cardHeadings = [
+        "Application details",
+        "LIMCOMA Leave Application Form",
+        "Supporting documents",
+        "Review history",
+    ];
+    const cards = cardHeadings.map((name) =>
+        hrPage
+            .getByRole("heading", { name, exact: true })
+            .locator("xpath=ancestor::section[1]"),
+    );
+    for (const width of [1440, 1024, 768, 390]) {
+        await hrPage.setViewportSize({ width, height: 950 });
+        await fits(hrPage);
+        const [application, form, documents, history] = await Promise.all(
+            cards.map((card) => card.boundingBox()),
+        );
+        if (width >= 1024) {
+            expect(application.y).toBeCloseTo(form.y, 0);
+            expect(documents.y).toBeCloseTo(history.y, 0);
+            expect(application.x).toBeCloseTo(documents.x, 0);
+            expect(form.x).toBeCloseTo(history.x, 0);
+            expect(application.width).toBeCloseTo(form.width, 0);
+            expect(form.x).toBeGreaterThan(application.x);
+        } else {
+            expect(form.x).toBeCloseTo(application.x, 0);
+            expect(form.y).toBeGreaterThan(application.y);
+            expect(documents.y).toBeGreaterThan(form.y);
+            expect(history.y).toBeGreaterThan(documents.y);
+        }
+    }
+    await hrPage.setViewportSize({ width: 1440, height: 950 });
+});

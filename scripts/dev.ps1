@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('serve', 'reverb', 'queue', 'assets', 'build', 'test', 'provision', 'browser', 'format')]
+    [ValidateSet('serve', 'reverb', 'queue', 'mail', 'assets', 'build', 'test', 'provision', 'browser', 'format')]
     [string]$Task = 'serve'
 )
 
@@ -20,6 +20,7 @@ switch ($Task) {
     'serve' { & $phpPath artisan serve --host=127.0.0.1 --port=8000 --no-reload }
     'reverb' { & $phpPath artisan reverb:start --host=127.0.0.1 --port=8080 }
     'queue' { & $phpPath artisan queue:work --queue=realtime,default --tries=4 --timeout=30 }
+    'mail' { & $phpPath artisan queue:work database --queue=mail --sleep=2 --timeout=30 --no-interaction }
     'assets' { & npm.cmd run dev }
     'build' { & npm.cmd run build }
     'test' { & $phpPath artisan test --compact }

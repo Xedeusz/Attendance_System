@@ -18,6 +18,7 @@ use App\Services\LeavePdfRenderer;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -37,6 +38,35 @@ class PhaseFiveWorkflowTest extends TestCase
     private function application(LeaveType $type, array $overrides = []): array
     {
         return array_replace(['leave_type_id' => $type->id, 'start_date' => now()->addWeek()->toDateString(), 'end_date' => now()->addWeek()->addDays(3)->toDateString(), 'requested_duration' => 3, 'reason' => 'A private synthetic request for personal leave.'], $overrides);
+    }
+
+    public function test_application_dates_use_the_manila_calendar_and_preserve_historical_access(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-18 16:05:00', 'UTC'));
+        $employee = $this->attendee();
+        $type = LeaveType::factory()->create(['requires_document' => false, 'affects_balance' => false]);
+        $this->actingAs($employee->user)->get(route('employee.leave.create'))->assertOk()
+            ->assertSee('min="2026-11-19"', false);
+
+        foreach (['2026-11-18', '2026-10-01'] as $past) {
+            $this->postJson(route('employee.leave.store'), $this->application($type, [
+                'start_date' => $past, 'end_date' => $past,
+            ]))->assertUnprocessable()->assertJsonValidationErrors(['start_date', 'end_date']);
+        }
+        $this->postJson(route('employee.leave.store'), $this->application($type, [
+            'start_date' => '2026-11-21', 'end_date' => '2026-11-20',
+        ]))->assertUnprocessable()->assertJsonValidationErrors('end_date');
+        $this->assertDatabaseEmpty('leave_requests');
+
+        foreach (['2026-11-19', '2026-11-20', '2026-11-25'] as $date) {
+            $leave = $this->apply($employee, $type, ['start_date' => $date, 'end_date' => $date, 'requested_duration' => 1]);
+            $this->assertSame('1.00', $leave->requested_duration);
+        }
+        $this->travel(1)->month();
+        foreach (['approved', 'rejected'] as $status) {
+            $leave->update(['status' => $status]);
+            $this->get(route('employee.leave.show', $leave))->assertOk()->assertSee('Nov 25, 2026');
+        }
     }
 
     private function assign(Employee $employee, User $supervisor): SupervisorAssignment
@@ -172,7 +202,33 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->assertNotSame($leave->reason, DB::table('leave_requests')->where('id', $leave->id)->value('reason'));
         $this->get('/employee/leave/documents/'.$document->id)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($this->reviewer())->get('/hr/leave/documents/'.$document->id)->assertOk();
-        $this->actingAs($supervisor)->get('/supervisor/leave/documents/'.$document->id)->assertOk();
+        foreach (['employee' => $employee->user, 'hr' => $this->reviewer()] as $scope => $viewer) {
+            $url = route($scope.'.leave.document', [$document, 'preview' => 1]);
+            $this->actingAs($viewer)->get(route($scope.'.leave.show', $leave))->assertOk()
+                ->assertSee('View document')->assertSee($url)->assertSee('document-preview-name');
+            $this->get($url)->assertOk()->assertHeader('Content-Disposition', 'inline; filename=synthetic.pdf')->assertStreamedContent($pdf);
+            $this->get(route($scope.'.leave.document', $document))->assertDownload('synthetic.pdf');
+        }
+        $other = Employee::factory()->create()->user;
+        $this->actingAs($other)->get(route('employee.leave.document', [$document, 'preview' => 1]))->assertForbidden();
+        $this->get(route('hr.leave.document', [$document, 'preview' => 1]))->assertForbidden();
+
+        $download = route('supervisor.leave.document', $document);
+        $preview = route('supervisor.leave.document', [$document, 'preview' => 1]);
+        $this->actingAs($supervisor)->get($download)->assertDownload('synthetic.pdf');
+        $this->get($preview)->assertOk()->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('Content-Disposition', 'inline; filename=synthetic.pdf')->assertStreamedContent($pdf);
+        $this->get(route('supervisor.leave.show', $leave))->assertOk()->assertSee('View document')->assertSee($preview);
+        foreach (['png' => 'image/png', 'jpg' => 'image/jpeg'] as $extension => $mime) {
+            $image = UploadedFile::fake()->image('sample.'.$extension, 20, 12)->getContent();
+            Storage::disk('leave')->put($document->storage_path, Crypt::encryptString($image));
+            $document->update(['mime_type' => $mime]);
+            $this->get($preview)->assertOk()->assertHeader('Content-Type', $mime)->assertStreamedContent($image);
+        }
+        Storage::disk('leave')->put($document->storage_path, Crypt::encryptString('<html>Unsupported</html>'));
+        $this->get($preview)->assertStatus(415);
+        $this->actingAs($this->supervisor())->get($preview)->assertForbidden();
+        $this->actingAs(Employee::factory()->create()->user)->get($preview)->assertForbidden();
         $this->actingAs($this->supervisor())->get('/supervisor/leave/documents/'.$document->id)->assertForbidden();
         $this->actingAs(Employee::factory()->create()->user)->get('/employee/leave/documents/'.$document->id)->assertForbidden();
         $assignment->update(['is_active' => false, 'revoked_at' => now()]);

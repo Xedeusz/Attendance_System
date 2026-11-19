@@ -2,8 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceEvent;
+use App\Models\AttendanceHoliday;
 use App\Models\AttendanceRecord;
+use App\Models\Employee;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -11,6 +15,44 @@ use Illuminate\Validation\Rule;
 
 class AttendanceQueries
 {
+    public function __construct(private AttendancePolicyResolver $policies, private AttendanceComputationService $computations) {}
+
+    public function dailyPolicyStatistics(): array
+    {
+        $today = CarbonImmutable::today(config('attendance.timezone'));
+        $date = $today->toDateString();
+        $counts = [
+            'Employees present' => 0, 'Employees late' => 0, 'Employees with undertime' => 0,
+            'Incomplete attendance' => 0, 'Employees on approved leave' => 0, 'Employees not scheduled to work' => 0,
+        ];
+        $holidayIds = [];
+        Employee::where('employment_status', 'active')->where('date_hired', '<=', $date)
+            ->chunkById(200, function ($employees) use ($today, $date, &$counts, &$holidayIds): void {
+                $policies = $this->policies->forPeriod($employees, $today, $today);
+                $records = AttendanceRecord::with(['computation', 'branch'])->where('work_date', '>=', $date)->where('work_date', '<', $today->addDay()->toDateString())
+                    ->whereIn('employee_id', $employees->modelKeys())->get()->groupBy('employee_id');
+                $manual = AttendanceCorrectionRequest::with(['computation', 'branch'])->where('requested_date', '>=', $date)->where('requested_date', '<', $today->addDay()->toDateString())->where('status', 'approved')
+                    ->whereNull('attendance_record_id')->whereIn('employee_id', $employees->modelKeys())->get()->groupBy('employee_id');
+                foreach ($policies as $employeeId => $days) {
+                    $policy = $days[$date];
+                    foreach ($policy['holidays'] as $holiday) {
+                        $holidayIds[$holiday['id']] = true;
+                    }
+                    $sessions = $records->get($employeeId, collect());
+                    $manualSessions = $manual->get($employeeId, collect());
+                    $day = $this->computations->day(collect([...$sessions, ...$manualSessions]));
+                    $counts['Employees present'] += (int) ($day !== null);
+                    $counts['Employees late'] += (int) ($day?->late_minutes > 0);
+                    $counts['Employees with undertime'] += (int) ($day?->undertime_minutes > 0);
+                    $counts['Incomplete attendance'] += (int) ($day?->incomplete ?? false);
+                    $counts['Employees on approved leave'] += (int) ($policy['leave_ids'] !== []);
+                    $counts['Employees not scheduled to work'] += (int) in_array($policy['obligation'], ['not_scheduled', 'excused'], true);
+                }
+            });
+
+        return [...$counts, 'Applicable holidays today' => count($holidayIds)];
+    }
+
     /** @return list<array{date: string, label: string, time_in: int, time_out: int}> */
     public function activity(): array
     {
@@ -39,7 +81,22 @@ class AttendanceQueries
     {
         $data = $request->validate(['from' => ['nullable', 'date_format:Y-m-d'], 'to' => ['nullable', 'date_format:Y-m-d', ...($request->filled('from') ? ['after_or_equal:from'] : [])], 'q' => $employeeId === null ? ['nullable', 'string', 'max:100'] : ['prohibited'], 'branch_id' => $employeeId === null ? ['nullable', 'integer', 'exists:branches,id'] : ['prohibited'], 'employee_id' => $employeeId === null ? ['nullable', 'integer', 'exists:employees,id'] : ['prohibited'], 'session_status' => ['nullable', Rule::in(['open', 'pending', 'completed', 'cancelled'])], 'verification_status' => ['nullable', Rule::in(['location_validated', 'pending_review', 'exception_approved', 'rejected'])], 'sort' => ['nullable', Rule::in(['work_date', 'created_at', 'time_in_at'])], 'direction' => ['nullable', Rule::in(['asc', 'desc'])]]);
 
-        return AttendanceRecord::with(['employee.user.employee', 'branch'])
+        $policyFilters = $employeeId === null ? $request->validate([
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'work_schedule_id' => ['nullable', 'integer', 'exists:work_schedules,id'],
+            'holiday_type' => ['nullable', Rule::in(array_keys(AttendanceHoliday::TYPES))],
+            'computed' => ['nullable', Rule::in(['late', 'undertime', 'incomplete'])],
+        ]) : [];
+
+        return AttendanceRecord::with(['employee.user.employee', 'employee.department', 'branch', 'computation'])
+            ->when($policyFilters['department_id'] ?? null, fn (Builder $query, $department) => $query->whereRelation('employee', 'department_id', $department))
+            ->when($policyFilters['work_schedule_id'] ?? null, fn (Builder $query, $schedule) => $query->whereRelation('computation', 'work_schedule_id', $schedule))
+            ->when($policyFilters['holiday_type'] ?? null, fn (Builder $query, $type) => $query->whereHas('computation', fn (Builder $calculation) => $calculation->whereJsonContains('holiday_types', $type)))
+            ->when($policyFilters['computed'] ?? null, fn (Builder $query, $metric) => $query->whereHas('computation', fn (Builder $calculation) => match ($metric) {
+                'late' => $calculation->where('late_minutes', '>', 0),
+                'undertime' => $calculation->where('undertime_minutes', '>', 0),
+                'incomplete' => $calculation->where('incomplete', true),
+            }))
             ->when($employeeId !== null, fn ($query) => $query->where('employee_id', $employeeId))
             ->when($employeeId === null && ! empty($data['employee_id']), fn ($query) => $query->where('employee_id', $data['employee_id']))
             ->when($employeeId === null && ! empty($data['branch_id']), fn ($query) => $query->where('branch_id', $data['branch_id']))

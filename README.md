@@ -45,6 +45,28 @@ The local encrypted mail preview is not external email delivery and is local-onl
 
 `config/attendance.php` / `.env.example` define development defaults: 180-second capture, 45-second location age, 50-metre accuracy limit, review requests enabled, 30-day normal evidence retention, 90-day pending hold. **HR/IT/DPO must confirm these policies before production.** Radius is configured per actual branch. No late/absent/payroll/schedule classifications are invented.
 
+### Essential Gmail SMTP notifications
+
+Use a fresh Google App Password from a Gmail account with two-step verification. Set these values in the private `.env`:
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_SCHEME=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_REQUIRE_TLS=true
+MAIL_USERNAME=your-gmail-address
+MAIL_PASSWORD=your-google-app-password
+MAIL_FROM_ADDRESS=your-gmail-address
+MAIL_FROM_NAME="LIMCOMA Attendance System"
+MAIL_LINK_BASE_URL=https://your-attendance-host
+AUTH_PASSWORD_RESET_ENABLED=true
+```
+
+Keep `MAIL_LINK_BASE_URL` on the reachable, authorized HTTPS attendance host. At delivery, pending messages use the current email hostname or, if unset, the configured application URL. Production delivery rejects temporary trycloudflare.com addresses. Use a stable LIMCOMA-controlled HTTPS hostname for production. A temporary tunnel URL must be updated whenever the tunnel changes. Gmail SMTP uses the authenticated mailbox as From. Google manages authentication for personal gmail.com senders. For a future LIMCOMA sending domain, authorize the mail provider in SPF, enable its DKIM signing, and publish an aligned DMARC policy. In a received message, Gmail’s Show original lists the authentication results. `MAIL_DAILY_LIMIT` defaults to 400 app SMTP submissions per 24-hour window. `MAIL_MAX_MESSAGE_BYTES` defaults to 20 MiB including estimated MIME encoding overhead.
+
+Run a persistent `php artisan queue:work database --queue=mail --sleep=2 --timeout=30` worker alongside the existing workers. Use a process supervisor in production and keep the database queue retry interval above the worker timeout. Run the scheduler for outbox recovery. Server operators can inspect safe status summaries with `php artisan mail:essential list` and retry a definitive failure with `php artisan mail:essential retry <id>`. Resolve missing signed documents through the authorized leave workflow before retrying. `submitted` means the SMTP server accepted the message. Uncertain submissions require review to avoid duplicate mail.
+
 Use a monitored scheduler (`php artisan schedule:work` locally, `schedule:run` every minute in production). `php artisan attendance:prune-evidence` deletes expired private photos and exact location/explanation while preserving core timestamps/reviews. Optional `--orphans` scans unreferenced private files older than one hour. It deletes data: use only with the approved retention policy. Existing private-mail pruning remains scheduled.
 
 Images are encrypted in `storage/app/private/attendance`, never served through a public storage link. Preserve `APP_KEY` securely with backups; do not regenerate it in an established environment. Only owner/HR policy-authorized endpoints return images. [Security/privacy and remaining production work](docs/ATTENDANCE_SECURITY.md).
@@ -114,7 +136,7 @@ The existing Laravel scheduler runs leave:refresh-routing hourly and leave:purge
 
 Authorized Blade views now synchronize through private Laravel Reverb/Echo signals and authoritative content fragments. Dashboard/directory tables, attendance, leave, corrections and notification badges update while open; active forms and camera captures are preserved. A controlled polling fallback handles unavailable WebSockets.
 
-Run separate terminals with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1` followed by `serve`, `reverb`, `queue`, and optionally `assets`. Windows `composer run dev` starts all four processes. MySQL must also be running. Refresh already-open tabs once after this upgrade to load the new client. Do not start duplicate processes on ports 8000/8080.
+Run separate terminals with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1` followed by `serve`, `reverb`, `queue`, `mail`, and optionally `assets`. Windows `composer run dev` starts all five processes. MySQL must also be running. Refresh already-open tabs once after this upgrade to load the new client. Do not start duplicate processes on ports 8000/8080.
 
 Read [architecture and exact local/HTTPS setup](docs/REALTIME_SYSTEM_ARCHITECTURE.md), [events, recipient scopes and source inventory](docs/REALTIME_EVENT_MATRIX.md), and [automated/manual verification](docs/REALTIME_TESTING.md). Real local `.env` secrets remain uncommitted. Apply the additive workspace revision migration on other installations; do not reset existing tables.
 

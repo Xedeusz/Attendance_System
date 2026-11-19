@@ -10,5 +10,12 @@
 <p class="small muted">Your request is awaiting HR review. You cannot review your own correction.</p><form method="POST" action="{{ route('employee.corrections.cancel',$correction) }}" data-confirm-title="Cancel Correction Request?" data-confirm-button="Cancel Request">@csrf<input type="hidden" name="confirmation" value="1"><x-button type="submit" variant="secondary">Cancel request</x-button></form>
 @else<p class="small muted">This request is finalized.</p>@endif
 @if($history->isNotEmpty())<h3 class="pt-4">Corrections for this record</h3>@foreach($history as $item)<p class="small">Request #{{ $item->id }} · {{ ucfirst($item->status) }} · {{ $item->submitted_at->timezone(config('attendance.timezone'))->format('M j, Y H:i') }}</p>@endforeach @endif
-</div></section></div></x-layouts.app>
+</div></section></div>
+@if($correction->computation)
+    <section class="card mt-6">
+        <div class="card-heading"><h2>Working hours breakdown</h2></div>
+        <div class="card-body"><x-attendance-computation :calculation="$correction->computation" /></div>
+    </section>
+@endif
+</x-layouts.app>
 

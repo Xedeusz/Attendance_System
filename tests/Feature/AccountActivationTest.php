@@ -24,12 +24,25 @@ class AccountActivationTest extends TestCase
         $this->assertSame(hash('sha256', $token), AccountInvitation::sole()->token_hash);
         $this->post('/logout');
         $input = ['token' => $token, 'password' => 'Private!Activation123', 'password_confirmation' => 'Private!Activation123'];
-        $this->postJson('/activate-account', $input)->assertOk();
+        $this->get('/activate-account')->assertOk()->assertDontSee('type="password"', false);
+        for ($visit = 0; $visit < 2; $visit++) {
+            $this->getJson('/activate-account', ['Authorization' => 'Bearer '.$token])
+                ->assertOk()->assertJsonPath('state', 'ready')
+                ->assertJsonPath('form', fn ($form) => str_contains($form, 'type="password"'));
+        }
+        $this->assertNull(AccountInvitation::sole()->used_at);
+        $this->postJson('/activate-account', $input)->assertOk()->assertJsonPath('redirect', route('login'));
+        $this->assertNotNull(AccountInvitation::sole()->used_at);
         $this->assertSame('active', $employee->user->fresh()->account_status);
         $this->assertNotNull($employee->user->fresh()->email_verified_at);
         $this->assertTrue(Hash::check($input['password'], $employee->user->fresh()->password));
+        $hash = $employee->user->fresh()->password;
+        $this->getJson('/activate-account', ['Authorization' => 'Bearer '.$token])
+            ->assertOk()->assertJsonPath('state', 'activated')->assertJsonPath('form', null);
+        $input['password_confirmation'] = $input['password'] = 'Different!Password123';
         $this->postJson('/activate-account', $input)->assertUnprocessable()->assertJsonValidationErrors('token');
-        $this->post('/login', ['email' => $employee->work_email, 'password' => $input['password']])->assertRedirect(route('employee.dashboard'));
+        $this->assertSame($hash, $employee->user->fresh()->password);
+        $this->post('/login', ['email' => $employee->work_email, 'password' => 'Private!Activation123'])->assertRedirect(route('employee.dashboard'));
         $this->assertNotNull($employee->user->fresh()->last_login_at);
         $this->assertStringNotContainsString($token, AuditLog::all()->toJson());
     }
@@ -50,13 +63,18 @@ class AccountActivationTest extends TestCase
             default => null,
         };
         $this->post('/logout');
+        if ($state === 'unknown') {
+            $token = bin2hex(random_bytes(32));
+        }
+        $this->getJson('/activate-account', ['Authorization' => 'Bearer '.$token])
+            ->assertOk()->assertJsonPath('state', 'invalid')->assertJsonPath('form', null);
         $this->postJson('/activate-account', ['token' => $token, 'password' => 'Private!Activation123', 'password_confirmation' => 'Private!Activation123'])->assertUnprocessable()->assertJsonValidationErrors('token');
         $this->assertNotSame('active', $employee->user->fresh()->account_status);
     }
 
     public static function invalidStates(): array
     {
-        return [['expired'], ['revoked'], ['used'], ['deactivated'], ['inactive']];
+        return [['unknown'], ['expired'], ['revoked'], ['used'], ['deactivated'], ['inactive']];
     }
 
     public function test_resend_replaces_previous_token_and_password_policy_is_enforced(): void

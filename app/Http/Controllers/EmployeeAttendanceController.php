@@ -71,14 +71,18 @@ class EmployeeAttendanceController extends Controller
     {
         $employeeId = $request->user()->employee?->id ?? 0;
 
-        return view('attendance.index', ['manualEntries' => AttendanceCorrectionRequest::where('employee_id', $employeeId)->whereNull('attendance_record_id')->where('status', 'approved')->latest('id')->limit(30)->get(), 'records' => $queries->records($request, $employeeId)->paginate(15)->withQueryString(), 'hr' => false, 'stats' => [], 'branches' => collect(), 'assistance' => AttendanceAssistanceRequest::where('employee_id', $employeeId)->latest('id')->limit(10)->get()]);
+        return view('attendance.index', ['manualEntries' => AttendanceCorrectionRequest::where('employee_id', $employeeId)->whereNull('attendance_record_id')->where('status', 'approved')->with('computation')->latest('id')->limit(30)->get(), 'records' => $queries->records($request, $employeeId)->paginate(15)->withQueryString(), 'hr' => false, 'stats' => [], 'branches' => collect(), 'assistance' => AttendanceAssistanceRequest::where('employee_id', $employeeId)->latest('id')->limit(10)->get()]);
     }
 
     public function show(AttendanceRecord $record): View
     {
         Gate::authorize('view', $record);
 
-        return view('attendance.show', ['record' => $record->load(['employee.user.employee', 'branch', 'events.photo', 'events.review.reviewer']), 'hr' => auth()->user()->isHr()]);
+        $hr = auth()->user()->isHr();
+        $record->load(['employee.user.employee', 'branch', 'events.photo', 'events.review.reviewer', 'computation']);
+        $versions = $hr ? $record->computations()->latest('version')->limit(30)->get() : collect();
+
+        return view('attendance.show', compact('record', 'hr', 'versions'));
     }
 
     public function assistance(Request $request, AttendanceService $attendance): RedirectResponse

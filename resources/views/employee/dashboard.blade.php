@@ -1,13 +1,23 @@
 <x-layouts.app title="My Workday">
-    <x-page-header title="My Workday" description="Your attendance, assigned branch, and recent records." />
+    <x-page-header title="My Workday" description="Your attendance, assigned branch, and recent records.">
+        <x-button variant="secondary" :href="route('employee.work-calendar')">My Work Calendar</x-button>
+    </x-page-header>
 
     @php
+        $calculation = $attendanceRecord?->computation;
+        $earlierSession = $attendanceRecord && $attendanceRecord->work_date->toDateString() !== $workday->toDateString();
+        $todayCalculation = $dayComputation ?? ($earlierSession ? null : $calculation);
+        $displayPolicy = $todayCalculation?->policy ?? $workPolicy;
         [$statusLabel, $statusTone, $statusIcon, $attendanceMessage] = match (true) {
             $employee === null => ['Profile required', 'neutral', 'info', 'Contact HR to link your employee profile before recording attendance.'],
             $attendanceRecord?->review_status === 'pending' => ['Awaiting HR review', 'warning', 'info', 'Your submission is saved. HR must complete the review before you can record another action.'],
             $open !== null => ['Clocked In', 'teal', 'clock', 'Your attendance session is open. Open attendance to record Time Out.'],
             $attendanceRecord?->session_status === 'completed' || $attendanceRecord?->effective_time_out_at !== null => ['Clocked Out', 'neutral', 'check', 'Your Time Out is recorded. Review your saved workday in Attendance history.'],
             $attendanceRecord?->session_status === 'cancelled' => ['Cancelled', 'danger', 'info', 'Your latest attendance session was cancelled. Open attendance to check your available actions.'],
+            $manualAttendance => ['Approved Manual Attendance', 'teal', 'check', 'An HR-approved manual attendance entry is available in your history.'],
+            ($displayPolicy['obligation'] ?? null) === 'not_scheduled' => [$displayPolicy['holidays'] ? 'Holiday · No Work Scheduled' : 'No Work Scheduled', 'neutral', 'calendar', 'There is no scheduled attendance obligation for this date.'],
+            ($displayPolicy['obligation'] ?? null) === 'approved_leave' => ['Approved Leave', 'teal', 'calendar', 'Your approved leave covers this workday.'],
+            ($displayPolicy['obligation'] ?? null) === 'excused' => ['Authorized Absence', 'teal', 'calendar', 'HR approved an attendance exception for this date.'],
             default => ['Not Clocked In', 'neutral', 'clock', 'No attendance recorded for today. Open attendance to start your workday.'],
         };
 
@@ -62,6 +72,15 @@
                         </dl>
                     @endif
 
+                    @if($displayPolicy)
+                        <x-attendance-computation :calculation="$todayCalculation" :policy="$displayPolicy" :expected="$expectedToday" compact />
+                    @endif
+                    @if($earlierSession && $calculation)
+                        <details class="text-sm">
+                            <summary>Open session policy for {{ $attendanceRecord->work_date->format('M j, Y') }}</summary>
+                            <div class="mt-2"><x-attendance-computation :calculation="$calculation" compact /></div>
+                        </details>
+                    @endif
                     <p class="text-sm leading-relaxed text-slate-600">{{ $attendanceMessage }}</p>
 
                     <div class="mt-auto grid grid-cols-1 gap-2.5 @min-[23rem]/attendance:flex @min-[23rem]/attendance:flex-wrap">
@@ -109,30 +128,20 @@
         </section>
 
         <section class="card">
-            <div class="card-heading"><h2>Leave &amp; support</h2></div>
+            <div class="card-heading">
+                <h2>Recent leave status</h2>
+                <x-button variant="secondary" :href="route('employee.leave.create')">Apply for Leave</x-button>
+            </div>
             <div class="card-body">
-                <a class="utility-link" href="{{ route('notifications') }}"><x-icon name="bell" /><span>Notifications &amp; review updates</span><x-icon name="chevron" /></a>
-                <a class="utility-link" href="{{ route('settings') }}"><x-icon name="settings" /><span>Account settings</span><x-icon name="chevron" /></a>
-                <a class="utility-link" href="{{ route('employee.leave.index') }}"><x-icon name="calendar" /><span>My Leave · {{ $pendingLeave }} pending</span><x-icon name="chevron" /></a>
-                <a class="utility-link" href="{{ route('employee.corrections.index') }}"><x-icon name="file" /><span>Attendance corrections</span><x-icon name="chevron" /></a>
+                @forelse($recentLeave as $leave)
+                    <div class="profile-row">
+                        <a class="text-link" href="{{ route('employee.leave.show', $leave) }}">{{ $leave->type_snapshot['name'] }} · {{ $leave->start_date->format('M j, Y') }}</a>
+                        <span class="inline-flex flex-wrap items-center gap-1.5"><x-state :value="$leave->status" /><x-leave-period :leave="$leave" /></span>
+                    </div>
+                @empty
+                    <p class="small muted">No leave applications submitted.</p>
+                @endforelse
             </div>
         </section>
     </div>
-
-    <section class="card mt-6">
-        <div class="card-heading">
-            <h2>Recent leave status</h2>
-            <x-button variant="secondary" :href="route('employee.leave.create')">Apply for Leave</x-button>
-        </div>
-        <div class="card-body">
-            @forelse($recentLeave as $leave)
-                <div class="profile-row">
-                    <a class="text-link" href="{{ route('employee.leave.show', $leave) }}">{{ $leave->type_snapshot['name'] }} · {{ $leave->start_date->format('M j, Y') }}</a>
-                    <x-state :value="$leave->status" />
-                </div>
-            @empty
-                <p class="small muted">No leave applications submitted.</p>
-            @endforelse
-        </div>
-    </section>
 </x-layouts.app>

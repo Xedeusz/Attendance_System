@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEssentialEmail;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
+use App\Models\EssentialEmail;
+use App\Models\LeaveApprovalDocument;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Role;
@@ -11,13 +14,17 @@ use App\Models\SupervisorAssignment;
 use App\Models\SupervisorSignature;
 use App\Models\User;
 use App\Services\LeavePdfRenderer;
+use App\Services\SupervisorSignatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\Support\AttendanceData;
 use Tests\TestCase;
@@ -290,6 +297,129 @@ class OfficialLeaveFormTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['action' => 'leave.document_verified']);
     }
 
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_approval_notification_attaches_the_current_signed_pdf_bytes_from_the_employee_download(bool $replace): void
+    {
+        $employee = $this->attendee();
+        $supervisor = $this->assign($employee);
+        $leave = $this->submit($employee, LeaveType::factory()->create());
+        $this->enroll($supervisor);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
+        Queue::fake([SendEssentialEmail::class]);
+        $original = self::TEST_PDF;
+        $replacement = "%PDF-1.4\n% revised signed form\n%%EOF";
+        $pdf = $replace ? $replacement : $original;
+        $this->mock(LeavePdfRenderer::class, function (MockInterface $mock) use ($supervisor, $replace, $original, $replacement): void {
+            $mock->shouldReceive('render')->times($replace ? 2 : 1)->withArgs(function (string $html) use ($supervisor): bool {
+                $signature = SupervisorSignature::activeFor($supervisor)->sole();
+                $signatureImage = base64_encode(app(SupervisorSignatureService::class)->bytes($signature));
+                $this->assertStringContainsString('data:image/png;base64,'.$signatureImage.'" alt="Supervisor signature"', $html);
+                $this->assertStringContainsString(e($supervisor->name), $html);
+                $this->assertStringContainsString('Scan to Verify', $html);
+
+                return true;
+            })->andReturn($original, $replacement);
+        });
+
+        $this->postJson(route('supervisor.leave.decide', $leave), $this->approval())->assertRedirect();
+        $delivery = EssentialEmail::sole();
+        $first = $leave->approvalDocument()->sole();
+        $this->assertSame($first->id, $delivery->leave_approval_document_id);
+        $this->assertTrue(Storage::disk('leave')->exists($first->storage_path));
+        Queue::assertPushed(SendEssentialEmail::class, fn (SendEssentialEmail $job): bool => $job->emailId === $delivery->id && $job->afterCommit);
+        $transport = Mail::mailer('smtp')->getSymfonyTransport();
+        $this->assertCount(0, $transport->messages());
+
+        if ($replace) {
+            $this->post(route('leave.verify.replace', $first), [
+                'reason' => 'Replace the official PDF for the approved request.',
+                'confirmation' => 1, 'current_password' => 'password', 'signature_version' => 1,
+            ])->assertRedirect()->assertSessionHasNoErrors();
+        }
+        $current = $leave->approvalDocument()->sole();
+        $job = new SendEssentialEmail($delivery->id);
+        app()->call([$job, 'handle']);
+        app()->call([$job, 'handle']);
+
+        $mail = $transport->messages()->sole()->getOriginalMessage();
+        $this->assertCount(1, $mail->getTo());
+        $this->assertSame($employee->work_email, $mail->getTo()[0]->getAddress());
+        $this->assertStringContainsString('LIMCOMA leave application approved', $mail->getSubject());
+        $this->assertStringContainsString('electronic signature is attached as a PDF', $mail->getHtmlBody());
+        $this->assertCount(1, $mail->getAttachments());
+        $attachment = $mail->getAttachments()[0];
+        $this->assertSame('application/pdf', $attachment->getMediaType().'/'.$attachment->getMediaSubtype());
+        $this->assertSame('LIMCOMA_Approved_Leave_'.$current->document_reference.'.pdf', $attachment->getFilename());
+        $download = $this->actingAs($employee->user)->get(route('employee.leave.approved-form', $leave))->assertOk()->assertContent($pdf);
+        $this->assertSame($download->getContent(), $attachment->getBody());
+        $delivery->refresh();
+        $this->assertTrue($delivery->attachment_included);
+        $this->assertSame('submitted', $delivery->status);
+        $this->assertSame($current->document_reference, $delivery->document_reference);
+    }
+
+    public function test_oversize_signed_pdf_remains_downloadable_and_is_rejected_before_queueing(): void
+    {
+        $employee = $this->attendee();
+        $supervisor = $this->assign($employee);
+        $leave = $this->submit($employee, LeaveType::factory()->create());
+        $this->enroll($supervisor);
+        config([
+            'mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array',
+            'mail.essential.max_message_bytes' => 1024,
+        ]);
+        Queue::fake([SendEssentialEmail::class]);
+        $this->mock(LeavePdfRenderer::class, fn (MockInterface $mock) => $mock->shouldReceive('render')->once()->andReturn(self::TEST_PDF));
+
+        $this->postJson(route('supervisor.leave.decide', $leave), $this->approval())->assertRedirect();
+
+        Queue::assertNotPushed(SendEssentialEmail::class);
+        $delivery = EssentialEmail::sole();
+        $this->assertSame('failed', $delivery->status);
+        $this->assertSame('signed_pdf_above_message_limit', $delivery->failure_reason);
+        $this->assertSame('approved', $leave->fresh()->status);
+        $this->actingAs($employee->user)->get(route('employee.leave.approved-form', $leave))->assertOk()->assertContent(self::TEST_PDF);
+    }
+
+    #[TestWith(['missing_file', 'retrying', 'signed_pdf_unavailable'])]
+    #[TestWith(['oversize', 'failed', 'signed_pdf_above_message_limit'])]
+    #[TestWith(['foreign_document', 'failed', 'signed_approval_not_verified'])]
+    #[TestWith(['changed_recipient', 'skipped', 'recipient_changed_or_token_expired'])]
+    public function test_invalid_approval_attachment_or_recipient_never_sends_email(string $scenario, string $status, string $reason): void
+    {
+        $employee = $this->attendee();
+        $supervisor = $this->assign($employee);
+        $leave = $this->submit($employee, LeaveType::factory()->create());
+        $this->enroll($supervisor);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
+        Queue::fake([SendEssentialEmail::class]);
+        $this->mock(LeavePdfRenderer::class, fn (MockInterface $mock) => $mock->shouldReceive('render')->once()->andReturn(self::TEST_PDF));
+        $this->postJson(route('supervisor.leave.decide', $leave), $this->approval())->assertRedirect();
+        $delivery = EssentialEmail::sole();
+        $document = $leave->approvalDocument()->sole();
+
+        match ($scenario) {
+            'missing_file' => Storage::disk('leave')->delete($document->storage_path),
+            'oversize' => config(['mail.essential.max_message_bytes' => 1024]),
+            'foreign_document' => $delivery->update(['leave_approval_document_id' => LeaveApprovalDocument::factory()->create()->id]),
+            'changed_recipient' => $employee->user->update(['email' => 'changed-owner@example.test']),
+        };
+
+        try {
+            app()->call([new SendEssentialEmail($delivery->id), 'handle']);
+        } catch (RuntimeException $exception) {
+            $this->assertSame('missing_file', $scenario);
+            $this->assertSame($reason, $exception->getMessage());
+        }
+
+        $this->assertCount(0, Mail::mailer('smtp')->getSymfonyTransport()->messages());
+        $this->assertSame('approved', $leave->fresh()->status);
+        $this->assertSame($status, $delivery->fresh()->status);
+        $this->assertSame($reason, $delivery->fresh()->failure_reason);
+        $this->assertFalse($delivery->fresh()->attachment_included);
+    }
+
     public function test_pdf_failure_rolls_back_the_decision_balance_and_document(): void
     {
         $employee = $this->attendee();
@@ -301,6 +431,8 @@ class OfficialLeaveFormTest extends TestCase
             'policy_period' => $leave->start_date->format('Y'), 'available_days' => 5,
         ]);
         $this->enroll($supervisor);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
+        Queue::fake([SendEssentialEmail::class]);
         $this->mock(LeavePdfRenderer::class, fn (MockInterface $mock) => $mock->shouldReceive('render')->once()->andThrow(new RuntimeException('Test renderer failure')));
 
         $this->postJson(route('supervisor.leave.decide', $leave), $this->approval())
@@ -310,6 +442,8 @@ class OfficialLeaveFormTest extends TestCase
         $this->assertDatabaseCount('leave_approval_documents', 0);
         $this->assertDatabaseCount('leave_balance_transactions', 0);
         $this->assertSame([], Storage::disk('leave')->allFiles('leave-approval-documents'));
+        $this->assertDatabaseEmpty('essential_emails');
+        Queue::assertNotPushed(SendEssentialEmail::class);
     }
 
     public function test_rejection_requires_remarks_and_leaves_both_decision_boxes_unsigned(): void

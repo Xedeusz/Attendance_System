@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html:has(dialog[aria-labelledby="document-preview-name"][open]),
+body:has(dialog[aria-labelledby="document-preview-name"][open]) {
+    overflow: hidden;
+}
+
 .swal2-container {
     z-index: 2000;
 }

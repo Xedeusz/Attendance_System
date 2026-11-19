@@ -2,13 +2,16 @@
 
 namespace Tests\Support;
 
+use App\Jobs\SendEssentialEmail;
 use App\Mail\AccountInvitationMail;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EssentialEmail;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 
 trait Phase3Data
 {
@@ -25,18 +28,29 @@ trait Phase3Data
     protected function registerEmployee(array $data): Employee
     {
         Mail::fake();
-        config(['mail.default' => 'smtp']);
+        Queue::fake([SendEssentialEmail::class]);
+        config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
         $this->post('/hr/employees', $data)->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->runQueuedInvitations();
 
         return Employee::where('employee_number', $data['employee_number'])->firstOrFail();
     }
 
     protected function activationToken(): string
     {
+        $this->runQueuedInvitations();
         $mail = Mail::sent(AccountInvitationMail::class)->last();
         $this->assertNotNull($mail);
         preg_match('/#([a-f0-9]{64})/', $mail->render(), $matches);
 
         return $matches[1];
+    }
+
+    private function runQueuedInvitations(): void
+    {
+        foreach (EssentialEmail::where('type', EssentialEmail::ACCOUNT_SETUP)->where('status', 'queued')->get() as $email) {
+            app()->call([new SendEssentialEmail($email->id), 'handle']);
+        }
     }
 }
