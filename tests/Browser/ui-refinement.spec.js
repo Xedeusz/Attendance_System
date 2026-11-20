@@ -330,3 +330,44 @@ test("work policy pages fit desktop and mobile and preview paid and unpaid break
     await employeeContext.close();
     await hrContext.close();
 });
+
+test("HR dashboard reflows its four metrics and keeps navigation usable", async ({
+    page,
+}) => {
+    const errors = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+        if (message.type() === "error") errors.push(message.text());
+    });
+    await login(page, hr);
+    await page.goto("/hr/dashboard");
+
+    const statistics = page.getByRole("region", {
+        name: "Primary HR statistics",
+    });
+    const cards = statistics.locator("[data-metric]");
+    const firstLink = cards.first().getByRole("link");
+    await expect(cards).toHaveCount(4);
+    await expect(page.getByRole("heading", { name: "HR Action Center" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View Attendance Monitoring" })).toHaveAttribute("href", new RegExp("/hr/attendance"));
+
+    for (const [width, columns] of [[1440, 4], [768, 2], [390, 2], [320, 1]]) {
+        await page.setViewportSize({ width, height: 900 });
+        await fits(page);
+        const positions = await cards.evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().top),
+        );
+        expect(positions.filter((top) => top === positions[0])).toHaveLength(columns);
+        if ([1440, 390].includes(width)) {
+            await page.screenshot({
+                path: screenshotRoot + "/hr-dashboard-light-" + width + ".png",
+                fullPage: true,
+                animations: "disabled",
+            });
+        }
+    }
+
+    await firstLink.focus();
+    await expect(firstLink).toBeFocused();
+    expect(errors).toEqual([]);
+});

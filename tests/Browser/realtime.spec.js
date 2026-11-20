@@ -323,7 +323,7 @@ test("department edits and employee creation update another HR dashboard from da
     );
     await viewer.goto("/hr/dashboard");
     await live(viewer);
-    const count = viewer.locator('[data-metric="Total employees"] strong');
+    const count = viewer.locator('[data-metric="Active Employees"] strong');
     const before = Number((await count.textContent()).replaceAll(",", ""));
     let navigations = 0;
     viewer.on("framenavigated", (frame) => {
@@ -348,17 +348,27 @@ test("department edits and employee creation update another HR dashboard from da
     await editor
         .getByLabel("Company-wide department")
         .selectOption(departmentId);
+    const liveRefresh = viewer.waitForResponse(
+        (response) =>
+            new URL(response.url()).pathname === "/hr/dashboard" &&
+            response.ok() &&
+            response.request().headers()["x-workspace-sync"] === "1",
+    );
     await editor
         .getByRole("button", { name: "Save employee & issue invitation" })
         .click();
     await expect(
         editor.getByRole("heading", {
             name: "Synthetic Realtime",
+            level: 1,
             exact: true,
         }),
     ).toBeVisible();
-    await expect(count).toHaveText(String(before + 1), { timeout: 20000 });
-    await expect(viewer.locator("main")).toContainText("Synthetic Realtime");
+    await liveRefresh;
+    await expect(count).toHaveText(String(before));
+    await expect(viewer.locator("main")).not.toContainText(
+        "Synthetic Realtime",
+    );
     expect(navigations).toBe(0);
 
     await Promise.all(contexts.map((context) => context.close()));

@@ -121,7 +121,7 @@ class AttendanceWorkflowTest extends TestCase
         $this->get('/employee/attendance/history?sort=password')->assertSessionHasErrors('sort');
         $this->get('/employee/attendance/history?employee_id='.$employee->id)->assertSessionHasErrors('employee_id');
         $this->actingAs($this->reviewer())->get('/hr/attendance?employee_id='.$employee->id)->assertOk()->assertSee($employee->employee_number);
-        $this->get('/hr/dashboard')->assertOk()->assertSee('Time Ins today');
+        $this->get('/hr/dashboard')->assertOk()->assertSee('Present Today');
         $this->assertSame(1, app(AttendanceQueries::class)->statistics()['Currently clocked in']);
     }
 

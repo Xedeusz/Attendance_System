@@ -118,16 +118,18 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     expect(session.httpOnly).toBe(true);
     expect(session.sameSite).toBe("Lax");
     await expect(
-        page.getByRole("heading", { name: "Workforce Overview", exact: true }),
+        page.getByRole("heading", { name: "HR Dashboard", exact: true }),
     ).toBeVisible();
     await noPageOverflow(page);
-    await expect(page.locator(".workforce-kpi")).toHaveCount(4);
     await expect(
-        page.locator(".workforce-attendance-primary [data-metric], .workforce-attendance-secondary:not([aria-label]) [data-metric]"),
-    ).toHaveCount(8);
+        page.getByRole("region", { name: "Primary HR statistics" }).locator("[data-metric]"),
+    ).toHaveCount(4);
     await expect(
-        page.getByRole("link", { name: "Monitor attendance", exact: true }),
-    ).toHaveAttribute("href", /\/hr\/attendance$/);
+        page.getByRole("region", { name: "Today's Attendance" }).locator("[data-metric]"),
+    ).toHaveCount(3);
+    await expect(
+        page.getByRole("link", { name: "View Attendance Monitoring", exact: true }),
+    ).toHaveAttribute("href", new RegExp("/hr/attendance[?]from="));
     await page.screenshot({
         path: "test-results/screenshots/dashboard-desktop.png",
         fullPage: true,

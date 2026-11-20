@@ -26,7 +26,11 @@ Sources for review are the [Data Privacy Act](https://officialgazette.gov.ph/201
 
 ## Phase 7 — Verification
 
-In progress. Isolated test accounts and database only. Browser work targets the dedicated notice with native labelled forms, explicit submission, and server validation. The retrieved Modern Web Guidance `forms` guide informed checkbox labelling, named forms, and visible required fields.
+Completed on isolated test accounts and SQLite. The final Laravel suite passed all 333 tests with 3,083 assertions. The five focused privacy tests covered role-specific login, repeat and stale submissions, private acknowledgement history, draft editing and publication, logout, and QR continuation. The settings-navigation regression now checks the implemented theme selector instead of the retired placeholder.
+
+Edge, Firefox and WebKit passed the browser flow at 360, 390, 768, 1024 and 1440 CSS pixels in Light and Dark appearance. The scenario verified readable notice content, an unchecked and keyboard-operable acknowledgement, a rejected tokenless submission (HTTP 419), and a role-appropriate redirect after acknowledgement. The final Edge rerun passed after version lookup hardening. Pint and the production Vite build passed. Screenshots are in [.tools/privacy-review](.tools/privacy-review).
+
+The retrieved Modern Web Guidance forms guide informed checkbox labelling, named forms and visible required fields. Physical mobile devices, dedicated screen readers and a MariaDB staging rollout remain outside this verification pass. The production database was not migrated and no notice was published for real employees.
 
 ## Phase 8 — Deployment and DPO sign-off
 

@@ -54,7 +54,7 @@ class Phase3AuthorizationTest extends TestCase
         $this->assertFalse(Gate::forUser($employee->user)->allows('create', Employee::class));
         $this->assertTrue(Gate::forUser($employee->user)->allows('view', $employee));
         $this->assertFalse(Gate::forUser($employee->user)->allows('update', $employee));
-        $this->actingAs($hr)->get('/hr/dashboard')->assertOk()->assertSee('Workforce Overview');
+        $this->actingAs($hr)->get('/hr/dashboard')->assertOk()->assertSee('Daily HR Overview');
         $this->get('/employee/dashboard')->assertOk()->assertSee('No employee profile');
     }
 

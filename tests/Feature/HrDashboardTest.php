@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\AttendanceCorrectionRequest;
 use App\Models\AttendanceEvent;
-use App\Models\Branch;
 use App\Models\Employee;
+use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\AttendanceQueries;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Support\AttendanceData;
 use Tests\TestCase;
@@ -14,33 +16,38 @@ class HrDashboardTest extends TestCase
 {
     use AttendanceData, RefreshDatabase;
 
-    public function test_hr_dashboard_has_honest_empty_states_and_zero_counts(): void
+    public function test_dashboard_has_only_the_requested_metrics_and_a_compact_empty_state(): void
     {
         $this->actingAs($this->reviewer())->get('/hr/dashboard')
-            ->assertOk()->assertSee('Workforce Overview')
-            ->assertSee('Development workspace')
-            ->assertSee('No attendance activity recorded yet')->assertSee('All caught up')
-            ->assertSee('No recent employee records.')->assertSee('No pending account activations.')
-            ->assertViewHas('stats', ['Total employees' => 0, 'Active employee accounts' => 0, 'Pending account activations' => 0, 'Active branches' => 0, 'Departments' => 0])
-            ->assertViewHas('attendanceStats', ['Time Ins today' => 0, 'Time Outs today' => 0, 'Currently clocked in' => 0, 'Completed sessions today' => 0, 'Pending HR review' => 0, 'Open over 24 hours' => 0, 'Rejected submissions' => 0, 'Geofence exceptions today' => 0])
-            ->assertViewHas('activity', fn ($days) => count($days) === 7 && array_sum(array_column($days, 'time_in')) === 0 && array_sum(array_column($days, 'time_out')) === 0);
+            ->assertOk()->assertSee('Daily HR Overview')->assertSee('HR Action Center')
+            ->assertSee('All caught up!')->assertSee('No pending HR actions at the moment.')
+            ->assertDontSee('Active branches')->assertDontSee('Time Ins today')->assertDontSee('Attendance Activity')
+            ->assertViewHas('stats', ['Active Employees' => 0, 'Present Today' => 0, 'On Approved Leave' => 0, 'Pending HR Actions' => 0])
+            ->assertViewHas('todayAttendance', ['Employees Late' => 0, 'Employees with Undertime' => 0, 'Incomplete Attendance' => 0])
+            ->assertViewHas('actions', []);
     }
 
-    public function test_company_counts_recent_records_and_pending_accounts_use_saved_data(): void
+    public function test_daily_leave_and_action_counts_deduplicate_employees_and_exclude_other_statuses(): void
     {
+        $this->travelTo(now()->setDate(2026, 11, 15)->setTime(16, 30, 0));
         $active = Employee::factory()->create();
         $pending = Employee::factory()->for(User::factory()->state(['account_status' => 'pending_activation']))->create();
-        $inactive = Employee::factory()->for(User::factory()->state(['account_status' => 'deactivated']))->create();
-        $branch = Branch::factory()->create();
-        Branch::factory()->create(['status' => 'inactive']);
-        $active->assignments()->create(['branch_id' => $branch->id, 'is_primary' => true, 'effective_from' => now()->subDay()]);
+        Employee::factory()->for(User::factory()->state(['account_status' => 'deactivated']))->create();
+
+        LeaveRequest::factory()->for($active)->count(2)->create(['status' => 'approved', 'start_date' => '2026-11-16', 'end_date' => '2026-11-16']);
+        LeaveRequest::factory()->for($pending)->create(['status' => 'approved', 'start_date' => '2026-11-15', 'end_date' => '2026-11-15']);
+        LeaveRequest::factory()->for($active)->count(2)->create(['status' => 'awaiting_supervisor_assignment']);
+        LeaveRequest::factory()->for($active)->create(['status' => 'pending_supervisor_approval']);
+        AttendanceCorrectionRequest::factory()->for($active)->create(['status' => 'pending']);
+        AttendanceCorrectionRequest::factory()->for($active)->create(['status' => 'approved']);
 
         $this->actingAs($this->reviewer())->get('/hr/dashboard')->assertOk()
-            ->assertViewHas('stats', ['Total employees' => 3, 'Active employee accounts' => 1, 'Pending account activations' => 1, 'Active branches' => 1, 'Departments' => 3])
-            ->assertViewHas('recent', fn ($records) => $records->modelKeys() === [$inactive->id, $pending->id, $active->id])
-            ->assertViewHas('pending', fn ($records) => $records->modelKeys() === [$pending->id])
-            ->assertSee($active->employee_number)->assertSee($branch->branch_name)
-            ->assertSee('account_status=pending_activation', false);
+            ->assertViewHas('stats', ['Active Employees' => 1, 'Present Today' => 0, 'On Approved Leave' => 1, 'Pending HR Actions' => 2])
+            ->assertViewHas('actions', fn (array $actions): bool => array_column($actions, 'count') === [1, 1])
+            ->assertSee('datetime="2026-11-16"', false)
+            ->assertSee('status=awaiting_supervisor_assignment', false)
+            ->assertDontSee('Pending Supervisor approval')
+            ->assertDontSee('Pending account activations');
     }
 
     public function test_production_dashboard_hides_development_workspace_indicator(): void
@@ -48,7 +55,7 @@ class HrDashboardTest extends TestCase
         $this->app['env'] = 'production';
 
         $this->actingAs($this->reviewer())->get('/hr/dashboard')->assertOk()
-            ->assertDontSee('Development workspace')->assertSee('Workforce Overview');
+            ->assertDontSee('Development workspace')->assertSee('Daily HR Overview');
     }
 
     public function test_seven_day_activity_uses_manila_midnights_and_accepted_events_only(): void
@@ -71,11 +78,12 @@ class HrDashboardTest extends TestCase
         $this->actingAs($reviewer)->post('/hr/attendance/events/'.$approved->id.'/review', ['decision' => 'approved', 'remarks' => 'Reviewed synthetic evidence.', 'confirmation' => 1])->assertRedirect()->assertSessionHasNoErrors();
         $this->travelTo(now()->setDate(2026, 11, 16)->setTime(4, 0, 0));
 
-        $response = $this->actingAs($reviewer)->get('/hr/dashboard')->assertOk()->assertSee('View activity data');
-        $days = $response->viewData('activity');
+        $this->actingAs($reviewer)->get('/hr/dashboard')->assertOk()
+            ->assertViewHas('stats', fn (array $stats): bool => $stats['Present Today'] === 1 && $stats['Pending HR Actions'] === 1)
+            ->assertSee('Attendance submissions awaiting HR review');
+        $days = app(AttendanceQueries::class)->activity();
         $this->assertSame(['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15', '2026-11-16'], array_column($days, 'date'));
         $this->assertSame([0, 0, 0, 0, 0, 1, 1], array_column($days, 'time_in'));
         $this->assertSame([1, 0, 0, 0, 0, 0, 1], array_column($days, 'time_out'));
-        $response->assertViewHas('attendanceStats', ['Time Ins today' => 1, 'Time Outs today' => 1, 'Currently clocked in' => 1, 'Completed sessions today' => 1, 'Pending HR review' => 1, 'Open over 24 hours' => 0, 'Rejected submissions' => 0, 'Geofence exceptions today' => 2]);
     }
 }

@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceAssistanceRequest;
 use App\Models\AttendanceCorrectionRequest;
+use App\Models\AttendanceEvent;
 use App\Models\AttendanceRecord;
-use App\Models\Branch;
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\LeaveRequest;
 use App\Services\AttendanceComputationService;
@@ -13,6 +13,7 @@ use App\Services\AttendancePolicyResolver;
 use App\Services\AttendanceQueries;
 use App\Services\AttendanceService;
 use App\Services\WorkDuration;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -20,38 +21,50 @@ class DashboardController extends Controller
 {
     public function hr(AttendanceQueries $attendance): View
     {
-        $employeeAccounts = Employee::query()->join('users', 'users.id', '=', 'employees.user_id')
-            ->toBase()->selectRaw('COUNT(*) AS total')
-            ->selectRaw('COUNT(CASE WHEN users.account_status = ? THEN 1 END) AS active', ['active'])
-            ->selectRaw('COUNT(CASE WHEN users.account_status = ? THEN 1 END) AS pending', ['pending_activation'])->first();
-        $leaveCounts = LeaveRequest::whereIn('status', ['awaiting_supervisor_assignment', 'pending_supervisor_approval', 'approved', 'rejected'])
-            ->toBase()->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status');
-        $correctionCounts = AttendanceCorrectionRequest::whereIn('status', ['pending', 'approved', 'rejected'])
-            ->toBase()->selectRaw('status, COUNT(*) AS total')->groupBy('status')->pluck('total', 'status');
+        $businessDate = CarbonImmutable::now(config('attendance.timezone'))->startOfDay();
+        $daily = $attendance->dailyPolicyStatistics($businessDate);
+        $activeEmployees = Employee::whereRelation('user', 'account_status', 'active')->count();
+        $actions = array_filter([
+            [
+                'label' => 'Attendance submissions awaiting HR review',
+                'count' => AttendanceEvent::where('review_status', 'pending')->count(),
+                'icon' => 'file',
+                'url' => route('hr.attendance.index', ['verification_status' => 'pending_review']),
+            ],
+            [
+                'label' => 'Attendance corrections awaiting review',
+                'count' => AttendanceCorrectionRequest::where('status', 'pending')->count(),
+                'icon' => 'clock',
+                'url' => route('hr.corrections.index', ['status' => 'pending']),
+            ],
+            [
+                'label' => 'Attendance assistance requests',
+                'count' => AttendanceAssistanceRequest::where('status', 'pending')->count(),
+                'icon' => 'info',
+                'url' => route('hr.attendance.index'),
+            ],
+            [
+                'label' => 'Employees awaiting Supervisor assignment',
+                'count' => LeaveRequest::where('status', 'awaiting_supervisor_assignment')->distinct()->count('employee_id'),
+                'icon' => 'users',
+                'url' => route('hr.leave.index', ['status' => 'awaiting_supervisor_assignment']),
+            ],
+        ], fn (array $action): bool => $action['count'] > 0);
 
         return view('hr.dashboard', [
             'stats' => [
-                'Total employees' => (int) $employeeAccounts->total,
-                'Active employee accounts' => (int) $employeeAccounts->active,
-                'Pending account activations' => (int) $employeeAccounts->pending,
-                'Active branches' => Branch::where('status', 'active')->count(),
-                'Departments' => Department::count(),
+                'Active Employees' => $activeEmployees,
+                'Present Today' => $daily['Employees present'],
+                'On Approved Leave' => $daily['Employees on approved leave'],
+                'Pending HR Actions' => array_sum(array_column($actions, 'count')),
             ],
-            'recent' => Employee::with(['user', 'department', 'currentAssignment.branch'])->latest('id')->limit(5)->get(),
-            'pending' => Employee::whereHas('user', fn ($query) => $query->where('account_status', 'pending_activation'))->latest('id')->limit(5)->get(),
-            'branches' => Branch::withCount('currentAssignments')->orderBy('branch_name')->limit(10)->get(),
-            'attendanceStats' => $attendance->statistics(),
-            'dailyPolicyStats' => $attendance->dailyPolicyStatistics(),
-            'activity' => $attendance->activity(),
-            'businessDate' => now(config('attendance.timezone')),
-            'leaveStats' => [
-                'Awaiting Supervisor assignment' => (int) ($leaveCounts['awaiting_supervisor_assignment'] ?? 0),
-                'Pending Supervisor approval' => (int) ($leaveCounts['pending_supervisor_approval'] ?? 0),
-                'Pending attendance corrections' => (int) ($correctionCounts['pending'] ?? 0),
-                'Approved leave applications' => (int) ($leaveCounts['approved'] ?? 0),
-                'Rejected leave applications' => (int) ($leaveCounts['rejected'] ?? 0),
-                'Completed correction reviews' => (int) ($correctionCounts['approved'] ?? 0) + (int) ($correctionCounts['rejected'] ?? 0),
+            'todayAttendance' => [
+                'Employees Late' => $daily['Employees late'],
+                'Employees with Undertime' => $daily['Employees with undertime'],
+                'Incomplete Attendance' => $daily['Incomplete attendance'],
             ],
+            'actions' => $actions,
+            'businessDate' => $businessDate,
         ]);
     }
 

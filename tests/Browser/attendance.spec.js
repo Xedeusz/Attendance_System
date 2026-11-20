@@ -445,17 +445,22 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
     ).toBeVisible();
     await hrPage.goto("/hr/dashboard");
     await expect(
+        hrPage.getByRole("heading", { name: "HR Dashboard", exact: true }),
+    ).toBeVisible();
+    await expect(
         hrPage.getByRole("heading", {
-            name: "Workforce Overview",
+            name: "Today's Attendance",
             exact: true,
         }),
     ).toBeVisible();
-    await expect(hrPage.locator(".workforce-chart-bar")).toHaveCount(14);
-    await hrPage.getByText("View activity data", { exact: true }).click();
     await expect(
-        hrPage.getByRole("table", { name: "Seven-day attendance activity" }),
-    ).toBeVisible();
-    await hrPage.getByText("View activity data", { exact: true }).click();
+        hrPage
+            .getByRole("region", { name: "Primary HR statistics" })
+            .locator("[data-metric]"),
+    ).toHaveCount(4);
+    await expect(
+        hrPage.getByRole("link", { name: "View Attendance Monitoring" }),
+    ).toHaveAttribute("href", new RegExp("/hr/attendance"));
     for (const width of [1440, 768, 390, 320]) {
         await hrPage.setViewportSize({ width, height: 1000 });
         expect(
@@ -463,24 +468,6 @@ test("live controls, permissions, retake, switching, cleanup and real MariaDB at
                 () => document.documentElement.scrollWidth <= innerWidth,
             ),
         ).toBe(true);
-        const chartBar = hrPage.locator(".workforce-chart-bar").last();
-        await chartBar.focus();
-        await expect(
-            chartBar.locator(".workforce-chart-tooltip"),
-        ).toBeVisible();
-        expect(
-            await hrPage.evaluate(
-                () => document.documentElement.scrollWidth <= innerWidth,
-            ),
-        ).toBe(true);
-        await hrPage.evaluate(() => {
-            document.activeElement?.blur();
-            window.scrollTo({ top: 0, behavior: "instant" });
-        });
-        await hrPage.screenshot({
-            path: `test-results/screenshots/workforce-activity-${width}.png`,
-            fullPage: true,
-        });
     }
     await hrContext.close();
     await monitorContext.close();

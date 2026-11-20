@@ -17,9 +17,10 @@ class AttendanceQueries
 {
     public function __construct(private AttendancePolicyResolver $policies, private AttendanceComputationService $computations) {}
 
-    public function dailyPolicyStatistics(): array
+    public function dailyPolicyStatistics(?CarbonImmutable $today = null): array
     {
-        $today = CarbonImmutable::today(config('attendance.timezone'));
+        $timezone = config('attendance.timezone');
+        $today = $today?->setTimezone($timezone)->startOfDay() ?? CarbonImmutable::today($timezone);
         $date = $today->toDateString();
         $counts = [
             'Employees present' => 0, 'Employees late' => 0, 'Employees with undertime' => 0,

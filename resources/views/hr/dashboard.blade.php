@@ -1,102 +1,70 @@
 <x-layouts.app title="HR Dashboard">
-<div class="workforce-dashboard">
-    <header class="workforce-header">
-        <div><h1>Workforce Overview</h1><p>Monitor employees, branches, and attendance across LIMCOMA.</p></div>
-        <div class="workforce-header-tools"><p class="workforce-date"><x-icon name="calendar" /><time datetime="{{ $businessDate->toIso8601String() }}">{{ $businessDate->format('D, M j, Y') }}</time><span>{{ config('attendance.timezone') }}</span></p><div class="workforce-actions"><x-button :href="route('hr.attendance.index')" variant="secondary">Monitor attendance</x-button><x-button :href="route('hr.employees.create')"><x-icon name="plus" /> Register employee</x-button></div></div>
-    </header>
-    <section class="workforce-kpis" aria-label="Company overview">
-        @foreach([
-            ['Total employees', 'users', 'hr.employees.index', 'Active employee accounts: '.$stats['Active employee accounts']],
-            ['Active branches', 'building', 'hr.branches.index', 'Active office locations'],
-            ['Departments', 'grid', 'hr.departments.index', 'Company departments'],
-            ['Pending account activations', 'lock', 'hr.employees.index', 'Accounts awaiting activation'],
-        ] as [$label, $icon, $route, $context])
-            <article class="workforce-kpi" data-metric="{{ $label }}"><div class="workforce-kpi-top"><h2>{{ $label }}</h2><span class="workforce-icon"><x-icon :name="$icon" /></span></div><strong>{{ number_format($stats[$label]) }}</strong><p>{{ $context }}</p><a href="{{ route($route, $label === 'Pending account activations' ? ['account_status' => 'pending_activation'] : []) }}" aria-label="View {{ $label }}"><x-icon name="arrow" /></a></article>
-        @endforeach
-    </section>
-    <div class="workforce-daily">
-    <section class="workforce-panel workforce-attendance" aria-labelledby="today-heading">
-        <div class="workforce-panel-heading"><div><p class="workforce-eyebrow">Daily operations</p><h2 id="today-heading">Today's Attendance</h2></div><span class="workforce-period">{{ $businessDate->format('M j') }} · {{ config('attendance.timezone') }}</span></div>
-        <div class="workforce-attendance-primary">
-            @foreach([
-                ['Currently clocked in', 'clock', 'teal', 'Open attendance sessions'],
-                ['Completed sessions today', 'check', 'purple', 'Sessions with a Time Out today'],
-                ['Pending HR review', 'file', 'amber', 'Submissions awaiting a decision · all dates'],
-            ] as [$label, $icon, $tone, $context])
-                <div class="workforce-attendance-metric {{ $attendanceStats[$label] > 0 ? 'workforce-tone-'.$tone : '' }}" data-metric="{{ $label }}"><span class="workforce-icon"><x-icon :name="$icon" /></span><div><h3>{{ $label }}</h3><strong>{{ number_format($attendanceStats[$label]) }}</strong><p>{{ $context }}</p></div></div>
-            @endforeach
-        </div>
-        <dl class="workforce-attendance-secondary">@foreach(['Time Ins today', 'Time Outs today', 'Open over 24 hours', 'Rejected submissions', 'Geofence exceptions today'] as $label)<div data-metric="{{ $label }}"><dt>{{ $label }}</dt><dd>{{ number_format($attendanceStats[$label]) }}</dd></div>@endforeach</dl>
-        <dl class="workforce-attendance-secondary" aria-label="Attendance and work obligations">@foreach($dailyPolicyStats as $label => $count)<div data-metric="{{ $label }}"><dt>{{ $label }}</dt><dd>{{ number_format($count) }}</dd></div>@endforeach</dl>
-        <p class="workforce-note">Attendance and work obligation categories can overlap. Daily working-hour totals combine accepted sessions for each employee. Punch totals include location-validated and approved exceptions. Open and review counts cover all dates; rejected submissions are an all-time total.</p>
-    </section>
-    <section class="workforce-panel workforce-queue" aria-labelledby="workforce-queue-heading">
-        <div class="workforce-panel-heading">
-            <h2 id="workforce-queue-heading">Leave &amp; correction queue</h2>
-        </div>
-        <dl class="workforce-queue-counts">
-            @foreach($leaveStats as $label => $count)
-                <div><dt>{{ $label }}</dt><dd>{{ number_format($count) }}</dd></div>
-            @endforeach
-        </dl>
-        <div class="workforce-queue-actions">
-            <a class="text-link" href="{{ route('hr.leave.index') }}">Monitor leave <x-icon name="arrow" /></a>
-            <a class="text-link" href="{{ route('hr.corrections.index') }}">Review attendance corrections <x-icon name="arrow" /></a>
-        </div>
-    </section>
-    </div>
-    <div class="workforce-insights">
-        <section class="workforce-panel" aria-labelledby="activity-heading">
-            @php
-                $activityTotal = array_sum(array_column($activity, 'time_in')) + array_sum(array_column($activity, 'time_out'));
-                $activityMax = max(1, ...array_column($activity, 'time_in'), ...array_column($activity, 'time_out'));
-            @endphp
-            <div class="workforce-panel-heading"><div><h2 id="activity-heading">Attendance Activity</h2><p>Review recorded Time In and Time Out activity.</p></div><span class="workforce-period">Last 7 days</span></div>
-            @if($activityTotal > 0)
-                <div class="workforce-chart-legend"><span><i class="workforce-key-in"></i>Time Ins</span><span><i class="workforce-key-out"></i>Time Outs</span></div>
-                <div class="workforce-chart" role="group" aria-label="Accepted attendance events over the last seven days in {{ config('attendance.timezone') }}. Exact counts are available in the data table below.">
-                    <div class="workforce-chart-axis" aria-hidden="true"><span>{{ $activityMax }}</span><span>0</span></div>
-                    @foreach($activity as $day)
-                        <div class="workforce-chart-day"><div class="workforce-chart-bars">@foreach(['time_in' => 'Time Ins', 'time_out' => 'Time Outs'] as $type => $label)<button type="button" class="workforce-chart-bar {{ $type === 'time_in' ? 'workforce-key-in' : 'workforce-key-out' }}" style="--bar-height: {{ $day[$type] / $activityMax * 100 }}%" aria-label="{{ $day['date'] }}: {{ $day[$type] }} {{ $label }}"><span class="workforce-chart-tooltip">{{ $day['date'] }}<br>{{ $label }}: {{ $day[$type] }}</span></button>@endforeach</div><span>{{ $day['label'] }}</span><small>{{ \Illuminate\Support\Carbon::parse($day['date'])->format('M j') }}</small></div>
-                    @endforeach
+    <x-page-header title="HR Dashboard" description="Daily HR Overview" />
+
+    <div class="@container/hr-dashboard grid gap-5">
+        @php($dateFilter = ['from' => $businessDate->toDateString(), 'to' => $businessDate->toDateString()])
+        <section aria-label="Primary HR statistics">
+            <dl class="grid auto-rows-fr gap-3 @min-[19rem]/hr-dashboard:grid-cols-2 @min-[52rem]/hr-dashboard:grid-cols-4">
+                @foreach([
+                    ['Active Employees', 'users', route('hr.employees.index', ['account_status' => 'active'])],
+                    ['Present Today', 'check', route('hr.attendance.index', $dateFilter)],
+                    ['On Approved Leave', 'calendar', route('hr.leave.index', ['status' => 'approved', ...$dateFilter])],
+                    ['Pending HR Actions', 'file', '#hr-action-center'],
+                ] as [$label, $icon, $url])
+                    <div class="card relative grid min-w-0 content-start gap-3 p-4 hover:border-(--border-control) sm:p-5" data-metric="{{ $label }}">
+                        <dt class="flex min-h-10 items-start gap-2 text-sm font-semibold leading-5 text-(--text-secondary) @min-[52rem]/hr-dashboard:min-h-0">
+                            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-(--limcoma-purple-light) text-(--limcoma-purple)" aria-hidden="true">
+                                <x-icon :name="$icon" class="size-4" />
+                            </span>
+                            <a class="self-center wrap-anywhere after:absolute after:inset-0 after:rounded-[inherit] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-(--limcoma-purple)" href="{{ $url }}">{{ $label }}</a>
+                        </dt>
+                        <dd class="text-3xl leading-none font-bold tabular-nums text-(--text-primary)"><strong>{{ number_format($stats[$label]) }}</strong></dd>
+                    </div>
+                @endforeach
+            </dl>
+        </section>
+
+        <div class="grid items-start gap-5 @min-[52rem]/hr-dashboard:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <section class="card min-w-0" aria-labelledby="today-heading">
+                <div class="card-heading">
+                    <h2 id="today-heading">Today's Attendance</h2>
+                    <time class="text-xs muted" datetime="{{ $businessDate->toDateString() }}">{{ $businessDate->format('D, M j, Y') }} <span class="whitespace-nowrap">· {{ config('attendance.timezone') }}</span></time>
                 </div>
-                <details class="workforce-chart-data"><summary>View activity data</summary><x-table :columns="['Date', 'Time Ins', 'Time Outs']" caption="Seven-day attendance activity">@foreach($activity as $day)<tr><th scope="row">{{ $day['date'] }}</th><td>{{ $day['time_in'] }}</td><td>{{ $day['time_out'] }}</td></tr>@endforeach</x-table></details>
-            @else
-                <div class="workforce-empty"><span class="workforce-icon"><x-icon name="chart" /></span><h3>No attendance activity recorded yet</h3><p>Attendance trends will appear here as employees record Time In and Time Out.</p></div>
-            @endif
-        </section>
-        <section class="workforce-panel" aria-labelledby="attention-heading">
-            <div class="workforce-panel-heading"><div><p class="workforce-eyebrow">Your next steps</p><h2 id="attention-heading">Requires Attention</h2></div><span class="workforce-icon"><x-icon name="bell" /></span></div>
-            @php
-                $attention = array_filter([
-                    ['count' => $attendanceStats['Pending HR review'], 'title' => 'Attendance pending HR review', 'detail' => 'Review submitted evidence', 'icon' => 'file', 'tone' => 'amber', 'url' => route('hr.attendance.index', ['verification_status' => 'pending_review'])],
-                    ['count' => $attendanceStats['Geofence exceptions today'], 'title' => 'Geofence exceptions today', 'detail' => 'Inspect attendance location evidence', 'icon' => 'pin', 'tone' => 'amber', 'url' => route('hr.attendance.index', ['from' => $businessDate->toDateString(), 'to' => $businessDate->toDateString()])],
-                    ['count' => $attendanceStats['Open over 24 hours'], 'title' => 'Open sessions over 24 hours', 'detail' => 'Inspect open attendance sessions', 'icon' => 'clock', 'tone' => 'red', 'url' => route('hr.attendance.index', ['session_status' => 'open'])],
-                    ['count' => $stats['Pending account activations'], 'title' => 'Pending account activations', 'detail' => 'View employee account details', 'icon' => 'lock', 'tone' => 'purple', 'url' => route('hr.employees.index', ['account_status' => 'pending_activation'])],
-                ], fn ($item) => $item['count'] > 0);
-            @endphp
-            @forelse($attention as $item)
-                <a class="workforce-attention-item workforce-tone-{{ $item['tone'] }}" href="{{ $item['url'] }}"><span class="workforce-icon"><x-icon :name="$item['icon']" /></span><span><strong>{{ $item['title'] }}</strong><small>{{ $item['detail'] }}</small></span><b>{{ number_format($item['count']) }}</b><x-icon name="chevron" /></a>
-            @empty
-                <div class="workforce-empty"><span class="workforce-icon"><x-icon name="check" /></span><h3>All caught up</h3><p>No pending items require your attention.</p></div>
-            @endforelse
-            <p class="workforce-note">Counts may overlap. Open-session links show all open sessions for inspection.</p>
-        </section>
+                <div class="card-body grid justify-items-start gap-4">
+                    <dl class="grid w-full @min-[26rem]/hr-dashboard:grid-cols-3 @min-[26rem]/hr-dashboard:divide-x @min-[26rem]/hr-dashboard:divide-y-0 divide-y divide-(--border-color)">
+                        @foreach($todayAttendance as $label => $count)
+                            <div class="flex min-w-0 items-center justify-between gap-2 py-2 @min-[26rem]/hr-dashboard:flex-col @min-[26rem]/hr-dashboard:items-start @min-[26rem]/hr-dashboard:justify-start @min-[26rem]/hr-dashboard:px-3 @min-[26rem]/hr-dashboard:first:pl-0" data-metric="{{ $label }}">
+                                <dt class="text-sm muted">{{ $label }}</dt>
+                                <dd class="text-xl font-semibold tabular-nums text-(--text-primary)">{{ number_format($count) }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    <a class="text-link inline-flex min-h-11 items-center gap-2" href="{{ route('hr.attendance.index', $dateFilter) }}">View Attendance Monitoring <x-icon name="arrow" class="size-4" /></a>
+                </div>
+            </section>
+
+            <section id="hr-action-center" tabindex="-1" class="card min-w-0 scroll-mt-20" aria-labelledby="hr-action-heading">
+                <div class="card-heading"><h2 id="hr-action-heading">HR Action Center</h2></div>
+                @if($actions)
+                    <ul class="divide-y divide-(--border-color) px-4 sm:px-5">
+                        @foreach($actions as $action)
+                            <li>
+                                <a class="flex min-h-14 items-center gap-3 rounded-lg px-2 py-2 text-(--text-primary) hover:bg-(--limcoma-purple-light) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--limcoma-purple)" href="{{ $action['url'] }}">
+                                    <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-900" aria-hidden="true"><x-icon :name="$action['icon']" class="size-4" /></span>
+                                    <span class="min-w-0 flex-1 text-sm font-semibold wrap-anywhere">{{ $action['label'] }}</span>
+                                    <x-badge tone="warning">{{ number_format($action['count']) }} <span class="sr-only">pending</span></x-badge>
+                                    <x-icon name="chevron" class="size-4 shrink-0 text-(--limcoma-purple)" />
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div class="card-body flex items-start gap-3">
+                        <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-(--limcoma-teal-light) text-(--limcoma-teal-dark)" aria-hidden="true"><x-icon name="check" class="size-4" /></span>
+                        <div><h3 class="font-semibold">All caught up!</h3><p class="mt-1 text-sm muted">No pending HR actions at the moment.</p></div>
+                    </div>
+                @endif
+            </section>
+        </div>
     </div>
-    <section class="workforce-panel" aria-labelledby="recent-heading">
-        <div class="workforce-panel-heading"><div><h2 id="recent-heading">Recently Added Employees</h2><p>The five newest records in your employee directory.</p></div><a class="workforce-text-link" href="{{ route('hr.employees.index') }}">View all employees <x-icon name="arrow" /></a></div>
-        <x-table :columns="['Employee', 'Department', 'Assigned branch', 'Account status', 'Date added']" caption="Recent employee records">
-            @forelse($recent as $employee)
-                <tr><td><a class="workforce-person" href="{{ route('hr.employees.show', $employee) }}"><span class="avatar">{{ mb_strtoupper(mb_substr($employee->first_name, 0, 1).mb_substr($employee->last_name, 0, 1)) }}</span><span><strong>{{ $employee->full_name }}</strong><small>{{ $employee->employee_number }}</small></span></a></td><td>{{ $employee->department->department_name }}</td><td>{{ $employee->currentAssignment?->branch->branch_name ?? 'Unassigned' }}</td><td><x-state :value="$employee->user->account_status" /></td><td>{{ $employee->created_at->timezone(config('attendance.timezone'))->format('M j, Y') }}</td></tr>
-            @empty
-                <tr><td colspan="5"><div class="workforce-empty"><span class="workforce-icon"><x-icon name="users" /></span><h3>No recent employee records.</h3><p>Register employees after configuring branches and departments.</p><a class="workforce-text-link" href="{{ route('hr.employees.create') }}">Register employee <x-icon name="arrow" /></a></div></td></tr>
-            @endforelse
-        </x-table>
-    </section>
-    <div class="workforce-insights workforce-details">
-        <section class="workforce-panel" aria-labelledby="branches-heading"><div class="workforce-panel-heading"><div><h2 id="branches-heading">Branch Overview</h2><p>Current primary assignments across up to ten offices.</p></div><a class="workforce-text-link" href="{{ route('hr.branches.index') }}">Manage branches <x-icon name="arrow" /></a></div><x-table :columns="['Branch', 'Assigned employees', 'Status']" caption="Company branch overview">@forelse($branches as $branch)<tr><td><a href="{{ route('hr.branches.show', $branch) }}">{{ $branch->branch_name }}</a></td><td>{{ $branch->current_assignments_count }}</td><td><x-state :value="$branch->status" /></td></tr>@empty<tr><td colspan="3"><div class="workforce-empty"><h3>No branches configured</h3><p>Add an official office to begin assigning employees.</p><a class="workforce-text-link" href="{{ route('hr.branches.create') }}">Add branch <x-icon name="arrow" /></a></div></td></tr>@endforelse</x-table></section>
-        <section class="workforce-panel" aria-labelledby="activation-heading"><div class="workforce-panel-heading"><div><h2 id="activation-heading">Pending Activations</h2><p>Newest accounts awaiting employee activation.</p></div></div><div class="workforce-activation-list">@forelse($pending as $employee)<a href="{{ route('hr.employees.show', $employee) }}" class="workforce-activation"><span><strong>{{ $employee->full_name }}</strong><small>Added {{ $employee->created_at->timezone(config('attendance.timezone'))->format('M j, Y') }}</small></span><x-state value="pending_activation" /></a>@empty<div class="workforce-empty"><span class="workforce-icon"><x-icon name="lock" /></span><h3>No pending account activations.</h3><p>Accounts awaiting activation will appear here.</p></div>@endforelse</div></section>
-    </div>
-    <nav class="workforce-shortcuts" aria-label="Workforce shortcuts"><span>Workspace tools</span><a href="{{ route('hr.departments.index') }}">Departments <x-icon name="arrow" /></a><a href="{{ route('hr.accounts.index') }}">HR accounts <x-icon name="arrow" /></a><a href="{{ route('hr.audit') }}">Audit logs <x-icon name="arrow" /></a></nav>
-</div>
 </x-layouts.app>

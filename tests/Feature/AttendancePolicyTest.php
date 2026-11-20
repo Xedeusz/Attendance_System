@@ -166,7 +166,7 @@ class AttendancePolicyTest extends TestCase
 
         $this->actingAs($employee->user)->get(route('employee.dashboard'))->assertOk()->assertSeeText(['Branch Closure Day', 'Holiday · No Work Scheduled']);
         $this->get(route('employee.work-calendar', ['month' => '2026-11']))->assertOk()->assertSeeText(['Branch Closure Day', 'Local holiday'])->assertDontSeeText('Other Branch Holiday');
-        $this->actingAs($this->reviewer())->get(route('hr.dashboard'))->assertOk()->assertViewHas('dailyPolicyStats', fn (array $stats) => $stats['Employees not scheduled to work'] === 1 && $stats['Employees present'] === 0 && $stats['Applicable holidays today'] === 1);
+        $this->actingAs($this->reviewer())->get(route('hr.attendance.index'))->assertOk()->assertViewHas('stats', fn (array $stats) => $stats['Employees not scheduled to work'] === 1 && $stats['Employees present'] === 0 && $stats['Applicable holidays today'] === 1);
         $this->get(route('hr.holidays.index', ['year' => 2026, 'month' => 11, 'view' => 'month', 'branch_id' => $employee->currentAssignment->branch_id]))
             ->assertOk()->assertSeeText('Branch Closure Day')->assertDontSeeText('Other Branch Holiday');
         $this->assertDatabaseCount('attendance_records', 0);
