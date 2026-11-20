@@ -9,6 +9,7 @@
         $dates = $leave->start_date->format('M j, Y').' – '.$leave->end_date->format('M j, Y');
         $days = $leave->requested_duration.($leave->half_day ? ' · '.strtoupper($leave->half_day) : '');
         $pending = in_array($leave->status, \App\Models\LeaveRequest::PENDING, true);
+        $stackPendingCards = $pending && $scope !== 'supervisor';
         $official = $leave->approvalDocument;
         $timezone = config('attendance.timezone');
     @endphp
@@ -37,10 +38,10 @@
             '@min-[56rem]/leave-details:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]' => $scope === 'supervisor',
             'lg:@min-[40rem]/leave-details:grid-cols-2' => $scope !== 'supervisor',
         ])>
-            <div @class(['contents', '@min-[56rem]/leave-details:grid @min-[56rem]/leave-details:gap-4 min-w-0' => $scope === 'supervisor'])>
+            <div @class(['contents', '@min-[56rem]/leave-details:grid @min-[56rem]/leave-details:gap-4 min-w-0' => $scope === 'supervisor', 'lg:@min-[40rem]/leave-details:grid lg:@min-[40rem]/leave-details:gap-4 min-w-0' => $stackPendingCards])>
                 <section class="card order-1 min-w-0">
-                    <div class="card-heading px-4! py-3!"><h2>Application details</h2><span class="inline-flex flex-wrap items-center gap-1.5"><x-state :value="$leave->status" /><x-leave-period :leave="$leave" /></span></div>
-                    <div class="px-4 py-3">
+                    <div class="card-heading px-5! py-3.5!"><h2>Application details</h2><span class="inline-flex flex-wrap items-center gap-1.5"><x-state :value="$leave->status" /><x-leave-period :leave="$leave" /></span></div>
+                    <div class="px-5 py-4">
                         <dl class="divide-y divide-slate-100">
                             <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere">
                                 <dt class="muted">Employee</dt>
@@ -57,20 +58,20 @@
                             @foreach(['Department' => $department, 'Branch' => $branch, 'Leave type' => $typeName, 'Inclusive dates' => $dates, 'No. of days' => $days, 'Supervisor' => $leave->supervisor?->name ?? 'Awaiting assignment', 'Date filed' => $leave->submitted_at->timezone($timezone)->format('M j, Y H:i')] as $label => $value)
                                 <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere"><dt class="muted">{{ $label }}</dt><dd>{{ $value ?? 'Unassigned' }}</dd></div>
                             @endforeach
+                        <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere">
+                                <dt class="muted">Reason</dt>
+                                <dd class="whitespace-pre-wrap">{{ $leave->reason }}</dd>
+                            </div>
                         </dl>
-                        <div class="border-t border-slate-100 pt-3">
-                            <h3 class="mb-1 text-sm font-semibold">Reason</h3>
-                            <p class="text-sm leading-6 whitespace-pre-wrap wrap-anywhere">{{ $leave->reason }}</p>
-                        </div>
                         @if($leave->charged_duration !== null && $leave->type_snapshot['affects_balance'])
                             <p class="small mt-3">Final confirmed charge: {{ $leave->charged_duration }} days.</p>
                         @endif
                     </div>
                 </section>
 
-                <section class="card order-3 min-w-0" x-data="leaveDocumentPreview">
-                    <div class="card-heading px-4! py-3!"><h2>Supporting documents</h2></div>
-                    <div class="px-4 py-3">
+                <section class="card {{ $stackPendingCards ? 'order-2' : 'order-3' }} min-w-0" x-data="leaveDocumentPreview">
+                    <div class="card-heading px-5! py-3.5!"><h2>Supporting documents</h2></div>
+                    <div class="px-5 py-4">
                         @if($leave->documents->isEmpty())
                             <p class="small muted">No documents attached.</p>
                         @else
@@ -98,62 +99,71 @@
                     </div>
                 </section>
 
-                <section class="card order-4 min-w-0">
-                    <div class="card-heading px-4! py-3!"><h2>Review history</h2></div>
-                    <ol class="px-4 py-3">
-                        @foreach($leave->reviews as $review)
-                            <li class="relative ml-1.5 border-l border-slate-200 pb-3 pl-4 text-sm wrap-anywhere last:border-transparent last:pb-0">
-                                <span class="absolute top-1.5 -left-1 size-2 rounded-full bg-(--limcoma-teal-dark)" aria-hidden="true"></span>
-                                <div><strong>{{ ucwords(str_replace('_', ' ', $review->action)) }}</strong><p class="small muted">{{ $review->reviewed_at->timezone($timezone)->format('M j, Y H:i') }} · {{ $review->reviewer?->name ?? 'Scheduled routing' }}</p></div>
-                                <div><p class="small leading-6 whitespace-pre-wrap">{{ $review->remarks }}</p>
-                                    @if(array_key_exists('supervisor_id', $review->metadata ?? []))<p class="small muted">Reviewer: {{ $review->metadata['previous_supervisor_id'] ?? 'None' }} → {{ $review->metadata['supervisor_id'] ?? 'Awaiting assignment' }}</p>@endif
-                                </div>
-                            </li>
-                        @endforeach
-                    </ol>
-                </section>
+                @if($scope === 'supervisor')
+                    @include('leave.review-history')
+                @endif
             </div>
 
-            <section class="card order-2 min-w-0">
-                <div class="card-heading px-4! py-3!"><h2>LIMCOMA Leave Application Form</h2></div>
-                <div class="px-4 py-3">
-                    @if($official)
-                        <dl class="divide-y divide-slate-100">
-                            <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere"><dt class="muted">Approved by</dt><dd>{{ $official->approver_name }}</dd></div>
-                            <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere"><dt class="muted">Approval date</dt><dd>{{ $leave->finalized_at?->timezone($timezone)->format('M j, Y H:i:s T') }}</dd></div>
-                        </dl>
-                        <p class="small muted mt-2 wrap-anywhere">{{ $official->template_reference }} · {{ $official->document_reference }}</p>
-                        @if($official->revoked_at)<p class="mt-3 text-sm font-semibold text-amber-900">Document revoked</p>@endif
-                        @if(!$official->revoked_at)
-                            <div class="mt-3 flex flex-wrap gap-2">
-                                <x-button variant="secondary" :href="route($prefix.'.approved-form', $leave)" target="_blank" rel="noopener">View Approved Form</x-button>
-                                <x-button variant="secondary" :href="route($prefix.'.approved-form', [$leave, 'download' => 1])">Download Approved PDF</x-button>
-                            </div>
+            <div @class(['contents', 'lg:@min-[40rem]/leave-details:grid lg:@min-[40rem]/leave-details:gap-4 min-w-0' => $stackPendingCards])>
+                <section class="card {{ $stackPendingCards ? 'order-3' : 'order-2' }} min-w-0">
+                    <div class="card-heading px-5! py-3.5!"><h2>LIMCOMA Leave Application Form</h2></div>
+                    <div class="px-5 py-4">
+                        @if($official)
+                            <dl class="divide-y divide-slate-100">
+                                <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere"><dt class="muted">Approved by</dt><dd>{{ $official->approver_name }}</dd></div>
+                                <div class="grid grid-cols-[minmax(6rem,2fr)_minmax(0,3fr)] gap-3 py-2 text-sm wrap-anywhere"><dt class="muted">Approval date</dt><dd>{{ $leave->finalized_at?->timezone($timezone)->format('M j, Y H:i:s T') }}</dd></div>
+                            </dl>
+                            <p class="small muted mt-2 wrap-anywhere">{{ $official->template_reference }} · {{ $official->document_reference }}</p>
+                            @if($official->revoked_at)<p class="mt-3 text-sm font-semibold text-amber-900">Document revoked</p>@endif
+                            @if(!$official->revoked_at)
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <x-button variant="secondary" :href="route($prefix.'.approved-form', $leave)" target="_blank" rel="noopener">View Approved Form</x-button>
+                                    <x-button variant="secondary" :href="route($prefix.'.approved-form', [$leave, 'download' => 1])">Download Approved PDF</x-button>
+                                </div>
+                            @endif
+                            @if(($scope === 'hr' && !$official->revoked_at) || ($scope === 'supervisor' && $signatureVersion && $leave->form_snapshot))
+                                <details class="mt-4">
+                                    <summary class="text-link cursor-pointer">{{ $scope === 'hr' ? 'Revoke approved leave' : 'Sign a replacement PDF' }}</summary>
+                                    <form method="POST" class="mt-3" action="{{ route($scope === 'hr' ? 'leave.verify.revoke' : 'leave.verify.replace', $official) }}"
+                                          data-confirm-title="{{ $scope === 'hr' ? 'Revoke this approved leave?' : 'Sign and issue a replacement?' }}"
+                                          data-confirm-text="{{ $scope === 'hr' ? 'This changes the leave request and the issued document to Revoked.' : 'Your signature will be applied to a new version using the original approved application.' }}">
+                                        @csrf
+                                        <input type="hidden" name="confirmation" value="0" data-confirm-on-accept>
+                                        @if($scope === 'supervisor')<input type="hidden" name="signature_version" value="{{ $signatureVersion }}">@endif
+                                        <x-input name="reason" label="Reason for this action" minlength="10" maxlength="500" required />
+                                        <x-password name="current_password" label="Confirm your current password" />
+                                        <x-button type="submit">{{ $scope === 'hr' ? 'Revoke Leave' : 'Sign Replacement' }}</x-button>
+                                    </form>
+                                </details>
+                            @endif
+                        @else
+                            @if($leave->status === 'approved')<p class="small muted mb-3">This historical approval predates the signed PDF workflow.</p>@endif
+                            <x-button variant="secondary" :href="route($prefix.'.form', $leave)" target="_blank" rel="noopener" class="max-w-full text-left">
+                                <span>View Application <span class="sr-only">(opens in a new tab)</span></span>
+                                <x-icon name="external" class="size-4 shrink-0" />
+                            </x-button>
+                            @if($scope === 'supervisor' && $pending)
+                                <iframe class="mt-4 h-[34rem] w-full rounded border border-slate-200" src="{{ route($prefix.'.form', $leave) }}" title="Printable leave application preview" loading="lazy"></iframe>
+                            @endif
                         @endif
-                        @if(($scope === 'hr' && !$official->revoked_at) || ($scope === 'supervisor' && $signatureVersion && $leave->form_snapshot))
-                            <details class="mt-4">
-                                <summary class="text-link cursor-pointer">{{ $scope === 'hr' ? 'Revoke approved leave' : 'Sign a replacement PDF' }}</summary>
-                                <form method="POST" class="mt-3" action="{{ route($scope === 'hr' ? 'leave.verify.revoke' : 'leave.verify.replace', $official) }}"
-                                      data-confirm-title="{{ $scope === 'hr' ? 'Revoke this approved leave?' : 'Sign and issue a replacement?' }}"
-                                      data-confirm-text="{{ $scope === 'hr' ? 'This changes the leave request and the issued document to Revoked.' : 'Your signature will be applied to a new version using the original approved application.' }}">
-                                    @csrf
-                                    <input type="hidden" name="confirmation" value="0" data-confirm-on-accept>
-                                    @if($scope === 'supervisor')<input type="hidden" name="signature_version" value="{{ $signatureVersion }}">@endif
-                                    <x-input name="reason" label="Reason for this action" minlength="10" maxlength="500" required />
-                                    <x-password name="current_password" label="Confirm your current password" />
-                                    <x-button type="submit">{{ $scope === 'hr' ? 'Revoke Leave' : 'Sign Replacement' }}</x-button>
-                                </form>
-                            </details>
-                        @endif
-                    @else
-                        @if($leave->status === 'approved')<p class="small muted mb-3">This historical approval predates the signed PDF workflow.</p>@endif
-                        <a class="text-link" href="{{ route($prefix.'.form', $leave) }}" target="_blank" rel="noopener">View Application <span class="small">(opens in a new tab)</span></a>
-                        @if($scope === 'supervisor' && $pending)
-                            <iframe class="mt-4 h-[34rem] w-full rounded border border-slate-200" src="{{ route($prefix.'.form', $leave) }}" title="Printable leave application preview" loading="lazy"></iframe>
-                        @endif
-                    @endif
-                </div>
-            </section>
+                    </div>
+                </section>
+
+                @unless($scope === 'supervisor')
+                    @include('leave.review-history')
+                @endunless
+
+                @if($leave->employee->user_id === auth()->id() && $pending)
+                    <form method="POST" class="card order-5 min-w-0" action="{{ route('employee.leave.cancel', $leave) }}" data-confirm-title="Cancel pending leave?" data-confirm-button="Cancel leave" data-confirm-danger="true">
+                        @csrf<input type="hidden" name="confirmation" value="1">
+                        <div class="card-heading px-5! py-3.5!"><h2>Cancel pending application</h2></div>
+                        <div class="px-5 py-4 [&_.field-label-row]:mb-2 [&_.field-required]:font-medium">
+                            <x-input name="reason" label="Cancellation reason" required minlength="10" maxlength="1000" />
+                            <x-button type="submit" variant="danger" class="transition-colors">Cancel application</x-button>
+                        </div>
+                    </form>
+                @endif
+            </div>
         </div>
 
         <div class="grid items-start gap-4 has-[>*]:mt-4 lg:@min-[40rem]/leave-details:grid-cols-2">
@@ -162,8 +172,8 @@
             @endif
             @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
                 <section class="card col-span-full min-w-0" key="leave-decision-{{ $leave->id }}">
-                    <div class="card-heading px-4! py-3!"><h2 id="leave-decision" tabindex="-1">Final Supervisor decision</h2></div>
-                    <div class="px-4 py-3">
+                    <div class="card-heading px-5! py-3.5!"><h2 id="leave-decision" tabindex="-1">Final Supervisor decision</h2></div>
+                    <div class="px-5 py-4">
                         <div key="leave-decision-errors">
                             @error('decision')<p class="field-error mb-3">{{ $message }}</p>@enderror
                             @error('signature_version')<p class="field-error mb-3">{{ $message }}</p>@enderror
@@ -214,16 +224,6 @@
                         </form>
                     </div>
                 </section>
-            @endif
-            @if($leave->employee->user_id === auth()->id() && $pending)
-                <form method="POST" class="card" action="{{ route('employee.leave.cancel', $leave) }}" data-confirm-title="Cancel pending leave?" data-confirm-button="Cancel leave" data-confirm-danger="true">
-                    @csrf<input type="hidden" name="confirmation" value="1">
-                    <div class="card-heading"><h2>Cancel pending application</h2></div>
-                    <div class="card-body">
-                        <x-input name="reason" label="Cancellation reason" required minlength="10" maxlength="1000" />
-                        <x-button type="submit" variant="danger">Cancel application</x-button>
-                    </div>
-                </form>
             @endif
         </div>
     </div>

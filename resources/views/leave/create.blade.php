@@ -87,7 +87,7 @@
                     <div class="flex flex-wrap gap-x-6 gap-y-3">
                         @foreach($leaveLabels as $category => $label)
                             <label class="inline-flex cursor-pointer items-center gap-2 font-semibold has-disabled:cursor-default has-disabled:text-slate-500">
-                                <input type="radio" name="leave_category" value="{{ $category }}" class="size-5 shrink-0 cursor-inherit appearance-none rounded-sm border border-current bg-white checked:bg-slate-950 checked:shadow-[inset_0_0_0_3px_white] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:bg-slate-100"
+                                <input type="radio" name="leave_category" value="{{ $category }}" class="size-5 shrink-0 cursor-inherit appearance-none rounded-sm border border-current bg-white checked:bg-(--purple-action) checked:shadow-[inset_0_0_0_3px_white] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:bg-slate-100"
                                        @checked(old('leave_category') === $category)
                                        @disabled($leaveChoices->get($category, collect())->isEmpty())
                                        x-on:change="choose(@js($category))" required>

@@ -1,5 +1,5 @@
 <x-layouts.guest title="Document Verification">
-    <h1 class="mb-4 text-lg font-bold text-[#2F1B72]">LIMCOMA Document Verification</h1>
+    <h1 class="mb-4 text-lg font-bold text-(--limcoma-purple)">LIMCOMA Document Verification</h1>
     <p class="mb-4">Verify an official leave approval document.</p>
     <form id="leave-scan" method="POST" action="{{ route('leave.verify.capture', absolute: false) }}">
         @csrf

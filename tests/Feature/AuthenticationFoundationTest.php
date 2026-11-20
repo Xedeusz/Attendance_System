@@ -71,7 +71,7 @@ class AuthenticationFoundationTest extends TestCase
         $this->post('/leave')->assertStatus(405);
         $this->get('/attendance')->assertRedirect(route('employee.attendance'));
         $this->get('/notifications')->assertOk()->assertSee('Attendance updates');
-        $this->get('/settings')->assertOk()->assertSee('not available yet');
+        $this->get('/settings')->assertOk()->assertDontSee('Display preferences');
         $this->get('/profile')->assertOk()->assertSee('Your information');
     }
 

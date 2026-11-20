@@ -8,12 +8,13 @@ use App\Http\Controllers\LeaveCalendarController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LeaveVerificationController;
 use App\Http\Controllers\SupervisorSignatureController;
+use App\Http\Middleware\RequirePrivacyAcknowledgement;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('verify/leave')->name('leave.verify.')->group(function () {
     Route::get('/', [LeaveVerificationController::class, 'landing'])->name('landing');
     Route::post('/', [LeaveVerificationController::class, 'capture'])->middleware('throttle:20,1,leave-scan:')->name('capture');
-    Route::middleware(['auth', 'auth.session', 'throttle:60,1,leave-verify:'])->group(function () {
+    Route::middleware(['auth', 'auth.session', RequirePrivacyAcknowledgement::class, 'throttle:60,1,leave-verify:'])->group(function () {
         Route::get('scan', [LeaveVerificationController::class, 'scan'])->name('scan');
         Route::get('search', [LeaveVerificationController::class, 'search'])->middleware('hr')->name('search');
         Route::get('documents/{document}', [LeaveVerificationController::class, 'show'])->whereNumber('document')->name('show');
@@ -23,7 +24,7 @@ Route::prefix('verify/leave')->name('leave.verify.')->group(function () {
     });
 });
 
-Route::middleware(['auth', 'auth.session'])->group(function () {
+Route::middleware(['auth', 'auth.session', RequirePrivacyAcknowledgement::class])->group(function () {
     Route::prefix('hr')->name('hr.')->middleware('hr')->group(function () {
         Route::middleware('password.confirm')->group(function () {
             Route::resource('supervisors', SupervisorController::class)->except('destroy');

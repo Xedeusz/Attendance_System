@@ -74,7 +74,7 @@
                 @foreach(['approved_today' => 'Employees on approved leave today', 'pending_requests' => 'Pending requests in view', 'scheduled' => 'Employees on approved leave in view', 'awaiting_requests' => 'Requests awaiting assignment in view'] as $count => $label)
                     <div class="rounded-lg border border-slate-200 bg-white px-3 py-2.5">
                         <dt class="text-xs text-slate-600">{{ $label }}</dt>
-                        <dd class="mt-1 text-lg font-bold text-[#2F1B72]" x-text="staffing?.{{ $count }}"></dd>
+                        <dd class="mt-1 text-lg font-bold text-(--limcoma-purple)" x-text="staffing?.{{ $count }}"></dd>
                     </div>
                 @endforeach
             </dl>
@@ -82,7 +82,7 @@
 
         <section class="card min-w-0" aria-label="Leave schedules">
             <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                <h2 class="min-w-0 text-base font-bold text-[#2F1B72]" x-text="heading" aria-live="polite"></h2>
+                <h2 class="min-w-0 text-base font-bold text-(--limcoma-purple)" x-text="heading" aria-live="polite"></h2>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="flex items-center gap-1" role="group" aria-label="Calendar navigation">
                         <button type="button" class="icon-button" aria-label="Previous period" @click="navigate(-1)"><x-icon name="chevron" class="rotate-180" /></button>
@@ -91,8 +91,8 @@
                     </div>
                     <div class="flex rounded-lg border border-slate-200 p-0.5" role="group" aria-label="Calendar view">
                         @foreach(['month' => 'Month', 'week' => 'Week', 'list' => 'List'] as $value => $label)
-                            <button type="button" class="min-h-9 rounded-md px-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-[#2F1B72]"
-                                    :class="view === '{{ $value }}' ? 'bg-[#2F1B72] text-white' : 'text-slate-700 hover:bg-slate-100'"
+                            <button type="button" class="min-h-9 rounded-md px-2.5 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-(--limcoma-purple)"
+                                    :class="view === '{{ $value }}' ? 'bg-(--purple-action) text-white' : 'text-slate-700 hover:bg-slate-100'"
                                     :aria-pressed="view === '{{ $value }}'" @click="changeView('{{ $value }}')">{{ $label }}</button>
                         @endforeach
                     </div>
@@ -129,21 +129,21 @@
                             <template x-for="(day, column) in week.days" :key="day">
                                 <div class="min-w-0 border-r border-slate-200"
                                      :style="{ gridColumn: column + 1, gridRow: '1 / -1' }"
-                                     :class="selectedDay === day ? 'bg-[#F0ECF8]' : view === 'month' && day.slice(0, 7) !== anchor.slice(0, 7) ? 'bg-slate-50' : 'bg-white'"
+                                     :class="selectedDay === day ? 'bg-(--limcoma-purple-light)' : view === 'month' && day.slice(0, 7) !== anchor.slice(0, 7) ? 'bg-slate-50' : 'bg-white'"
                                      aria-hidden="true"></div>
                             </template>
                             <template x-for="(day, column) in week.days" :key="day">
-                                <button type="button" class="z-10 flex min-w-0 items-center justify-between gap-1 rounded px-1.5 text-left text-xs hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#2F1B72]"
+                                <button type="button" class="z-10 flex min-w-0 items-center justify-between gap-1 rounded px-1.5 text-left text-xs hover:bg-(--limcoma-purple-light) focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-(--limcoma-purple)"
                                         :style="{ gridColumn: column + 1, gridRow: 1 }"
                                         :aria-label="format(day) + ', ' + week.counts[column] + ' leave requests' + (staffing?.days[day]?.overlaps.length ? ', overlaps' : '')"
                                         :aria-current="day === today ? 'date' : null" :aria-pressed="selectedDay === day" @click="showDay(day)">
-                                    <span :class="day === today ? 'font-bold text-[#087C68]' : 'font-semibold text-slate-700'" x-text="dayNumber(day)"></span>
+                                    <span :class="day === today ? 'font-bold text-(--limcoma-teal-dark)' : 'font-semibold text-slate-700'" x-text="dayNumber(day)"></span>
                                     <span x-show="staffing?.days[day]?.overlaps.length" class="text-amber-900" aria-hidden="true">!</span>
                                 </button>
                             </template>
                             <template x-for="segment in week.segments" :key="segment.entry.id">
                                 <button type="button"
-                                        class="@container z-10 my-0.5 flex min-h-6 min-w-0 items-center gap-0.5 overflow-hidden px-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#2F1B72] sm:gap-1 sm:px-1.5"
+                                        class="@container z-10 my-0.5 flex min-h-6 min-w-0 items-center gap-0.5 overflow-hidden px-1 text-left text-xs focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-(--limcoma-purple) sm:gap-1 sm:px-1.5"
                                         :data-leave-id="segment.entry.id"
                                         :style="{ gridColumn: (segment.column + 1) + ' / span ' + segment.span, gridRow: segment.lane + 2 }"
                                         :class="[statusColor(segment.entry.status, segment.entry.period), segment.continuesBefore ? '' : 'ml-0.5 rounded-l-md', segment.continuesAfter ? '' : 'mr-0.5 rounded-r-md']"
@@ -168,7 +168,7 @@
                 </div>
 
                 <section id="calendar-day-details" x-show="dayPanel" x-ref="dayDetails" tabindex="-1" class="space-y-2 px-4 py-3" aria-label="Selected day leave">
-                    <h3 class="text-sm font-bold text-[#2F1B72]" x-text="(dayPanel === 'overflow' ? 'More leave for ' : '') + format(selectedDay)"></h3>
+                    <h3 class="text-sm font-bold text-(--limcoma-purple)" x-text="(dayPanel === 'overflow' ? 'More leave for ' : '') + format(selectedDay)"></h3>
                     <p x-show="!loading && !error && !selectedEvents.length" class="text-sm text-slate-600">No matching leave on this date.</p>
                     <template x-for="entry in (dayPanel ? selectedEvents : [])" :key="entry.id">
                         <x-leave-calendar-event />
@@ -217,7 +217,7 @@
              @click.self="closeDetails()" @keydown.escape.window="if (detailId !== null) closeDetails()">
             <section class="modal max-h-[85dvh] overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="calendar-detail-title">
                 <div class="flex items-center justify-between gap-3">
-                    <h2 id="calendar-detail-title" class="font-bold text-[#2F1B72]">Leave application details</h2>
+                    <h2 id="calendar-detail-title" class="font-bold text-(--limcoma-purple)">Leave application details</h2>
                     <button type="button" class="icon-button" @click="closeDetails()" aria-label="Close leave details"><x-icon name="close" /></button>
                 </div>
                 <p class="py-3 text-sm text-slate-600" x-show="!detail && !detailError" role="status">Loading leave details…</p>

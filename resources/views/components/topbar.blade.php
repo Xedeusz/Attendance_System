@@ -34,6 +34,10 @@
                 </div>
                 <a x-ref="profileLink" href="{{ route('profile') }}">Your profile</a>
                 <a href="{{ route('settings') }}">Account settings</a>
+                <a href="{{ route('privacy.index') }}">Privacy &amp; Data Protection</a>
+                @can('manage-privacy-notices')
+                    <a href="{{ route('hr.privacy.index') }}">Manage privacy notices</a>
+                @endcan
                 <button type="button" @click="profileOpen = false; $dispatch('open-modal', 'logout')">Sign out</button>
             </div>
         </div>

@@ -20,7 +20,7 @@
         @endphp
         <section class="card max-w-2xl" aria-labelledby="verification-result">
             <div class="card-body">
-                <div @class(['flex items-center gap-3', 'text-[#087C68]' => $state === 'valid', 'text-amber-900' => $state !== 'valid'])>
+                <div @class(['flex items-center gap-3', 'text-(--limcoma-teal-dark)' => $state === 'valid', 'text-amber-900' => $state !== 'valid'])>
                     <x-icon :name="$state === 'valid' ? 'check' : 'info'" />
                     <h2 id="verification-result" class="text-lg font-bold">{{ $heading }}</h2>
                 </div>

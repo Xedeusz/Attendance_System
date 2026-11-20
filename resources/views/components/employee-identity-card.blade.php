@@ -1,6 +1,6 @@
 @props(['employee', 'user'])
 
-<section class="card workday-panel flex min-w-0 flex-col overflow-hidden" aria-labelledby="employee-id-heading">
+<section class="card fixed-appearance workday-panel flex min-w-0 flex-col overflow-hidden" aria-labelledby="employee-id-heading">
     <header class="flex items-center gap-3 border-b-2 border-(--limcoma-teal) bg-(--limcoma-purple) px-4 py-3.5 text-white sm:px-5">
         <img src="{{ asset('LIMCOMA-LOGO.png') }}" alt="" width="40" height="40" class="size-10 shrink-0 rounded-lg bg-white object-contain p-0.5">
         <div class="min-w-0">

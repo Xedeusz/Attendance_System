@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureActiveAccount;
 use App\Http\Middleware\RequireHR;
+use App\Http\Middleware\RequirePrivacyAcknowledgement;
 use App\Http\Middleware\RestrictSupervisor;
 use App\Http\Middleware\WorkspaceSecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -15,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withBroadcasting(__DIR__.'/../routes/channels.php', ['middleware' => ['web', 'auth', 'auth.session', 'throttle:60,1,workspace-auth:']])
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', ['middleware' => ['web', 'auth', 'auth.session', RequirePrivacyAcknowledgement::class, 'throttle:60,1,workspace-auth:']])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->appendToGroup('web', WorkspaceSecurityHeaders::class);
         $middleware->appendToGroup('web', EnsureActiveAccount::class);

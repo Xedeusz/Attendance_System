@@ -5,10 +5,10 @@
      @workspace:notifications.window="sync($event.detail)" @click.outside="close()" @keydown.escape.window="close(true)">
     <button x-ref="bell" type="button" aria-label="Notifications" title="Notifications" aria-expanded="false"
             :aria-expanded="open" aria-controls="topbar-notifications" @click="toggle()"
-            class="relative grid size-11 place-items-center rounded-xl text-[#2F1B72] transition-colors hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F1B72]">
+            class="relative grid size-11 place-items-center rounded-xl text-(--limcoma-purple) transition-colors hover:bg-(--limcoma-purple-light) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--limcoma-purple)">
         <span class="[&>svg]:size-5" aria-hidden="true"><x-icon name="bell" /></span>
         <span data-sync-unread aria-hidden="true" :hidden="!unread" @if(!$unread) hidden @endif
-              class="absolute top-0 right-0 -translate-y-1/5 translate-x-1/5 rounded-full bg-[#087C68] px-1 text-[10px] leading-4 font-bold text-white ring-2 ring-white"
+              class="absolute top-0 right-0 -translate-y-1/5 translate-x-1/5 rounded-full bg-(--primary-action) px-1 text-[10px] leading-4 font-bold text-white ring-2 ring-white"
               x-text="unread > 99 ? '99+' : unread">{{ $unread > 99 ? '99+' : $unread }}</span>
     </button>
     <span class="sr-only" role="status" x-text="unread + ' unread notifications'">{{ $unread }} unread notifications</span>
@@ -17,11 +17,11 @@
              x-show="open" x-cloak
              x-transition:enter="transition duration-150 ease-out motion-reduce:transition-none"
              x-transition:enter-start="-translate-y-1 opacity-0" x-transition:enter-end="translate-y-0 opacity-100"
-             class="fixed inset-x-3 top-16 z-[60] flex max-h-[min(29rem,calc(100dvh-5rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-md focus-visible:outline-2 focus-visible:outline-[#2F1B72] md:absolute md:inset-x-auto md:top-[calc(100%+0.5rem)] md:right-0 md:w-[24rem]">
+             class="fixed inset-x-3 top-16 z-[60] flex max-h-[min(29rem,calc(100dvh-5rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-md focus-visible:outline-2 focus-visible:outline-(--limcoma-purple) md:absolute md:inset-x-auto md:top-[calc(100%+0.5rem)] md:right-0 md:w-[24rem]">
         <header class="shrink-0 border-b border-slate-200 px-4 py-3">
             <div class="flex items-center justify-between gap-3">
-                <h2 id="topbar-notifications-heading" class="font-bold text-[#2F1B72]">Notifications</h2>
-                <span class="text-xs font-semibold text-[#087C68]" x-text="unread + ' unread'"></span>
+                <h2 id="topbar-notifications-heading" class="font-bold text-(--limcoma-purple)">Notifications</h2>
+                <span class="text-xs font-semibold text-(--limcoma-teal-dark)" x-text="unread + ' unread'"></span>
             </div>
             <div class="mt-1 flex justify-end">
                 <button type="button" class="text-link min-h-8 text-xs disabled:text-slate-500" :disabled="!unread" :aria-disabled="busy" @click="mark(null, false, $refs.panel)">Mark all as read</button>
@@ -42,10 +42,10 @@
             </div>
             <ul class="divide-y divide-slate-100">
                 <template x-for="item in items" :key="item.id">
-                    <li class="flex min-w-0 items-center gap-1 px-3" :class="item.unread ? 'bg-[#E7F7F2]' : 'bg-white'">
+                    <li class="flex min-w-0 items-center gap-1 px-3" :class="item.unread ? 'bg-(--limcoma-teal-light)' : 'bg-white'">
                         <button type="button" @click="mark(item, item.can_open)" :aria-disabled="busy"
-                                class="flex min-w-0 flex-1 items-start gap-3 rounded px-1 py-3 text-left hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-[#2F1B72]">
-                            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-[#F0ECF8] text-[#2F1B72]" aria-hidden="true">
+                                class="flex min-w-0 flex-1 items-start gap-3 rounded px-1 py-3 text-left hover:bg-(--limcoma-purple-light) focus-visible:outline-2 focus-visible:outline-(--limcoma-purple)">
+                            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-(--limcoma-purple-light) text-(--limcoma-purple)" aria-hidden="true">
                                 <span x-show="item.category === 'leave'"><x-icon name="calendar" /></span>
                                 <span x-show="item.category === 'correction'"><x-icon name="clock" /></span>
                                 <span x-show="!['leave', 'correction'].includes(item.category)"><x-icon name="bell" /></span>
@@ -55,11 +55,11 @@
                                 <span x-show="item.message" class="mt-1 block wrap-break-word text-xs text-slate-600" x-text="item.message"></span>
                                 <time class="mt-1 block text-xs text-slate-600" :datetime="item.datetime" x-text="item.time"></time>
                             </span>
-                            <span x-show="item.unread" class="mt-1.5 size-2 shrink-0 rounded-full bg-[#087C68]"><span class="sr-only">Unread</span></span>
+                            <span x-show="item.unread" class="mt-1.5 size-2 shrink-0 rounded-full bg-(--primary-action)"><span class="sr-only">Unread</span></span>
                         </button>
                         <button type="button" x-show="item.unread" @click="mark(item, false, $event.currentTarget.previousElementSibling)" :aria-disabled="busy"
                                 :aria-label="'Mark as read: ' + item.title" title="Mark as read"
-                                class="grid size-9 shrink-0 place-items-center rounded text-[#087C68] hover:bg-white focus-visible:outline-2 focus-visible:outline-[#2F1B72]">
+                                class="grid size-9 shrink-0 place-items-center rounded text-(--limcoma-teal-dark) hover:bg-white focus-visible:outline-2 focus-visible:outline-(--limcoma-purple)">
                             <x-icon name="check" />
                         </button>
                     </li>

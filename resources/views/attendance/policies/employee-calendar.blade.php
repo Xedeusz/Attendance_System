@@ -89,7 +89,7 @@
                                         @endphp
                                         <a href="{{ $dayLink($day) }}" @click="openDate($event)" @if($isToday) aria-current="date" @endif
                                            class="block min-h-14 rounded-sm px-1 py-1.5 text-xs hover:bg-slate-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-800 sm:px-2 {{ $isToday ? 'ring-2 ring-inset ring-violet-800' : '' }}">
-                                            <time datetime="{{ $day->toDateString() }}" class="inline-flex size-6 items-center justify-center rounded-full font-bold {{ $isToday ? 'bg-(--limcoma-purple) text-white' : '' }}"><span aria-hidden="true">{{ $day->day }}</span><span class="sr-only">{{ $day->format('l, F j, Y') }}</span></time>
+                                            <time datetime="{{ $day->toDateString() }}" class="inline-flex size-6 items-center justify-center rounded-full font-bold {{ $isToday ? 'bg-(--purple-action) text-white' : '' }}"><span aria-hidden="true">{{ $day->day }}</span><span class="sr-only">{{ $day->format('l, F j, Y') }}</span></time>
                                             @if($holiday)
                                                 @php
                                                     [$label, $icon, $tone] = $holidayTags[$holiday['type']];
