@@ -13,6 +13,9 @@
         $timezone = config('attendance.timezone');
     @endphp
     <x-page-header :title="'Leave application #'.$leave->id" :description="$name.' · '.$typeName">
+        @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
+            <x-button href="#leave-decision">Review decision</x-button>
+        @endif
         <x-button variant="secondary" :href="route($prefix.'.index')">Back to leave</x-button>
     </x-page-header>
     @php($originalOverlap = data_get($leave->form_snapshot, 'attendance_policy.holiday_dates', []))
@@ -74,17 +77,17 @@
                             <ul class="divide-y divide-slate-100">
                                 @foreach($leave->documents as $document)
                                     <li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm">
-                                        <span class="flex min-w-0 items-center gap-2 wrap-anywhere"><x-icon name="file" class="size-4 shrink-0 text-slate-500" /><span class="min-w-0">{{ $document->original_name }}</span></span>
+                                        <span class="flex min-w-0 items-center gap-2 wrap-anywhere"><x-icon name="file" class="size-4 shrink-0 text-slate-500" /><span class="min-w-0" id="leave-document-{{ $document->id }}">{{ $document->original_name }}</span></span>
                                         @if($document->purged_at)
                                             <span class="small muted">Removed under configured retention</span>
                                         @else
                                             <div class="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
                                                 @if($scope !== 'supervisor' || auth()->user()->can('review', $leave))
-                                                    <button type="button" class="text-link cursor-pointer" aria-haspopup="dialog"
+                                                    <button type="button" class="text-link cursor-pointer" aria-haspopup="dialog" aria-describedby="leave-document-{{ $document->id }}"
                                                         data-name="{{ $document->original_name }}" data-preview="{{ route($prefix.'.document', [$document, 'preview' => 1]) }}"
                                                         data-download="{{ route($prefix.'.document', $document) }}" @click="view($el)">View document</button>
                                                 @endif
-                                                <a class="text-link" href="{{ route($prefix.'.document', $document) }}">Download document</a>
+                                                <a class="text-link" aria-describedby="leave-document-{{ $document->id }}" href="{{ route($prefix.'.document', $document) }}">Download document</a>
                                             </div>
                                         @endif
                                     </li>
@@ -159,7 +162,7 @@
             @endif
             @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
                 <section class="card col-span-full min-w-0" key="leave-decision-{{ $leave->id }}">
-                    <div class="card-heading px-4! py-3!"><h2>Final Supervisor decision</h2></div>
+                    <div class="card-heading px-4! py-3!"><h2 id="leave-decision" tabindex="-1">Final Supervisor decision</h2></div>
                     <div class="px-4 py-3">
                         <div key="leave-decision-errors">
                             @error('decision')<p class="field-error mb-3">{{ $message }}</p>@enderror
@@ -193,8 +196,8 @@
                                 <input type="hidden" name="decision" value="rejected">
                                 <input type="hidden" name="confirmation" value="1">
                                 <div class="field-label-row"><label class="field-label" for="leave-remarks">Rejection reason</label><span class="field-required" aria-hidden="true">Required</span></div>
-                                <textarea id="leave-remarks" name="remarks" class="field attendance-textarea mb-3" required minlength="10" maxlength="2000">{{ old('remarks') }}</textarea>
-                                @error('remarks')<p class="field-error mb-3">{{ $message }}</p>@enderror
+                                <textarea id="leave-remarks" name="remarks" @error('remarks') aria-invalid="true" aria-describedby="leave-remarks-error" @enderror class="field attendance-textarea mb-3" required minlength="10" maxlength="2000">{{ old('remarks') }}</textarea>
+                                @error('remarks')<p id="leave-remarks-error" class="field-error mb-3">{{ $message }}</p>@enderror
                                 <x-button type="submit" variant="danger">Reject Leave</x-button>
                             </form>
                         </div>

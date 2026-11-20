@@ -36,11 +36,55 @@ async function noPageOverflow(page) {
     ).toBe(true);
 }
 
+test("login serves a compact logo and fits the viewport at each pixel density", async ({ browser }) => {
+    for (const [density, width] of [[1, 1440], [2, 768], [3, 390]]) {
+        const context = await browser.newContext({
+            viewport: { width, height: 800 },
+            deviceScaleFactor: density,
+        });
+        try {
+            const page = await context.newPage();
+            await page.goto("/login");
+            const logo = page.getByAltText("LIMCOMA Multipurpose Cooperative logo");
+            await logo.evaluate((image) => image.decode());
+            await expect(
+                page.locator('link[rel="icon"][sizes="32x32"]'),
+            ).toHaveAttribute("href", /\/favicon-32x32\.png$/);
+            await expect(
+                page.locator('link[rel="apple-touch-icon"]'),
+            ).toHaveAttribute("href", /\/apple-touch-icon\.png$/);
+            const source = await logo.evaluate((image) => image.currentSrc);
+            expect(new URL(source).pathname).toBe(`/limcoma-logo-${40 * density}.webp`);
+            await noPageOverflow(page);
+        } finally {
+            await context.close();
+        }
+    }
+});
+
+test("Escape returns account disclosure focus to its toggle", async ({ page }) => {
+    await signIn(page);
+    const accountToggle = page.getByRole("button", { name: /Account menu for/ });
+    await expect(accountToggle).toHaveAttribute("aria-expanded", "false");
+    await accountToggle.press("Enter");
+    await expect(accountToggle).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("link", { name: "Your profile" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(accountToggle).toBeFocused();
+    await expect(accountToggle).toHaveAttribute("aria-expanded", "false");
+});
+
 test("real login, session cookie flags, CSRF, navigation, disabled actions and logout", async ({
     page,
 }) => {
     const errors = [];
+    const notificationRequests = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("request", (request) => {
+        if (/\/notifications-[^/]+\.(js|css)$/.test(new URL(request.url()).pathname)) {
+            notificationRequests.push(request.resourceType());
+        }
+    });
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/login$/);
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -58,6 +102,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     await page
         .getByRole("button", { name: "Hide Password", exact: true })
         .click();
+    expect(notificationRequests).toEqual([]);
     const csrf = await page.request.post("/login", {
         form: { email: account.email, password: account.password },
     });
@@ -66,6 +111,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     await page.getByLabel("Password", { exact: true }).fill("invalid-password");
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.locator(".form-errors").getByRole("alert")).toBeVisible();
+    await expect(page.locator(".swal2-toast")).toContainText("Please check your information");
     await signIn(page);
     const cookies = await page.context().cookies();
     const session = cookies.find((cookie) => cookie.name === "ebas_session");
@@ -77,7 +123,7 @@ test("real login, session cookie flags, CSRF, navigation, disabled actions and l
     await noPageOverflow(page);
     await expect(page.locator(".workforce-kpi")).toHaveCount(4);
     await expect(
-        page.locator(".workforce-attendance [data-metric]"),
+        page.locator(".workforce-attendance-primary [data-metric], .workforce-attendance-secondary:not([aria-label]) [data-metric]"),
     ).toHaveCount(8);
     await expect(
         page.getByRole("link", { name: "Monitor attendance", exact: true }),
@@ -123,15 +169,15 @@ test("login and workspace fit mobile/tablet widths and drawer supports Escape", 
 }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    for (const width of [320, 360, 375, 390, 430, 768]) {
+    const widths = [320, 360, 375, 390, 430, 768];
+    await page.goto("/login");
+    for (const width of widths) {
         await page.setViewportSize({ width, height: 900 });
-        await page.goto("/login");
         await noPageOverflow(page);
     }
     await signIn(page);
-    for (const width of [320, 360, 375, 390, 430, 768]) {
+    for (const width of widths) {
         await page.setViewportSize({ width, height: 900 });
-        await page.goto("/dashboard");
         await noPageOverflow(page);
         await page.screenshot({
             path: `test-results/screenshots/workforce-dashboard-${width}.png`,
@@ -143,28 +189,33 @@ test("login and workspace fit mobile/tablet widths and drawer supports Escape", 
         });
         await toggle.click();
         await expect(toggle).toHaveAttribute("aria-expanded", "true");
-        await expect(page.locator("#workspace-navigation")).toHaveClass(
-            /is-open/,
-        );
+        const drawer = page.getByRole("dialog", { name: "Workspace navigation" });
+        await expect(drawer).toBeVisible();
+        await expect(drawer).toHaveAttribute("aria-modal", "true");
+        await expect(page.locator(".main-shell")).toHaveJSProperty("inert", true);
+        await expect(drawer.getByRole("button", { name: "Close navigation" })).toBeFocused();
         await page.keyboard.press("Escape");
         await expect(toggle).toHaveAttribute("aria-expanded", "false");
-        for (const path of [
-            "employees",
-            "attendance",
-            "branches",
-            "leave",
-            "reports",
-            "notifications",
-            "settings",
-            "profile",
-            "employee/dashboard",
-        ]) {
-            await page.goto("/" + path);
+        await expect(toggle).toBeFocused();
+    }
+    for (const path of [
+        "employees",
+        "attendance",
+        "branches",
+        "leave",
+        "reports",
+        "notifications",
+        "settings",
+        "profile",
+        "employee/dashboard",
+    ]) {
+        await page.goto("/" + path);
+        for (const width of widths) {
+            await page.setViewportSize({ width, height: 900 });
             await noPageOverflow(page);
         }
     }
     await page.setViewportSize({ width: 390, height: 900 });
-    await page.goto("/employee/dashboard");
     await page.screenshot({
         path: "test-results/screenshots/employee-mobile.png",
         fullPage: true,

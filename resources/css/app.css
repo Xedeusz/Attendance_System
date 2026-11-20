@@ -221,7 +221,8 @@ body.swal2-shown .swal2-container.limcoma-toast-container.swal2-top-end {
     --background-main: #f8fafc;
     --background-card: #ffffff;
     --text-primary: #1e293b;
-    --text-secondary: #64748b;
+    --text-secondary: #526176;
+    --border-control: #8493a8;
     --border-color: #e2e8f0;
     --radius-control: 8px;
     --radius-panel: 10px;
@@ -232,7 +233,7 @@ body.swal2-shown .swal2-container.limcoma-toast-container.swal2-top-end {
     --space-4: 16px;
     --space-5: 24px;
     --space-6: 32px;
-    --font-body: 13px;
+    --font-body: 14px;
     --font-label: 12px;
     --shadow-popover: 0 8px 24px rgb(30 41 59 / 10%);
 }
@@ -657,7 +658,9 @@ select:focus {
     gap: 20px;
     align-items: center;
     flex-wrap: wrap;
-    margin: 18px 0 24px;
+    margin: 0 0 var(--space-5);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--border-color);
 }
 .page-heading p {
     font-size: 13px;
@@ -674,7 +677,18 @@ select:focus {
     color: var(--text-secondary);
 }
 .breadcrumbs a {
-    color: #475569;
+    color: var(--text-secondary);
+}
+.breadcrumbs, .topbar-title {
+    min-width: 0;
+}
+.breadcrumbs a {
+    flex-shrink: 0;
+}
+.topbar-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .stat-grid {
     display: grid;
@@ -737,12 +751,12 @@ select:focus {
     z-index: 40;
     width: var(--sidebar-width);
     inset: 0 auto 0 0;
-    background: var(--limcoma-purple);
+    background: var(--limcoma-purple-dark);
     color: #eee9fa;
-    padding: 24px 14px 18px;
+    padding: 16px 12px 10px;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
+    overflow: hidden;
     transition:
         width 180ms ease,
         transform 180ms ease;
@@ -755,8 +769,8 @@ select:focus {
 .nav-label {
     padding: 0 12px;
     font-size: 11px;
-    font-weight: 500;
-    color: #c6bbdf;
+    font-weight: 650;
+    color: #cfc3e7;
     margin-bottom: 6px;
     line-height: 1.5;
 }
@@ -773,21 +787,25 @@ select:focus {
     white-space: nowrap;
 }
 .nav-link.active {
-    background: var(--limcoma-teal);
+    background: var(--limcoma-teal-light);
     color: var(--limcoma-purple-dark);
-    font-weight: 650;
+    font-weight: 700;
 }
 .nav-link:hover:not(.active) {
-    background: var(--limcoma-purple-dark);
+    background: #ffffff14;
     color: #fff;
+}
+.nav-link.active .icon {
+    color: var(--limcoma-teal-dark);
 }
 .nav-link .icon {
     width: 18px;
     height: 18px;
 }
 .sidebar-bottom {
-    margin-top: auto;
-    padding-top: 20px;
+    flex-shrink: 0;
+    border-top: 1px solid #ffffff24;
+    padding-top: 8px;
 }
 .sidebar-note {
     background: #ffffff05;
@@ -986,6 +1004,7 @@ select:focus {
 }
 .table-scroll {
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     max-width: 100%;
     border-radius: 0 0 var(--radius-panel) var(--radius-panel);
     scrollbar-color: #cbd5e1 transparent;
@@ -1085,17 +1104,18 @@ td {
     background: #f8fafc;
 }
 .auth-layout {
-    width: min(1220px, 100%);
-    min-height: min(760px, calc(100svh - 48px));
+    width: min(70rem, 100%);
+    min-height: min(39rem, calc(100svh - 48px));
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     background: white;
-    border-radius: 24px;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
     overflow: hidden;
-    box-shadow: 0 24px 70px rgb(36 20 84 / 12%);
+    box-shadow: 0 16px 45px rgb(36 20 84 / 8%);
 }
 .auth-story {
-    background: #ffffff url("../images/limcoma-poster.webp") no-repeat;
+    background: var(--limcoma-purple-dark) url("../images/limcoma poster.png") no-repeat;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -1162,13 +1182,13 @@ td {
 }
 .auth-form {
     width: 100%;
-    max-width: 390px;
+    max-width: 25rem;
     margin: auto;
-    padding: 32px 0;
+    padding: 28px 0;
 }
 .auth-form h1 {
-    font-size: 28px;
-    margin: 8px 0 10px;
+    font-size: clamp(1.75rem, 1.55rem + 1vw, 2.25rem);
+    margin: 0 0 8px;
 }
 .auth-subtitle {
     font-size: 13px;
@@ -1230,6 +1250,9 @@ td {
 .modal {
     width: 100%;
     max-width: 440px;
+    max-block-size: calc(100vh - 40px);
+    max-block-size: calc(100dvh - 40px);
+    overflow-y: auto;
     background: #fff;
     border-radius: 13px;
     padding: 25px;
@@ -2210,10 +2233,21 @@ textarea:focus-visible {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 0 10px 24px;
+    flex-shrink: 0;
+    padding: 0 8px 14px;
+    border-bottom: 1px solid #ffffff24;
+}
+.sidebar-navigation {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #8a7bad transparent;
+    padding: 12px 2px;
 }
 .nav-group + .nav-group {
-    margin-top: 18px;
+    margin-top: 14px;
 }
 .nav-link .icon {
     flex-shrink: 0;
@@ -2886,5 +2920,224 @@ nav[role="navigation"] [aria-current="page"] > span {
     .avatar.attendance-identity-avatar {
         width: 44px;
         height: 44px;
+    }
+}
+
+/* Shared workspace rhythm */
+.shell .button:not(.secondary, .danger, :disabled),
+.auth-form .button:not(.secondary, .danger, :disabled) {
+    background: var(--limcoma-teal-dark);
+    border-color: var(--limcoma-teal-dark);
+}
+.shell .button:not(.secondary, .danger):hover:not(:disabled),
+.auth-form .button:not(.secondary, .danger):hover:not(:disabled) {
+    background: #066454;
+    border-color: #066454;
+}
+.topbar .sync-indicator {
+    display: inline-flex;
+    max-width: 11rem;
+    min-width: 0;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+.topbar .icon-button {
+    flex-shrink: 0;
+}
+.table-scroll thead th {
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.table-scroll tbody td {
+    font-size: 0.8125rem;
+}
+.table-scroll tbody tr:focus-within {
+    background: var(--limcoma-teal-light);
+}
+@media (min-height: 600px) {
+    .topbar {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 30;
+    }
+    html:has(.shell) {
+        scroll-padding-block-start: 5.5rem;
+    }
+}
+@media (max-width: 1023px) {
+    .shell, .is-collapsed {
+        --sidebar-width: min(18rem, calc(100vw - 3rem));
+    }
+    .sidebar .mobile-close {
+        position: static;
+        color: white;
+        flex-shrink: 0;
+    }
+    .sidebar .brand {
+        margin-right: 0;
+    }
+    .sidebar .nav-link {
+        min-height: 44px;
+    }
+}
+@media (max-width: 640px) {
+    .topbar .breadcrumbs a, .topbar .breadcrumbs > .icon {
+        display: none;
+    }
+    .topbar .sync-indicator {
+        max-width: 4.25rem;
+    }
+    .page-heading {
+        margin-top: 0;
+    }
+}
+
+/* Attendance and personal calendar */
+.workday-panel {
+    border-top: 3px solid var(--limcoma-teal-dark);
+}
+.attendance-capture-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+.calendar-tools {
+    display: grid;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-color);
+}
+.calendar-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+}
+@media (min-width: 1150px) {
+    .attendance-capture-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    }
+}
+
+/* Operational summaries */
+.workforce-dashboard {
+    container-type: inline-size;
+}
+.workforce-daily {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+}
+.workforce-queue-counts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1px;
+    background: var(--border-color);
+    margin: 0 var(--space-4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-control);
+    overflow: hidden;
+}
+.workforce-queue-counts > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: var(--background-main);
+    padding: var(--space-3);
+}
+.workforce-queue-counts dt,
+.attendance-overview-metric dt {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+.workforce-queue-counts dd,
+.attendance-overview-metric dd {
+    color: var(--limcoma-purple);
+    font-size: 1.5rem;
+    font-weight: 720;
+    font-variant-numeric: tabular-nums;
+}
+.workforce-queue-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+    padding: var(--space-3) var(--space-4);
+}
+@container (min-width: 60rem) {
+    .workforce-daily {
+        grid-template-columns: minmax(0, 1.85fr) minmax(19rem, 1fr);
+    }
+}
+.attendance-overview-metric {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-panel);
+    background: var(--background-card);
+}
+.attendance-metric-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: var(--radius-control);
+    background: var(--limcoma-teal-light);
+    color: var(--limcoma-teal-dark);
+}
+.attendance-metric-icon .icon {
+    width: 1rem;
+    height: 1rem;
+}
+.attendance-overview-metric dt {
+    grid-row: 2;
+    align-self: end;
+}
+.attendance-overview-metric dd {
+    grid-row: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-2);
+    line-height: 1.25;
+}
+.record-fieldset {
+    min-width: 0;
+    padding: var(--space-3) var(--space-4) 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-panel);
+}
+.record-fieldset > legend {
+    padding-inline: var(--space-2);
+    color: var(--limcoma-purple);
+    font-size: 0.9375rem;
+    font-weight: 650;
+}
+
+.auth-brand .brand-caption {
+    color: var(--text-secondary);
+}
+.auth-form-options {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0 var(--space-3);
+    margin-bottom: var(--space-3);
+    color: var(--text-secondary);
+}
+.field:not(:disabled) {
+    border-color: var(--border-control);
+}
+.field:focus-visible {
+    border-color: var(--limcoma-teal-dark);
+}
+
+@media (min-width: 768px) {
+    .leave-summary {
+        grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
     }
 }

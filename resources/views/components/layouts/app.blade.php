@@ -9,17 +9,16 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
-    <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="shell" x-data="workspaceShell" :class="{ 'is-collapsed': collapsed }" @keydown.escape.window="mobileOpen = false">
-        <div class="drawer-overlay" x-show="mobileOpen" x-cloak @click="mobileOpen = false" aria-hidden="true"></div>
+    <div class="shell" x-data="workspaceShell" :class="{ 'is-collapsed': collapsed }" @keydown.escape.window="closeNavigation()">
+        <div class="drawer-overlay" x-show="mobileOpen" x-cloak @click="closeNavigation()" aria-hidden="true"></div>
         <x-sidebar />
-        <div class="main-shell">
+        <div class="main-shell" :inert="mobileOpen">
+            <a class="skip-link" href="#main-content">Skip to content</a>
             <x-topbar :title="$title" />
             <main class="workspace-content" id="main-content" tabindex="-1">
-                <x-breadcrumbs :title="$title" />
                 <noscript>@if($errors->any())<div class="mt-5"><x-form-errors /></div>@endif</noscript>
                 <!--workspace:start--><div data-sync-region="page">{{ $slot }}</div><!--workspace:end-->
-                <footer class="workspace-footer"><span>© {{ now()->year }} LIMCOMA · Employee Attendance System</span><span>Attendance & Employee Management</span></footer>
+                <footer class="workspace-footer"><span>© {{ now()->year }} LIMCOMA · Employee Attendance System</span></footer>
             </main>
         </div>
         <x-confirm-logout />

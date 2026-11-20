@@ -8,11 +8,13 @@
 <div class="auth-layout">
     <main class="auth-main" id="main-content" tabindex="-1">
         <div class="auth-brand"><x-brand /></div>
-        <div class="auth-form">{{ $slot }}</div>
+        <div class="auth-form">
+            <x-notifications inline-fallback />
+            {{ $slot }}
+        </div>
         <footer class="auth-footer">© {{ now()->year }} LIMCOMA Multipurpose Cooperative<br>Employee Attendance System</footer>
     </main>
-    <aside class="auth-story" aria-label="LIMCOMA Multipurpose Cooperative company poster"></aside>
+    <div class="auth-story" aria-hidden="true"></div>
 </div>
-<x-notifications />
 </body>
 </html>

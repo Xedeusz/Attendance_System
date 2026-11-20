@@ -5,7 +5,7 @@
      @workspace:notifications.window="sync($event.detail)" @click.outside="close()" @keydown.escape.window="close(true)">
     <button x-ref="bell" type="button" aria-label="Notifications" title="Notifications" aria-expanded="false"
             :aria-expanded="open" aria-controls="topbar-notifications" @click="toggle()"
-            class="relative grid size-10 place-items-center rounded-xl text-[#2F1B72] transition-colors hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F1B72]">
+            class="relative grid size-11 place-items-center rounded-xl text-[#2F1B72] transition-colors hover:bg-[#F0ECF8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2F1B72]">
         <span class="[&>svg]:size-5" aria-hidden="true"><x-icon name="bell" /></span>
         <span data-sync-unread aria-hidden="true" :hidden="!unread" @if(!$unread) hidden @endif
               class="absolute top-0 right-0 -translate-y-1/5 translate-x-1/5 rounded-full bg-[#087C68] px-1 text-[10px] leading-4 font-bold text-white ring-2 ring-white"
@@ -23,8 +23,7 @@
                 <h2 id="topbar-notifications-heading" class="font-bold text-[#2F1B72]">Notifications</h2>
                 <span class="text-xs font-semibold text-[#087C68]" x-text="unread + ' unread'"></span>
             </div>
-            <div class="mt-1 flex flex-wrap items-center justify-between gap-x-3">
-                <p class="text-xs text-slate-600">Your latest updates</p>
+            <div class="mt-1 flex justify-end">
                 <button type="button" class="text-link min-h-8 text-xs disabled:text-slate-500" :disabled="!unread" :aria-disabled="busy" @click="mark(null, false, $refs.panel)">Mark all as read</button>
             </div>
         </header>
@@ -39,7 +38,7 @@
             <div x-show="loaded && !loadError && !items.length" class="px-4 py-6 text-center">
                 <span class="mx-auto mb-2 grid size-9 place-items-center rounded-lg bg-slate-100 text-slate-600"><x-icon name="bell" /></span>
                 <p class="text-sm font-semibold">You’re all caught up</p>
-                <p class="mt-1 text-xs text-slate-600">No new notifications right now.</p>
+
             </div>
             <ul class="divide-y divide-slate-100">
                 <template x-for="item in items" :key="item.id">

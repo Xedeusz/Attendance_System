@@ -13,7 +13,7 @@
                     <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
                         <tr>
                             <td width="80" valign="middle" style="padding-right:12px">
-                                <img src="{{ rtrim(config('mail.essential.link_base') ?: config('app.url'), '/').'/LIMCOMA-email.png' }}" width="80" alt="LIMCOMA Multipurpose Cooperative Logo" style="display:block;width:80px;max-width:100%;height:auto">
+                                <img src="{{ rtrim(config('mail.essential.link_base') ?: config('app.url'), '/').'/LIMCOMA-email.png' }}" width="80" height="80" alt="" style="display:block;width:80px;max-width:100%;height:auto">
                             </td>
                             <td valign="middle" style="line-height:1.4">
                                 <strong>LIMCOMA Multipurpose Cooperative</strong><br>
@@ -27,12 +27,12 @@
                     <p style="margin:0 0 10px">Hello {{ $recipientName }},</p>
                     <p style="margin:0 0 18px">{{ $bodyMessage }}</p>
                     @if($fields)
-                        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border:1px solid #e2e8f0;font-size:14px;margin-bottom:20px;overflow-wrap:anywhere">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;background:#F8FAFC;border:1px solid #e2e8f0;font-size:14px;margin-bottom:20px">
                             @foreach($fields as $label => $value)
                                 @continue($value === null)
                                 <tr>
-                                    <th scope="row" align="left" valign="top" style="width:36%;padding:8px 10px;border-bottom:1px solid #e2e8f0">{{ $label }}</th>
-                                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;white-space:pre-wrap">{{ $value }}</td>
+                                    <th scope="row" align="left" valign="top" style="width:36%;padding:8px 10px;border-bottom:1px solid #e2e8f0;word-wrap:break-word;overflow-wrap:anywhere">{{ $label }}</th>
+                                    <td style="padding:8px 10px;border-bottom:1px solid #e2e8f0;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere">{{ $value }}</td>
                                 </tr>
                             @endforeach
                         </table>

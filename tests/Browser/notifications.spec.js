@@ -281,9 +281,9 @@ test("duplicate branch code preserves field errors and successful save flashes o
     await page
         .getByLabel("Geofencing Radius (Meters)", { exact: true })
         .fill("100");
-    await page
-        .getByRole("region", { name: "Branch location map", exact: true })
-        .click({ position: { x: 150, y: 170 } });
+    const map = page.getByRole("region", { name: "Branch location map", exact: true });
+    await expect(map).toHaveClass(/leaflet-container/);
+    await map.click({ position: { x: 150, y: 170 } });
     await page
         .getByRole("button", { name: "Save branch", exact: true })
         .click();
@@ -313,6 +313,7 @@ test("duplicate branch code preserves field errors and successful save flashes o
     await page.reload();
     await expect(page.locator(".swal2-toast")).toHaveCount(0);
     await page.getByRole("link", { name: "Edit branch", exact: true }).click();
+    await expect(page.getByLabel("Branch status", { exact: true })).toHaveValue("active");
     await page
         .getByLabel("Branch status", { exact: true })
         .selectOption("inactive");

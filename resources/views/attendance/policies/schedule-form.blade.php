@@ -17,7 +17,9 @@
             @if($schedule->exists)
                 <p class="small muted">Version #{{ $schedule->id }} applies from {{ $schedule->effective_from->toDateString() }} through {{ $schedule->effective_until?->toDateString() ?? 'an open end date' }}. Saving creates a new version for this assignment.</p>
             @endif
-            <div class="grid gap-x-5 sm:grid-cols-2">
+            <fieldset class="record-fieldset">
+                <legend>Shift and break</legend>
+                <div class="grid gap-x-5 sm:grid-cols-2">
                 <x-input name="name" label="Schedule name" :value="$schedule->name" maxlength="150" required />
                 <x-input name="description" label="Description" :value="$schedule->description" maxlength="2000" />
                 <x-input name="starts_at" label="Work start" type="time" :value="$clock($schedule->starts_at)" x-model="start" required />
@@ -27,7 +29,8 @@
                 <x-select name="paid_break" label="Break classification" :options="[0 => 'Unpaid', 1 => 'Paid']" :value="(int)$schedule->paid_break" :placeholder="null" x-model="paid" />
                 <x-input name="grace_minutes" label="Grace period (minutes)" type="number" min="0" max="1439" :value="$schedule->grace_minutes ?? 0" required />
                 <x-select name="grace_method" label="Grace computation" :options="\App\Models\WorkSchedule::GRACE_METHODS" :value="$schedule->grace_method" required />
-            </div>
+                </div>
+            </fieldset>
             <dl class="grid gap-2 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-2 xl:grid-cols-4" aria-label="Schedule duration preview" aria-live="polite">
                 <div><dt>Scheduled presence (min)</dt><dd class="font-semibold" x-text="Math.max(0, offset(end))"></dd></div>
                 <div><dt>Break duration (min)</dt><dd class="font-semibold" x-text="breakStart && breakEnd ? Math.max(0, offset(breakEnd) - offset(breakStart)) : 0"></dd></div>
@@ -43,7 +46,9 @@
                     @endforeach
                 </div>
             </fieldset>
-            <div class="grid gap-x-5 sm:grid-cols-2">
+            <fieldset class="record-fieldset">
+                <legend>Assignment and effective dates</legend>
+                <div class="grid gap-x-5 sm:grid-cols-2">
                 <x-input name="effective_from" :label="$schedule->exists ? 'New version effective from' : 'Effective from'" type="date" required />
                 <x-input name="effective_until" label="Effective through (optional)" type="date" :value="$schedule->effective_until?->toDateString()" />
                 <x-select name="scope" label="Assign to" :options="['company'=>'Company default', 'employee'=>'Employee', 'department'=>'Department', 'branch'=>'Branch']" :value="$scope" :placeholder="null" x-model="scope" />
@@ -62,7 +67,8 @@
                         @endif
                     </div>
                 @endforeach
-            </div>
+                </div>
+            </fieldset>
             <x-button type="submit">{{ $schedule->exists ? 'Save new schedule version' : 'Save schedule' }}</x-button>
         </form>
     </section>

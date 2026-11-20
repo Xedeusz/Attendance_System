@@ -17,7 +17,13 @@ $env:COMPOSER_HOME = Join-Path (Get-Location) '.tools\composer-home'
 $env:COMPOSER_CACHE_DIR = Join-Path (Get-Location) '.tools\composer-cache'
 $env:npm_config_cache = Join-Path (Get-Location) '.tools\npm-cache'
 switch ($Task) {
-    'serve' { & $phpPath artisan serve --host=127.0.0.1 --port=8000 --no-reload }
+    'serve' {
+        $gdInfo = & $phpPath --ri gd
+        if ($LASTEXITCODE -ne 0 -or $gdInfo -notcontains 'JPEG Support => enabled' -or $gdInfo -notcontains 'PNG Support => enabled') {
+            throw 'Attendance requires PHP GD with JPEG and PNG support. Check the loaded PHP configuration before starting Laravel.'
+        }
+        & $phpPath artisan serve --host=127.0.0.1 --port=8000 --no-reload --no-interaction
+    }
     'reverb' { & $phpPath artisan reverb:start --host=127.0.0.1 --port=8080 }
     'queue' { & $phpPath artisan queue:work --queue=realtime,default --tries=4 --timeout=30 }
     'mail' { & $phpPath artisan queue:work database --queue=mail --sleep=2 --timeout=30 --no-interaction }

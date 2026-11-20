@@ -5,7 +5,7 @@
     </x-page-header>
     <x-form-errors />
     <section class="card">
-        <form class="toolbar" method="GET">
+        <form class="toolbar" method="GET" aria-label="Holiday filters">
             <x-input name="year" label="Year" type="number" min="1900" max="2200" :value="$year" />
             <x-select name="view" label="View" :options="['list' => 'Annual list', 'month' => 'Monthly calendar']" :value="$monthly ? 'month' : 'list'" :placeholder="null" />
             <x-select name="month" label="Calendar month" :options="collect(range(1, 12))->mapWithKeys(fn ($number) => [$number => $month->month($number)->format('F')])" :value="$month->month" :placeholder="null" />
@@ -31,7 +31,7 @@
                         <td><x-attendance-holiday-badge :type="$holiday->type" /></td>
                         <td>{{ $holiday->coverageLabel() }}</td>
                         <td>{{ $holiday->work_expected ? 'Follow assigned schedule' : 'Non-working unless shift approved' }}</td>
-                        <td>{{ \App\Models\AttendanceHoliday::STATUSES[$holiday->status] }}</td>
+                        <td><x-state :value="$holiday->status" /></td>
                     </tr>
                 @empty <tr><td colspan="6"><x-empty-state title="No holidays match this view" description="Change the filters or add a holiday." icon="calendar" /></td></tr> @endforelse
             </x-table>

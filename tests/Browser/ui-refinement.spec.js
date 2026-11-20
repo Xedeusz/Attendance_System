@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 
 const php = process.env.PHP_BINARY || "C:\\xampp\\php\\php.exe";
 const phase = process.env.UI_REVIEW_PHASE || "after";
-const screenshotRoot = `.tools/ui-review/${phase}`;
+const screenshotRoot = process.env.UI_SCREENSHOT_DIR || `.tools/ui-review/${phase}`;
 let hr, employee;
 
 test.beforeAll(() => {
@@ -89,15 +89,15 @@ test("representative HR and Employee screens retain accessible workflows across 
             });
         }
     }
-    for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280, 1440]) {
-        await page.setViewportSize({ width, height: 1000 });
-        for (const path of [
-            "hr/employees",
-            "hr/employees/create",
-            "hr/attendance",
-            "settings",
-        ]) {
-            await page.goto(`/${path}`);
+    for (const path of [
+        "hr/employees",
+        "hr/employees/create",
+        "hr/attendance",
+        "settings",
+    ]) {
+        await page.goto(`/${path}`);
+        for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280, 1440]) {
+            await page.setViewportSize({ width, height: 1000 });
             await fits(page);
         }
     }
@@ -184,10 +184,11 @@ test("representative HR and Employee screens retain accessible workflows across 
                 const attendance = await employeePage
                     .getByRole("region", { name: "My Attendance" })
                     .boundingBox();
-                expect(attendance.y).toBeGreaterThanOrEqual(
-                    identity.y + identity.height,
+                expect(identity.y).toBeGreaterThanOrEqual(
+                    attendance.y + attendance.height,
                 );
                 expect(action.y).toBeGreaterThan(attendance.y);
+                expect(action.y + action.height).toBeLessThan(identity.y);
             }
             await employeePage.screenshot({
                 path: `${screenshotRoot}/${path.replaceAll("/", "-")}-employee-${width}.png`,
@@ -195,14 +196,14 @@ test("representative HR and Employee screens retain accessible workflows across 
             });
         }
     }
-    for (const width of [320, 360, 375, 430, 768, 1024, 1280, 1440]) {
-        await employeePage.setViewportSize({ width, height: 1000 });
-        for (const path of [
-            "employee/dashboard",
-            "employee/attendance",
-            "employee/attendance/history",
-        ]) {
-            await employeePage.goto(`/${path}`);
+    for (const path of [
+        "employee/dashboard",
+        "employee/attendance",
+        "employee/attendance/history",
+    ]) {
+        await employeePage.goto(`/${path}`);
+        for (const width of [320, 360, 375, 430, 768, 1024, 1280, 1440]) {
+            await employeePage.setViewportSize({ width, height: 1000 });
             await fits(employeePage);
         }
     }
@@ -270,6 +271,10 @@ test("work calendar opens date details with the keyboard and filters the compact
     await page.getByText("Filters", { exact: true }).click();
     await page.getByRole("checkbox", { name: "Work schedule" }).uncheck();
     await expect(selectedDay.getByText("No schedule")).toBeHidden();
+    const refresh = page.waitForResponse((response) => response.request().headers()["x-workspace-sync"] === "1");
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await (await refresh).finished();
+    await expect(page.getByRole("checkbox", { name: "Work schedule" })).not.toBeChecked();
     await page.getByRole("button", { name: "Reset filters" }).click();
     await expect(
         page.getByRole("checkbox", { name: "Work schedule" }),

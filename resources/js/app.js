@@ -26,23 +26,28 @@ Alpine.data("workspaceShell", () => ({
     mobileOpen: false,
     collapsed: false,
     init() {
-        this.$watch("mobileOpen", (open) => {
-            document.body.style.overflow = open ? "hidden" : "";
-        });
         this.media = window.matchMedia("(min-width: 1024px)");
         this.onResize = () => {
-            if (this.media.matches) this.mobileOpen = false;
+            if (this.media.matches) this.closeNavigation();
         };
         this.media.addEventListener("change", this.onResize);
     },
     destroy() {
         this.media.removeEventListener("change", this.onResize);
-        document.body.style.overflow = "";
     },
     toggleNavigation() {
-        this.media.matches
-            ? (this.collapsed = !this.collapsed)
-            : (this.mobileOpen = !this.mobileOpen);
+        if (this.media.matches) {
+            this.collapsed = !this.collapsed;
+        } else if (this.mobileOpen) {
+            this.closeNavigation();
+        } else {
+            this.mobileOpen = true;
+        }
+    },
+    closeNavigation() {
+        if (!this.mobileOpen) return;
+        this.mobileOpen = false;
+        this.$nextTick(() => this.$refs.navigationToggle.focus());
     },
 }));
 Alpine.data("displayClock", () => ({

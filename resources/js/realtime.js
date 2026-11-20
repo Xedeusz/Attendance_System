@@ -90,6 +90,9 @@ export default function initializeRealtime(Alpine) {
         const scroll = [window.scrollX, window.scrollY];
         Alpine.morph(region, incoming.outerHTML, {
             updating(from, to, childrenOnly, skip) {
+                if (from instanceof HTMLDetailsElement && to instanceof HTMLDetailsElement && from.hasAttribute("data-preserve-open")) {
+                    to.open = from.open;
+                }
                 if (from instanceof HTMLFormElement) {
                     if (
                         from.hasAttribute("data-sync-clean") &&

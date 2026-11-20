@@ -280,7 +280,7 @@ export default function registerLeaveCalendar(Alpine) {
             },
             statusColor(status, period = null) {
                 return (
-                    statusColors[status === "approved" ? period : status] ||
+                    statusColors[status === "approved" && period ? period : status] ||
                     statusColors.cancelled
                 );
             },
@@ -301,9 +301,8 @@ export default function registerLeaveCalendar(Alpine) {
             eventLabel(entry) {
                 return [
                     entry.title,
-                    entry.status === "approved"
-                        ? null
-                        : this.displayStatus(entry.status),
+                    entry.status === "approved" ? "Approved" : this.displayStatus(entry.status),
+                    entry.period ? this.displayStatus(entry.status, entry.period) : null,
                     this.dates(entry.start, entry.end),
                     this.halfDay(entry),
                 ]

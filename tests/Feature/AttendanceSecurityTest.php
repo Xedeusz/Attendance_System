@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Models\AttendanceEvent;
 use App\Models\AttendancePhotoEvidence;
 use App\Models\User;
+use App\Services\AttendancePhotoStorage;
 use App\Services\AuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToWriteFile;
 use Tests\Support\AttendanceData;
 use Tests\TestCase;
 
@@ -86,7 +88,13 @@ class AttendanceSecurityTest extends TestCase
     public function test_malformed_unsupported_oversized_and_tiny_images_are_rejected(): void
     {
         $capture = $this->capture($this->attendee());
-        foreach ([UploadedFile::fake()->createWithContent('fake.jpg', '<?php echo "unsafe";'), UploadedFile::fake()->create('large.jpg', 2049, 'image/jpeg'), UploadedFile::fake()->image('tiny.png', 1, 1)] as $photo) {
+        foreach ([
+            UploadedFile::fake()->createWithContent('empty.jpg', ''),
+            UploadedFile::fake()->create('unsupported.gif', 1, 'image/gif'),
+            UploadedFile::fake()->createWithContent('fake.jpg', '<?php echo "unsafe";'),
+            UploadedFile::fake()->create('large.jpg', 2049, 'image/jpeg'),
+            UploadedFile::fake()->image('tiny.png', 1, 1),
+        ] as $photo) {
             $this->punch($capture, ['photo' => $photo])->assertUnprocessable();
         }
         $this->assertDatabaseCount('attendance_events', 0);
@@ -110,6 +118,22 @@ class AttendanceSecurityTest extends TestCase
         $this->get('/employee/attendance/history')->assertOk()->assertDontSee('View record');
         $this->actingAs($this->reviewer())->get('/attendance/photos/'.$photo->id)->assertOk();
         $this->get('/employee/attendance/records/'.$event->attendance_record_id)->assertOk()->assertSee('Attendance Location')->assertSee('Technical Attendance Location Details');
+    }
+
+    public function test_storage_write_failure_leaves_capture_available_and_records_no_attendance(): void
+    {
+        $capture = $this->capture($this->attendee());
+        Exceptions::fake();
+        $this->partialMock(AttendancePhotoStorage::class)->shouldReceive('store')->once()
+            ->andThrow(UnableToWriteFile::atLocation('synthetic.bin'));
+
+        $this->punch($capture)->assertServerError();
+
+        $this->assertDatabaseHas('attendance_capture_sessions', ['id' => $capture['id'], 'consumed_at' => null]);
+        $this->assertDatabaseCount('attendance_events', 0);
+        $this->assertDatabaseCount('attendance_records', 0);
+        $this->assertDatabaseCount('attendance_photo_evidence', 0);
+        $this->assertCount(0, Storage::disk('attendance')->allFiles());
     }
 
     public function test_failed_transaction_cleans_staged_files_and_rolls_back_all_attendance_facts(): void

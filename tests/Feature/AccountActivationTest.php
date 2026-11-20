@@ -32,6 +32,7 @@ class AccountActivationTest extends TestCase
         }
         $this->assertNull(AccountInvitation::sole()->used_at);
         $this->postJson('/activate-account', $input)->assertOk()->assertJsonPath('redirect', route('login'));
+        $this->get('/login')->assertOk()->assertSeeText('Account activated. You can now sign in with your new password.');
         $this->assertNotNull(AccountInvitation::sole()->used_at);
         $this->assertSame('active', $employee->user->fresh()->account_status);
         $this->assertNotNull($employee->user->fresh()->email_verified_at);

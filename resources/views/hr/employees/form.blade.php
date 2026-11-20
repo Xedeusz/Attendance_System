@@ -1,10 +1,13 @@
 <x-layouts.app :title="$employee->exists ? 'Edit Employee' : 'Register New Employee'">
 <x-page-header :title="$employee->exists ? 'Edit Employee' : 'Register New Employee'" description="Maintain accurate employment details. Account activation is completed by the employee." />
 <form class="card" method="POST" action="{{ $employee->exists ? route('hr.employees.update', $employee) : route('hr.employees.store') }}">@csrf <x-edit-version :record="$employee" /> @if($employee->exists) @method('PUT') @endif
-<div class="card-heading"><h2>Personal information</h2><x-badge>{{ $employee->exists ? 'Existing account' : 'Employee · Pending activation' }}</x-badge></div>
+<div class="card-heading"><h2>Employee account</h2><x-state :value="$employee->exists ? $employee->user->account_status : 'pending_activation'" /></div>
 <div class="card-body form-grid">
 <x-input name="employee_number" label="Employee number" :value="$employee->employee_number" required maxlength="40" />
 <x-input name="work_email" label="Work email" type="email" :value="$employee->exists ? $employee->work_email : ''" required maxlength="254" />
+</div>
+<div class="card-heading"><h2>Personal information</h2></div>
+<div class="card-body form-grid">
 <x-input name="first_name" label="First name" :value="$employee->first_name" required maxlength="100" /><x-input name="last_name" label="Last name" :value="$employee->last_name" required maxlength="100" />
 <x-input name="middle_name" label="Middle name (optional)" :value="$employee->middle_name" maxlength="100" /><x-input name="suffix" label="Suffix (optional)" :value="$employee->suffix" maxlength="20" />
 <x-input name="contact_number" label="Contact number (optional)" type="tel" :value="$employee->contact_number" maxlength="30" />

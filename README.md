@@ -100,6 +100,8 @@ php artisan app:bootstrap-hr
 # Enable GD in the actual PHP runtime, or use scripts/dev.ps1 -Task serve.
 ```
 
+For the local Cloudflare origin on port 8000, start Laravel with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 -Task serve`. The launcher loads `scripts/php/attendance.ini` and checks GD JPEG and PNG support before starting. A plain `php artisan serve` uses the terminal's PHP configuration. If serving with XAMPP Apache instead, enable `extension=gd` in the PHP configuration Apache loads and restart Apache.
+
 Never overwrite an existing `.env` or key during an upgrade. Serve only `public/`; the workspace root `.htaccess` intentionally denies direct Apache access. [Database setup](docs/DATABASE_SETUP.md), [Phase 2 setup](docs/PHASE_2_SETUP.md).
 
 ## Documentation and next work

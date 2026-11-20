@@ -16,6 +16,8 @@ export default (Alpine) => {
         photo: null,
         previewUrl: "",
         cameraActive: false,
+        cameraStarting: false,
+        cameraGeneration: 0,
         cameraMessage: "Camera is off.",
         locationMessage:
             "Location is requested only when you start attendance.",
@@ -50,12 +52,13 @@ export default (Alpine) => {
                     );
             });
             this.offset = Date.parse(options.serverTime) - Date.now();
+            const clockFormatter = new Intl.DateTimeFormat("en-PH", {
+                timeZone: "Asia/Manila",
+                dateStyle: "full",
+                timeStyle: "medium",
+            });
             const tick = () => {
-                this.clock = new Intl.DateTimeFormat("en-PH", {
-                    timeZone: "Asia/Manila",
-                    dateStyle: "full",
-                    timeStyle: "medium",
-                }).format(new Date(Date.now() + this.offset));
+                this.clock = clockFormatter.format(new Date(Date.now() + this.offset));
                 this.remaining = this.capture
                     ? Math.max(
                           0,
@@ -206,10 +209,13 @@ export default (Alpine) => {
             this.startLocation(true);
         },
         stopCamera() {
+            this.cameraGeneration++;
+            this.cameraStarting = false;
             if (this.stream)
                 this.stream.getTracks().forEach((track) => track.stop());
             this.stream = null;
             this.cameraActive = false;
+            this.cameraMessage = "Camera is off.";
             if (this.$refs.video) this.$refs.video.srcObject = null;
         },
         clearPhoto() {
@@ -219,8 +225,11 @@ export default (Alpine) => {
             this.body = null;
         },
         async startCamera(deviceId = null) {
-            if (!this.capture || this.submitting || this.uncertain) return;
+            if (!this.capture || this.submitting || this.uncertain || this.cameraStarting) return;
             this.stopCamera();
+            const generation = this.cameraGeneration;
+            this.cameraStarting = true;
+            this.cameraMessage = "Waiting for camera access.";
             this.error = "";
             try {
                 if (
@@ -245,24 +254,26 @@ export default (Alpine) => {
                     video,
                     audio: false,
                 });
-                if (!this.capture || document.hidden) {
+                if (generation !== this.cameraGeneration || !this.capture || document.hidden) {
                     stream.getTracks().forEach((track) => track.stop());
                     return;
                 }
                 this.stream = stream;
                 this.$refs.video.srcObject = stream;
                 await this.$refs.video.play();
+                if (generation !== this.cameraGeneration) return;
                 this.cameraActive = true;
                 this.cameraMessage =
                     "Live preview is active. Capture an appropriate office photo; no face matching is performed.";
                 this.cameras = [];
                 try {
                     if (navigator.mediaDevices.enumerateDevices) {
-                        this.cameras = (
-                            await navigator.mediaDevices.enumerateDevices()
-                        ).filter((device) => device.kind === "videoinput");
+                        const devices = await navigator.mediaDevices.enumerateDevices();
+                        if (generation !== this.cameraGeneration) return;
+                        this.cameras = devices.filter((device) => device.kind === "videoinput");
                     }
                 } catch {
+                    if (generation !== this.cameraGeneration) return;
                     this.cameraMessage +=
                         " Camera switching is unavailable; you can use the current preview.";
                 }
@@ -275,6 +286,7 @@ export default (Alpine) => {
                     ),
                 );
             } catch (error) {
+                if (generation !== this.cameraGeneration) return;
                 this.stopCamera();
                 this.cameraMessage =
                     error.name === "NotAllowedError"
@@ -288,6 +300,8 @@ export default (Alpine) => {
                             : error.name === "OverconstrainedError"
                               ? "The selected camera could not start. Try Start live camera again."
                               : error.message;
+            } finally {
+                if (generation === this.cameraGeneration) this.cameraStarting = false;
             }
         },
         async switchCamera() {
@@ -312,9 +326,11 @@ export default (Alpine) => {
             canvas
                 .getContext("2d")
                 .drawImage(video, 0, 0, canvas.width, canvas.height);
+            const generation = this.cameraGeneration;
             const blob = await new Promise((resolve) =>
                 canvas.toBlob(resolve, "image/jpeg", 0.82),
             );
+            if (generation !== this.cameraGeneration) return;
             if (!blob || blob.size > 2097152) {
                 this.error =
                     "The photo could not be prepared within the size limit. Try again.";

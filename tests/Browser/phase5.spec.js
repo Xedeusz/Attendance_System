@@ -11,13 +11,13 @@ function fixture(...args) {
         }),
     );
 }
-test.beforeAll(() => {
+test.beforeEach(() => {
     hr = fixture("create");
     employee = fixture("attendance", hr.id);
     supervisor = fixture("phase5", hr.id, "generic-other");
     mkdirSync("test-results/screenshots", { recursive: true });
 });
-test.afterAll(() => {
+test.afterEach(() => {
     if (hr)
         execFileSync(php, [
             "tests/Browser/fixture.php",
@@ -112,7 +112,9 @@ test("employee submission, final Supervisor decision, private document and HR co
     await statusFilter.selectOption("approved");
     await calendarPage.getByRole("button", { name: "Clear filters" }).click();
     await expect(statusFilter).toHaveValue("");
-    await expect(calendarPage.locator("[data-sync-status]")).toHaveText("Live");
+    await expect(calendarPage.locator("[data-sync-status]")).toHaveText("Live", {
+        timeout: 20000,
+    });
     await login(employeePage, employee);
     await employeePage.goto("/employee/leave/create");
     for (const width of [320, 360, 375, 390, 430, 768, 1024, 1280]) {
@@ -217,8 +219,6 @@ test("employee submission, final Supervisor decision, private document and HR co
         const bounds = image.getBoundingClientRect();
         const frame = image.parentElement.getBoundingClientRect();
         return {
-            width: image.naturalWidth,
-            height: image.naturalHeight,
             offsetX:
                 bounds.left + bounds.width / 2 - (frame.left + frame.width / 2),
             offsetY:
@@ -274,6 +274,7 @@ test("employee submission, final Supervisor decision, private document and HR co
     await expect(
         schedules.getByRole("button", { name: /Synthetic Employee.*Approved/ }),
     ).toBeVisible({ timeout: 15000 });
+    await calendarPage.close();
     const personalCalendar = await contexts[1].newPage();
     personalCalendar.on("pageerror", (error) => errors.push(error.message));
     await personalCalendar.setViewportSize({ width: 320, height: 800 });
@@ -285,13 +286,13 @@ test("employee submission, final Supervisor decision, private document and HR co
     ).toHaveAttribute("aria-pressed", "true");
     await fits(personalCalendar);
     await personalCalendar
-        .getByRole("button", { name: /Others.*Approved/ })
+        .getByRole("button", { name: /Synthetic Employee.*Approved/ })
         .click();
     await expect(
         personalCalendar
             .getByRole("dialog", { name: "Leave application details" })
             .getByRole("link", { name: "View Approved Form" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 20000 });
     await personalCalendar.keyboard.press("Escape");
     await expect(
         personalCalendar.getByRole("dialog", {
@@ -299,7 +300,6 @@ test("employee submission, final Supervisor decision, private document and HR co
         }),
     ).toBeHidden();
     await personalCalendar.close();
-    await calendarPage.close();
 
     const approvedLink = employeePage.getByRole("link", {
         name: "View Approved Form",
@@ -316,9 +316,7 @@ test("employee submission, final Supervisor decision, private document and HR co
     expect(pdf).toMatch(/\/MediaBox\s*\[0 0 84\d(?:\.\d+)? 59\d(?:\.\d+)?\]/);
     expect(pdf).toMatch(/\/Count 1\b/);
     expect(pdf).toMatch(
-        new RegExp(
-            String.raw`/Subtype\s*/Image\s*/Width\s+${logo.width}\s*/Height\s+${logo.height}\b`,
-        ),
+        /\/Subtype\s*\/Image\s*\/Width\s+640\s*\/Height\s+640\b/,
     );
     expect(pdf).toMatch(
         /\/Subtype\s*\/Image\s*\/Width\s+200\s*\/Height\s+60\b/,

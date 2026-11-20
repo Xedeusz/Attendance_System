@@ -38,20 +38,20 @@
                     <a class="icon-button" aria-label="Next month" href="{{ route('employee.work-calendar', ['month' => $month->addMonth()->format('Y-m')]) }}"><x-icon name="chevron" /></a>
                 </nav>
             </header>
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-3 py-3 sm:px-5">
+            <div class="calendar-tools">
                 <ul class="flex flex-wrap gap-1.5" aria-label="Calendar legend">
                     @foreach($legend as [$label, $icon, $tone])
                         <li class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold {{ $tone }}"><x-icon :name="$icon" class="size-3.5!" />{{ $label }}</li>
                     @endforeach
                 </ul>
-                <div class="flex flex-wrap items-center gap-3">
+                <div class="calendar-controls">
                     <form method="GET" class="flex flex-wrap items-center gap-2">
                         <label class="sr-only" for="work-month">Calendar month</label>
                         <input class="field w-auto!" id="work-month" name="month" type="month" value="{{ $month->format('Y-m') }}">
                         <button type="submit" class="text-link">Go to month</button>
                     </form>
                     @if($dates)
-                        <details>
+                        <details data-preserve-open>
                             <summary class="text-link cursor-pointer">Filters</summary>
                             <fieldset class="mt-2 flex flex-wrap gap-3 text-sm">
                                 <legend class="sr-only">Visible calendar events</legend>

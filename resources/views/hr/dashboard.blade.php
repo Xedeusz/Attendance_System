@@ -1,10 +1,9 @@
 <x-layouts.app title="HR Dashboard">
 <div class="workforce-dashboard">
     <header class="workforce-header">
-        <div><p class="workforce-eyebrow">People &amp; operations</p><h1>Workforce Overview</h1><p>Monitor employees, branches, and attendance across LIMCOMA.</p></div>
+        <div><h1>Workforce Overview</h1><p>Monitor employees, branches, and attendance across LIMCOMA.</p></div>
         <div class="workforce-header-tools"><p class="workforce-date"><x-icon name="calendar" /><time datetime="{{ $businessDate->toIso8601String() }}">{{ $businessDate->format('D, M j, Y') }}</time><span>{{ config('attendance.timezone') }}</span></p><div class="workforce-actions"><x-button :href="route('hr.attendance.index')" variant="secondary">Monitor attendance</x-button><x-button :href="route('hr.employees.create')"><x-icon name="plus" /> Register employee</x-button></div></div>
     </header>
-    <section class="card"><div class="card-heading"><h2>Leave &amp; correction queue</h2><a class="text-link" href="{{ route('hr.leave.index') }}">Monitor leave</a></div><dl class="operations-summary card-body">@foreach($leaveStats as $label=>$count)<div><dt>{{ $label }}</dt><dd>{{ $count }}</dd></div>@endforeach</dl><div class="card-body"><a class="text-link" href="{{ route('hr.corrections.index') }}">Review attendance corrections</a></div></section>
     <section class="workforce-kpis" aria-label="Company overview">
         @foreach([
             ['Total employees', 'users', 'hr.employees.index', 'Active employee accounts: '.$stats['Active employee accounts']],
@@ -15,6 +14,7 @@
             <article class="workforce-kpi" data-metric="{{ $label }}"><div class="workforce-kpi-top"><h2>{{ $label }}</h2><span class="workforce-icon"><x-icon :name="$icon" /></span></div><strong>{{ number_format($stats[$label]) }}</strong><p>{{ $context }}</p><a href="{{ route($route, $label === 'Pending account activations' ? ['account_status' => 'pending_activation'] : []) }}" aria-label="View {{ $label }}"><x-icon name="arrow" /></a></article>
         @endforeach
     </section>
+    <div class="workforce-daily">
     <section class="workforce-panel workforce-attendance" aria-labelledby="today-heading">
         <div class="workforce-panel-heading"><div><p class="workforce-eyebrow">Daily operations</p><h2 id="today-heading">Today's Attendance</h2></div><span class="workforce-period">{{ $businessDate->format('M j') }} · {{ config('attendance.timezone') }}</span></div>
         <div class="workforce-attendance-primary">
@@ -30,6 +30,21 @@
         <dl class="workforce-attendance-secondary" aria-label="Attendance and work obligations">@foreach($dailyPolicyStats as $label => $count)<div data-metric="{{ $label }}"><dt>{{ $label }}</dt><dd>{{ number_format($count) }}</dd></div>@endforeach</dl>
         <p class="workforce-note">Attendance and work obligation categories can overlap. Daily working-hour totals combine accepted sessions for each employee. Punch totals include location-validated and approved exceptions. Open and review counts cover all dates; rejected submissions are an all-time total.</p>
     </section>
+    <section class="workforce-panel workforce-queue" aria-labelledby="workforce-queue-heading">
+        <div class="workforce-panel-heading">
+            <h2 id="workforce-queue-heading">Leave &amp; correction queue</h2>
+        </div>
+        <dl class="workforce-queue-counts">
+            @foreach($leaveStats as $label => $count)
+                <div><dt>{{ $label }}</dt><dd>{{ number_format($count) }}</dd></div>
+            @endforeach
+        </dl>
+        <div class="workforce-queue-actions">
+            <a class="text-link" href="{{ route('hr.leave.index') }}">Monitor leave <x-icon name="arrow" /></a>
+            <a class="text-link" href="{{ route('hr.corrections.index') }}">Review attendance corrections <x-icon name="arrow" /></a>
+        </div>
+    </section>
+    </div>
     <div class="workforce-insights">
         <section class="workforce-panel" aria-labelledby="activity-heading">
             @php

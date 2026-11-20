@@ -268,7 +268,7 @@ export function initializeNotifications() {
         const customTitle = form.dataset.confirmTitle;
         const inactive =
             form.elements.namedItem("status")?.value === "inactive" &&
-            originalStatuses.get(form) !== "inactive" &&
+            (form.dataset.originalStatus ?? originalStatuses.get(form)) !== "inactive" &&
             form.querySelector('[name="confirmation"]');
         const review =
             form.querySelector('[name="decision"]') &&

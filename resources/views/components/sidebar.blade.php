@@ -18,9 +18,9 @@
         ],
     };
 @endphp
-<aside class="sidebar" :class="{ 'is-open': mobileOpen }" id="workspace-navigation" aria-label="Workspace navigation" x-bind:inert="!mobileOpen &amp;&amp; !(media &amp;&amp; media.matches)" x-trap.inert="mobileOpen">
-<div class="sidebar-brand-row"><x-brand/><button type="button" class="icon-button mobile-close" @click="mobileOpen = false" aria-label="Close navigation"><x-icon name="close"/></button></div>
-<nav aria-label="Main">@foreach($groups as $group=>$items)<div class="nav-group"><p class="nav-label">{{ $group }}</p>
+<aside class="sidebar" :class="{ 'is-open': mobileOpen }" id="workspace-navigation" aria-label="Workspace navigation" x-bind:inert="!mobileOpen &amp;&amp; !(media &amp;&amp; media.matches)" x-trap.inert.noscroll.noreturn="mobileOpen" :role="mobileOpen ? 'dialog' : null" :aria-modal="mobileOpen ? 'true' : null">
+<div class="sidebar-brand-row"><x-brand/><button type="button" class="icon-button mobile-close" @click="closeNavigation()" aria-label="Close navigation"><x-icon name="close"/></button></div>
+<nav class="sidebar-navigation" aria-label="Main">@foreach($groups as $group=>$items)<div class="nav-group"><p class="nav-label">{{ $group }}</p>
 @foreach($items as $name=>[$label,$icon])
 @php
 $active = match($name) {
@@ -34,6 +34,6 @@ $active = match($name) {
 default=>request()->routeIs(str_ends_with($name,'.index') ? substr($name,0,-6).'.*' : $name),
 };
 @endphp
-<a class="nav-link {{ $active ? 'active' : '' }}" href="{{ route($name) }}" title="{{ $label }}" @if($active) aria-current="page" @endif><x-icon :name="$icon"/><span class="nav-text">{{ $label }}</span></a>
+<a class="nav-link {{ $active ? 'active' : '' }}" href="{{ route($name) }}" aria-label="{{ $label }}" title="{{ $label }}" @if($active) aria-current="page" @endif><x-icon :name="$icon"/><span class="nav-text">{{ $label }}</span></a>
 @endforeach</div>@endforeach</nav>
-<div class="sidebar-bottom"><button type="button" class="nav-link logout" title="Sign out" @click="$dispatch('open-modal', 'logout')"><x-icon name="logout"/><span class="nav-text">Sign out</span></button></div></aside>
+<div class="sidebar-bottom"><button type="button" class="nav-link logout" aria-label="Sign out" title="Sign out" @click="closeNavigation(); $nextTick(() => $dispatch('open-modal', 'logout'))"><x-icon name="logout"/><span class="nav-text">Sign out</span></button></div></aside>

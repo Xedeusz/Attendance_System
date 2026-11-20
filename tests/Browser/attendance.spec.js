@@ -72,6 +72,7 @@ async function installMedia(page) {
             return id;
         };
         navigator.geolocation.clearWatch = (id) => window.qaWatchers.delete(id);
+        if (!navigator.mediaDevices) return;
         navigator.mediaDevices.enumerateDevices = async () => {
             if (window.qaEnumerationDenied)
                 throw new DOMException("Cannot enumerate", "NotAllowedError");
@@ -109,6 +110,37 @@ async function installMedia(page) {
         };
     });
 }
+
+test("a delayed camera grant is released after cancelling and starting another capture", async ({ page }) => {
+    await installMedia(page);
+    await login(page, employee);
+    await page.goto("/employee/attendance");
+    if (!(await page.evaluate(() => navigator.mediaDevices?.getUserMedia !== undefined))) {
+        await page.getByRole("button", { name: "Time In", exact: true }).click();
+        await page.getByRole("button", { name: "Start live camera" }).click();
+        await expect(page.getByText("Camera access requires HTTPS or localhost and a supported browser.", { exact: true })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Capture Photo", exact: true })).toBeHidden();
+        return;
+    }
+    await page.evaluate(() => {
+        const acquire = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+        navigator.mediaDevices.getUserMedia = async (...args) => {
+            await new Promise((resolve) => { window.qaGrantCamera = resolve; });
+            return acquire(...args);
+        };
+    });
+    const timeIn = page.getByRole("button", { name: "Time In", exact: true });
+    const startCamera = page.getByRole("button", { name: "Start live camera" });
+    await timeIn.click();
+    await startCamera.click();
+    await expect(startCamera).toBeDisabled();
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await timeIn.click();
+    await expect(startCamera).toBeEnabled();
+    await page.evaluate(() => window.qaGrantCamera());
+    await expect.poll(() => page.evaluate(() => window.qaTracks.map((track) => track.readyState))).toEqual(["ended"]);
+    await expect(page.getByRole("button", { name: "Capture Photo", exact: true })).toBeHidden();
+});
 
 test("live controls, permissions, retake, switching, cleanup and real MariaDB attendance", async ({
     page,

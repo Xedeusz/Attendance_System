@@ -1,5 +1,11 @@
 import Alpine from "alpinejs";
-import { notify, initializeNotifications } from "./notifications";
+function notifyActivationError(status) {
+    import("./notifications")
+        .then(({ notify }) => notify.ajaxError(status))
+        .catch(() => {
+            // The activation form already displays the error inline.
+        });
+}
 
 window.Alpine = Alpine;
 Alpine.data("accountActivation", () => ({
@@ -56,13 +62,13 @@ Alpine.data("accountActivation", () => ({
                         .flat()
                         .join(" ") ||
                     "Activation could not be completed. Wait and try again, or contact HR.";
-                notify.ajaxError(response.status);
+                notifyActivationError(response.status);
                 return;
             }
             this.token = "";
             window.location.replace(result.redirect);
         } catch {
-            notify.ajaxError();
+            notifyActivationError();
             this.error =
                 "The request could not be completed. Refresh the original invitation link and try again.";
         } finally {
@@ -71,4 +77,14 @@ Alpine.data("accountActivation", () => ({
     },
 }));
 Alpine.start();
-initializeNotifications();
+
+if (document.querySelector("[data-notifications]")) {
+    import("./notifications")
+        .then(({ initializeNotifications }) => {
+            initializeNotifications();
+            document.querySelector("[data-notification-fallback]")?.remove();
+        })
+        .catch(() => {
+            // Server-rendered feedback remains visible if the module fails.
+        });
+}

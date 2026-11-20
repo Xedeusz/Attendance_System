@@ -27,14 +27,11 @@
     @endphp
 
     <div class="@container/workday">
-        <div class="mb-6 grid gap-4 @min-[43rem]/workday:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] @min-[43rem]/workday:gap-5">
-            <x-employee-identity-card :employee="$employee" :user="$user" />
-
+        <div class="mb-6 grid items-start gap-4 @min-[43rem]/workday:grid-cols-[minmax(0,1.22fr)_minmax(0,1fr)] @min-[43rem]/workday:gap-5">
             <section class="card workday-panel flex min-w-0 flex-col" aria-labelledby="workday-attendance-heading">
                 <header class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 px-4 py-4 sm:px-5">
                     <div class="min-w-0">
                         <h2 id="workday-attendance-heading" class="text-base font-bold text-(--limcoma-purple)">My Attendance</h2>
-                        <p class="mt-1 text-xs text-(--text-secondary)">Manage your workday attendance.</p>
                     </div>
                     <x-badge :tone="$statusTone" class="workday-status gap-1.5">
                         <x-icon :name="$statusIcon" />
@@ -72,6 +69,16 @@
                         </dl>
                     @endif
 
+                    <div class="grid grid-cols-1 gap-2.5 @min-[23rem]/attendance:flex @min-[23rem]/attendance:flex-wrap">
+                        @if($employee)
+                            <x-button :href="route('employee.attendance')" class="justify-center"><x-icon name="clock" />Open attendance</x-button>
+                            <x-button :href="route('employee.attendance.history')" variant="secondary" class="justify-center"><x-icon name="calendar" />Attendance history</x-button>
+                        @else
+                            <x-button disabled>Time In</x-button>
+                            <x-button disabled variant="secondary">Time Out</x-button>
+                        @endif
+                    </div>
+
                     @if($displayPolicy)
                         <x-attendance-computation :calculation="$todayCalculation" :policy="$displayPolicy" :expected="$expectedToday" compact />
                     @endif
@@ -83,17 +90,9 @@
                     @endif
                     <p class="text-sm leading-relaxed text-slate-600">{{ $attendanceMessage }}</p>
 
-                    <div class="mt-auto grid grid-cols-1 gap-2.5 @min-[23rem]/attendance:flex @min-[23rem]/attendance:flex-wrap">
-                        @if($employee)
-                            <x-button :href="route('employee.attendance')" class="justify-center"><x-icon name="clock" />Open attendance</x-button>
-                            <x-button :href="route('employee.attendance.history')" variant="secondary" class="justify-center"><x-icon name="calendar" />Attendance history</x-button>
-                        @else
-                            <x-button disabled>Time In</x-button>
-                            <x-button disabled variant="secondary">Time Out</x-button>
-                        @endif
-                    </div>
                 </div>
             </section>
+            <x-employee-identity-card :employee="$employee" :user="$user" />
         </div>
     </div>
 

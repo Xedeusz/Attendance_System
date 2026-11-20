@@ -82,8 +82,8 @@
                     </div>
                 </div>
 
-                <fieldset class="my-4 border-t border-slate-300 pt-4">
-                    <legend class="sr-only">Leave type</legend>
+                <fieldset class="record-fieldset my-4 pb-4">
+                    <legend>Leave type</legend>
                     <div class="flex flex-wrap gap-x-6 gap-y-3">
                         @foreach($leaveLabels as $category => $label)
                             <label class="inline-flex cursor-pointer items-center gap-2 font-semibold has-disabled:cursor-default has-disabled:text-slate-500">
@@ -121,7 +121,8 @@
                 @error('reason')<p class="field-error">{{ $message }}</p>@enderror
 
                 <div class="mt-4 max-w-md" x-show="leaveType?.documentRequired || @js($errors->has('supporting_document'))" x-cloak>
-                    <x-input name="supporting_document" label="Supporting Document" type="file" accept=".pdf,.jpg,.jpeg,.png" x-bind:required="!!leaveType?.documentRequired" x-bind:disabled="!leaveType?.documentRequired" />
+                    <x-input name="supporting_document" label="Supporting Document" type="file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="leave-document-formats" x-bind:required="!!leaveType?.documentRequired" x-bind:disabled="!leaveType?.documentRequired" />
+                    <p id="leave-document-formats" class="small muted">Accepted formats: PDF, JPEG, and PNG.</p>
                     <p class="small muted">PDF, JPEG or PNG, up to {{ number_format(config('leave.document_max_kilobytes') / 1024, 1) }} MB.</p>
                 </div>
             </div>
