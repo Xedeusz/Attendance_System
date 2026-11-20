@@ -872,6 +872,32 @@ select:focus {
     font-weight: 700;
     flex-shrink: 0;
 }
+.profile-photo-editor {
+    max-width: 22rem;
+}
+.profile-photo-canvas {
+    display: block;
+    width: min(100%, 320px);
+    height: auto;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--border-color);
+    cursor: grab;
+    touch-action: none;
+}
+.profile-photo-canvas:active {
+    cursor: grabbing;
+}
+.profile-photo-zoom {
+    display: grid;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+.profile-photo-zoom input {
+    width: min(100%, 320px);
+}
 .user-trigger {
     display: flex;
     align-items: center;

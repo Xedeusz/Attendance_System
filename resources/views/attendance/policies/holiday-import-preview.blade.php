@@ -3,10 +3,13 @@
         <x-button variant="secondary" :href="route('hr.holiday-import.index')">Start a new preview</x-button>
     </x-page-header>
     <x-form-errors />
-    <form method="POST" action="{{ route('hr.holiday-import.store') }}" class="card">
+    <form method="POST" action="{{ route('hr.holiday-import.store') }}" class="card" x-data='{ selectAll() { this.$root.querySelectorAll("input[name=\"selected[]\"]:not(:disabled)").forEach((checkbox) => checkbox.checked = true); } }'>
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
-        <p class="card-body"><a class="text-link" href="{{ $data['source_url'] }}">Open cited government declaration</a></p>
+        <div class="card-body flex flex-wrap items-center justify-between gap-3">
+            <a class="text-link" href="{{ $data['source_url'] }}">Open cited government declaration</a>
+            <x-button type="button" variant="secondary" @click="selectAll()">Select all</x-button>
+        </div>
         <x-table :columns="['Select', 'Date', 'Name', 'Classification', 'Work expected', 'Review']" caption="Proposed holiday imports">
             @foreach($rows as $index => $row)
                 <tr>

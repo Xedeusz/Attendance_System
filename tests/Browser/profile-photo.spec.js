@@ -113,19 +113,24 @@ test("profile preview, save, cross-session avatars, replacement, removal and res
         await page
             .locator("input[type=file]")
             .setInputFiles("resources/images/limcoma logo.jpg");
-        await expect(
-            page.getByAltText("Selected profile photo preview"),
-        ).toBeVisible();
+        await expect(page.getByLabel("Profile photo crop area")).toBeVisible();
         await expect(
             page.locator(".topbar .user-trigger .avatar img"),
         ).toBeHidden();
-        await page.getByRole("button", { name: "Cancel", exact: true }).click();
+        await page
+            .getByRole("button", { name: "Use this crop", exact: true })
+            .click();
         await expect(
-            page.getByAltText("Selected profile photo preview"),
-        ).toBeHidden();
+            page.getByAltText("Cropped profile photo preview"),
+        ).toBeVisible();
+        await page.getByRole("button", { name: "Cancel", exact: true }).click();
+        await expect(page.getByLabel("Profile photo crop area")).toBeHidden();
         await page
             .locator("input[type=file]")
             .setInputFiles("resources/images/limcoma logo.jpg");
+        await page
+            .getByRole("button", { name: "Use this crop", exact: true })
+            .click();
         await page
             .getByRole("button", { name: "Save Photo", exact: true })
             .click();
@@ -148,6 +153,9 @@ test("profile preview, save, cross-session avatars, replacement, removal and res
         await page
             .locator("input[type=file]")
             .setInputFiles("resources/images/limcoma logo.jpg");
+        await page
+            .getByRole("button", { name: "Use this crop", exact: true })
+            .click();
         await page
             .getByRole("button", { name: "Save Photo", exact: true })
             .click();

@@ -250,7 +250,9 @@ class AttendancePolicyTest extends TestCase
             'csv' => UploadedFile::fake()->createWithContent('holidays.csv', "date,name,type,work_expected\n2026-11-19,Sample holiday,regular,0\n2026-11-20,Sample working day,special_working,1\n"),
         ];
         $this->post(route('hr.holiday-import.preview'), $data)->assertSessionHasErrors('verified');
-        $preview = $this->post(route('hr.holiday-import.preview'), [...$data, 'verified' => 1])->assertOk()->assertSeeText('Sample working day');
+        $preview = $this->post(route('hr.holiday-import.preview'), [...$data, 'verified' => 1])
+            ->assertOk()
+            ->assertSeeText(['Sample working day', 'Select all']);
         $payload = ['token' => $preview->viewData('token'), 'selected' => [0], 'confirm' => 1];
 
         $this->post(route('hr.holiday-import.store'), $payload)->assertRedirectToRoute('hr.holiday-import.index');
