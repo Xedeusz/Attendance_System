@@ -156,6 +156,11 @@ class AttendancePolicyResolver
         return $this->classify($policy);
     }
 
+    public function obligationWithoutLeave(array $policy): string
+    {
+        return $this->classify([...$policy, 'full_leave' => false])['obligation'];
+    }
+
     private function classify(array $policy): array
     {
         $schedule = $policy['schedule'];

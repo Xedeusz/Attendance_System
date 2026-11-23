@@ -4,9 +4,9 @@
         $actor->isHr() => [
             'Overview' => ['hr.dashboard' => ['Dashboard', 'grid']],
             'Workforce' => ['hr.employees.index'=>['Employee Management','users'],'hr.supervisors.index'=>['Supervisors','users'],'hr.branches.index'=>['Branch Management','building'],'hr.departments.index'=>['Departments','building']],
-            'Attendance management' => ['attendance'=>['Attendance Records','clock'],'hr.schedules.index'=>['Schedules & Policies','clock'],'hr.holidays.index'=>['Holiday Management','calendar'],'hr.corrections.index'=>['Attendance Corrections','file']],
+            'Attendance management' => ['attendance'=>['Attendance Records','clock'],'hr.schedules.index'=>['Schedules & Policies','clock'],'hr.holidays.index'=>['Holiday Management','calendar'],'hr.corrections.index'=>['Attendance Corrections','file'],'hr.attendance-reports.index'=>['Attendance Reports','chart']],
             'Leave' => ['hr.leave.index'=>['Leave Management','calendar'],'hr.leave.calendar.index'=>['Leave Calendar','calendar']],
-            'Workspace' => ['reports'=>['Reports and Analytics','chart'],'settings'=>['Settings','settings']],
+            'Workspace' => ['settings'=>['Settings','settings']],
         ],
         $actor->isSupervisor() => [
             'Leave Management' => ['supervisor.leave.index'=>['Leave Overview','grid'],'supervisor.leave.pending'=>['Pending Leave Requests','calendar'],'supervisor.leave.history'=>['Leave History','file'],'supervisor.leave.calendar.index'=>['Team Leave Calendar','calendar']],

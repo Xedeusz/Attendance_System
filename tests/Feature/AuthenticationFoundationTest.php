@@ -21,6 +21,15 @@ class AuthenticationFoundationTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
+    public function test_login_assets_use_the_current_request_host(): void
+    {
+        $response = $this->get('https://current-tunnel.example.test/login');
+
+        $response->assertOk()
+            ->assertSee('https://current-tunnel.example.test/build/assets/', false)
+            ->assertDontSee(config('app.url').'/build/assets/', false);
+    }
+
     #[DataProvider('protectedPages')]
     public function test_workspace_pages_require_login(string $path): void
     {

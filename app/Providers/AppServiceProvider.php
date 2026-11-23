@@ -28,7 +28,6 @@ class AppServiceProvider extends ServiceProvider
         Mail::extend('private_local', fn () => new PrivateLocalTransport);
         Gate::define('manage-privacy-notices', fn (User $user): bool => config('privacy.enabled') && $user->isHr() && in_array($user->id, config('privacy.publisher_ids'), true));
         $appUrl = config('app.url');
-        URL::forceRootUrl($appUrl);
         if (parse_url($appUrl, PHP_URL_SCHEME) === 'https') {
             URL::forceScheme('https');
         }

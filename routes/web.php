@@ -69,6 +69,11 @@ Route::middleware(['auth', 'auth.session', RequirePrivacyAcknowledgement::class]
             Route::post('/{notice}/publish', [HR\PrivacyNoticeController::class, 'publish'])->whereNumber('notice')->name('publish');
             Route::post('/{notice}/archive', [HR\PrivacyNoticeController::class, 'archive'])->whereNumber('notice')->name('archive');
         });
+        Route::get('/attendance-reports', [HR\AttendanceReportController::class, 'index'])->name('attendance-reports.index');
+        Route::get('/attendance-reports/export', [HR\AttendanceReportController::class, 'export'])->name('attendance-reports.export');
+        Route::get('/attendance-reports/{employee}/{date}', [HR\AttendanceReportController::class, 'show'])
+            ->whereNumber('employee')->where('date', '[0-9]{4}-[0-9]{2}-[0-9]{2}')->name('attendance-reports.show');
+
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::prefix('attendance')->group(function () {
             Route::resource('schedules', HR\WorkScheduleController::class)->except(['show', 'destroy']);
@@ -103,7 +108,7 @@ Route::middleware(['auth', 'auth.session', RequirePrivacyAcknowledgement::class]
     foreach (['employees', 'branches', 'departments'] as $module) {
         Route::get('/'.$module, fn () => redirect()->route('hr.'.$module.'.index'))->middleware('hr')->name($module);
     }
-    Route::get('/reports', [WorkspaceController::class, 'module'])->defaults('module', 'reports')->middleware('hr')->name('reports');
+    Route::get('/reports', fn () => redirect()->route('hr.attendance-reports.index', request()->query()))->middleware('hr')->name('reports');
 });
 
 require __DIR__.'/phase5.php';
