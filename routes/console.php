@@ -14,3 +14,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('leave:refresh-routing')->hourly()->withoutOverlapping();
 Schedule::command('leave:purge-documents')->daily()->withoutOverlapping();
+Schedule::command('leave:allocate-annual')->yearlyOn(1, 1, '00:10')->timezone(config('attendance.timezone'))->withoutOverlapping();

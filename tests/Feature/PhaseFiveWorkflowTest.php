@@ -145,7 +145,7 @@ class PhaseFiveWorkflowTest extends TestCase
         $this->decision($leave, ['chargeable_days' => 2.5])->assertConflict();
         $this->assertSame(1, LeaveBalanceTransaction::where('leave_request_id', $leave->id)->count());
         $this->assertSame(1, $leave->reviews()->whereIn('action', ['approved', 'rejected'])->count());
-        $this->assertTrue($employee->user->notifications()->where('data->title', 'Your leave application was approved and signed. Your official form is available.')->exists());
+        $this->assertTrue($employee->user->notifications()->where('data->title', 'Your leave application was approved and signed. Remaining balance: 4.5 days.')->exists());
         $this->actingAs($employee->user)->post('/employee/leave/'.$leave->id.'/cancel', ['reason' => 'Please cancel this approved application.', 'confirmation' => 1])->assertConflict();
     }
 
@@ -156,11 +156,11 @@ class PhaseFiveWorkflowTest extends TestCase
         $supervisor = $this->supervisor();
         $supervisor->forceFill(['supervisor_department_id' => $employee->department_id])->save();
         $this->assign($employee, $supervisor);
+        $balance = EmployeeLeaveBalance::factory()->create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'available_days' => 7]);
         $leave = $this->apply($employee, $type);
         $this->actingAs($supervisor);
         $this->decision($leave)->assertUnprocessable()->assertJsonValidationErrors('chargeable_days');
-        $this->decision($leave, ['chargeable_days' => 3])->assertUnprocessable()->assertJsonValidationErrors('chargeable_days');
-        $balance = EmployeeLeaveBalance::factory()->create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'available_days' => 1]);
+        $balance->update(['available_days' => 1]);
         $this->decision($leave, ['chargeable_days' => 3])->assertUnprocessable();
         $this->assertSame('pending_supervisor_approval', $leave->fresh()->status);
         $this->assertSame('1.00', $balance->fresh()->available_days);

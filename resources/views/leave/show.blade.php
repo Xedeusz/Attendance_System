@@ -7,7 +7,7 @@
         $branch = $fields ? $fields['branch'] : $leave->employee->currentAssignment?->branch?->branch_name;
         $typeName = $leave->type_snapshot['name'];
         $dates = $leave->start_date->format('M j, Y').' – '.$leave->end_date->format('M j, Y');
-        $days = $leave->requested_duration.($leave->half_day ? ' · '.strtoupper($leave->half_day) : '');
+        $days = \App\Support\LeaveDays::format($leave->requested_duration).($leave->half_day ? ' · '.strtoupper($leave->half_day) : '');
         $pending = in_array($leave->status, \App\Models\LeaveRequest::PENDING, true);
         $stackPendingCards = $pending && $scope !== 'supervisor';
         $official = $leave->approvalDocument;
@@ -64,7 +64,7 @@
                             </div>
                         </dl>
                         @if($leave->charged_duration !== null && $leave->type_snapshot['affects_balance'])
-                            <p class="small mt-3">Final confirmed charge: {{ $leave->charged_duration }} days.</p>
+                            <p class="small mt-3">Final confirmed charge: {{ \App\Support\LeaveDays::withUnit($leave->charged_duration) }}.</p>
                         @endif
                     </div>
                 </section>
@@ -168,7 +168,24 @@
 
         <div class="grid items-start gap-4 has-[>*]:mt-4 lg:@min-[40rem]/leave-details:grid-cols-2">
             @if($leave->type_snapshot['affects_balance'])
-                <section class="card"><div class="card-heading"><h2>Applicable balance</h2></div><div class="card-body"><p>{{ $balance ? $balance->available_days.' days available · '.$balance->policy_period : 'No balance configured for this type/year.' }}</p></div></section>
+                <section class="card"><div class="card-heading"><h2>Applicable leave credits</h2></div><div class="card-body">
+                    @if($eligibilityVerification)<p class="small mb-3"><strong>HR eligibility:</strong> Verified · {{ $eligibilityVerification->reference }} · {{ \App\Support\LeaveDays::withUnit($eligibilityVerification->entitlement?->granted_days) }}</p>@endif
+                    @if($creditSummary)
+                        <dl class="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                            <div><dt class="muted">Entitled</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($creditSummary['entitled']) }}</dd></div>
+                            <div><dt class="muted">Approved</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($creditSummary['approved']) }}</dd></div>
+                            <div><dt class="muted">Other pending</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($creditSummary['pending']) }}</dd></div>
+                            <div><dt class="muted">Available</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($creditSummary['available']) }}</dd></div>
+                            @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
+                                <div><dt class="muted">Requested</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($leave->reserved_duration ?? $leave->requested_duration) }}</dd></div>
+                                <div><dt class="muted">Projected after approval</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format(max(0, $creditSummary['available'] - (float) ($leave->reserved_duration ?? $leave->requested_duration))) }}</dd></div>
+                            @endif
+                        </dl>
+                        @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')<p class="small muted mt-3">Available excludes other pending reservations; this request reserves {{ \App\Support\LeaveDays::withUnit($leave->reserved_duration ?? $leave->requested_duration) }} until a decision.</p>@endif
+                    @else
+                        <p>No balance configured for this type and policy year.</p>
+                    @endif
+                </div></section>
             @endif
             @if($scope === 'supervisor' && $leave->status === 'pending_supervisor_approval')
                 <section class="card col-span-full min-w-0" key="leave-decision-{{ $leave->id }}">

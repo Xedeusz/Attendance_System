@@ -40,7 +40,7 @@
                         <x-badge tone="teal">Approval status: Approved</x-badge>
                         <x-leave-period :leave="$leave" />
                     </div>
-                    <p>{{ $leave->start_date->format('M j, Y') }}–{{ $leave->end_date->format('M j, Y') }} · Number of approved leave days: {{ $leave->requested_duration }}{{ $leave->half_day ? ' ('.strtoupper($leave->half_day).')' : '' }}</p>
+                    <p>{{ $leave->start_date->format('M j, Y') }}–{{ $leave->end_date->format('M j, Y') }} · Number of approved leave days: {{ \App\Support\LeaveDays::format($leave->requested_duration) }}{{ $leave->half_day ? ' ('.strtoupper($leave->half_day).')' : '' }}</p>
                 </div>
             @endforeach
         </section>

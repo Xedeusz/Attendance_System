@@ -28,6 +28,7 @@ class EmployeeRequest extends FormRequest
             'employee_number' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_-]+$/', Rule::unique('employees')->ignore($employee)],
             'first_name' => ['required', 'string', 'max:100'], 'last_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'], 'suffix' => ['nullable', 'string', 'max:20'],
+            'sex' => ['required', Rule::in(['male', 'female'])],
             'work_email' => ['required', 'email', 'max:254', Rule::unique('users', 'email')->ignore($employee?->user_id)],
             'contact_number' => ['nullable', 'string', 'max:30', 'regex:/^\+?[0-9 ()-]{7,30}$/'],
             'branch_id' => ['required', 'integer', Rule::exists('branches', 'id')->where('status', 'active')],
@@ -35,6 +36,14 @@ class EmployeeRequest extends FormRequest
             'position_title' => ['required', 'string', 'max:150'], 'date_hired' => ['required', 'date_format:Y-m-d'],
             'employment_status' => ['required', Rule::in(['active', 'inactive'])],
             'role' => ['prohibited'], 'role_id' => ['prohibited'], 'user_id' => ['prohibited'], 'account_status' => ['prohibited'], 'password' => ['prohibited'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'sex.required' => 'Please select the employee\'s sex.',
+            'sex.in' => 'Please select Male or Female.',
         ];
     }
 }

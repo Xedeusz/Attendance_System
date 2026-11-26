@@ -10,6 +10,7 @@
 <div class="card-body form-grid">
 <x-input name="first_name" label="First name" :value="$employee->first_name" required maxlength="100" /><x-input name="last_name" label="Last name" :value="$employee->last_name" required maxlength="100" />
 <x-input name="middle_name" label="Middle name (optional)" :value="$employee->middle_name" maxlength="100" /><x-input name="suffix" label="Suffix (optional)" :value="$employee->suffix" maxlength="20" />
+<x-select name="sex" label="Sex" :options="['male' => 'Male', 'female' => 'Female']" :value="$employee->sex" placeholder="Select Sex" required />
 <x-input name="contact_number" label="Contact number (optional)" type="tel" :value="$employee->contact_number" maxlength="30" />
 </div><div class="card-heading"><h2>Employment information</h2></div><div class="card-body form-grid">
 <x-select name="branch_id" label="Assigned primary branch" :options="$branches->pluck('branch_name', 'id')" :value="$employee->currentAssignment?->branch_id" required />

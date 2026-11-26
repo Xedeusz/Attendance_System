@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\LeaveEntitlement;
+use App\Models\SpecialLeaveEligibilityRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -42,6 +44,7 @@ class EmployeeService
                 throw ValidationException::withMessages(['work_email' => 'HR account email changes are not permitted through employee editing.']);
             }
             $oldBranchId = $employee->currentAssignment?->branch_id;
+            $previousSex = $employee->sex;
             $changed = array_keys(array_diff_assoc(collect($data)->except(['work_email', 'branch_id'])->all(), $employee->only(array_keys($data))));
             $employee->fill(collect($data)->except(['work_email', 'branch_id'])->all())->save();
             $user->fill(['name' => $employee->full_name, 'email' => $data['work_email']])->save();
@@ -60,6 +63,23 @@ class EmployeeService
                 $this->accounts->deactivate($user);
             }
             $this->audit->record($new ? 'employee.created' : 'employee.updated', $employee, ['changed_fields' => $changed]);
+            if (! $new && in_array('sex', $changed, true)) {
+                $conflictingRequestIds = SpecialLeaveEligibilityRequest::query()
+                    ->whereBelongsTo($employee)
+                    ->whereIn('status', ['pending_hr_review', 'additional_information_required', 'verified'])
+                    ->pluck('id');
+                $conflictingEntitlementIds = LeaveEntitlement::query()
+                    ->whereBelongsTo($employee)
+                    ->where('eligibility_status', 'verified')
+                    ->whereDate('period_end', '>=', now(config('attendance.timezone'))->toDateString())
+                    ->pluck('id');
+                $this->audit->record('employee.sex_changed', $employee, [
+                    'previous_sex' => $previousSex,
+                    'sex' => $employee->sex,
+                    'eligibility_request_ids_requiring_review' => $conflictingRequestIds->all(),
+                    'entitlement_ids_requiring_review' => $conflictingEntitlementIds->all(),
+                ]);
+            }
             if (! $new && in_array('department_id', $changed, true)) {
                 app(LeaveService::class)->refreshRouting($employee->id);
             }

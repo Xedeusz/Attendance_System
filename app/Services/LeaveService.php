@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Employee;
 use App\Models\EmployeeLeaveBalance;
 use App\Models\LeaveApprovalDocument;
-use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\LeaveReview;
 use App\Models\LeaveSupportingDocument;
@@ -14,6 +13,7 @@ use App\Models\Role;
 use App\Models\SupervisorAssignment;
 use App\Models\SupervisorSignature;
 use App\Models\User;
+use App\Support\LeaveDays;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -27,7 +27,7 @@ use Throwable;
 
 class LeaveService
 {
-    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private LeaveApplicationDocumentService $formDocuments, private AttendancePolicyResolver $attendancePolicy, private EssentialEmailOutbox $emails) {}
+    public function __construct(private WorkflowTransaction $transactions, private AuditService $audit, private WorkflowNotices $notices, private LeaveApplicationDocumentService $formDocuments, private AttendancePolicyResolver $attendancePolicy, private EssentialEmailOutbox $emails, private LeaveBalanceService $balances, private LeaveTypeVisibilityService $visibility) {}
 
     private function fail(string $field, string $message): never
     {
@@ -54,6 +54,10 @@ class LeaveService
                 if (! $type) {
                     $this->fail('leave_type_id', 'Choose an active leave type.');
                 }
+                if (! $type->isCanonicalApplicationType()) {
+                    $this->fail('leave_type_id', 'Choose the current '.$type->name.' option. This duplicate legacy option is unavailable for new applications.');
+                }
+                $this->visibility->assertApplicable($employee, $type);
                 if (isset($data['leave_category']) && $data['leave_category'] !== $this->formDocuments->categoryFor($type)) {
                     $this->fail('leave_type_id', 'Choose a leave type that matches the selected box.');
                 }
@@ -95,7 +99,11 @@ class LeaveService
                     'holiday_dates' => $overlaps, 'excluded_dates' => $excluded,
                     'maximum_charge' => min($duration, $span - count($excluded)),
                 ];
-                $leave = LeaveRequest::create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'start_date' => $data['start_date'], 'end_date' => $data['end_date'], 'requested_duration' => $duration, 'half_day' => $halfDay, 'reason' => $data['reason'], 'type_snapshot' => $type->only(['name', 'requires_document', 'affects_balance', 'allows_half_day', 'duration_policy']), 'form_snapshot' => $formSnapshot, 'status' => 'awaiting_supervisor_assignment', 'submitted_at' => now()]);
+                $reservation = $type->affects_balance ? (float) $formSnapshot['attendance_policy']['maximum_charge'] : 0;
+                if ($type->affects_balance) {
+                    $this->balances->reserve($employee, $type, $start->format('Y'), $reservation);
+                }
+                $leave = LeaveRequest::create(['employee_id' => $employee->id, 'leave_type_id' => $type->id, 'start_date' => $data['start_date'], 'end_date' => $data['end_date'], 'requested_duration' => $duration, 'reserved_duration' => $reservation, 'half_day' => $halfDay, 'reason' => $data['reason'], 'type_snapshot' => $type->only(['name', 'requires_document', 'affects_balance', 'allows_half_day', 'duration_policy']), 'form_snapshot' => $formSnapshot, 'status' => 'awaiting_supervisor_assignment', 'submitted_at' => now()]);
                 if ($file) {
                     $this->document($leave, $file, $storedPath);
                 }
@@ -226,16 +234,9 @@ class LeaveService
                         $this->fail('chargeable_days', 'Chargeable days must fit the saved leave duration policy and half-day rules.');
                     }
                     if ($type->affects_balance) {
-                        $balance = EmployeeLeaveBalance::where('employee_id', $leave->employee_id)->where('leave_type_id', $type->id)->where('policy_period', $leave->start_date->format('Y'))->lockForUpdate()->first();
-                        if (! $balance) {
-                            $this->fail('chargeable_days', 'No balance is configured for this employee, leave type and policy year. HR must configure it first.');
-                        }
-                        $remaining = (int) round((float) $balance->available_days * 2) - (int) round((float) $charge * 2);
-                        if ($remaining < 0) {
-                            $this->fail('chargeable_days', 'Insufficient configured leave balance.');
-                        }
-                        $balance->update(['available_days' => number_format($remaining / 2, 2, '.', '')]);
-                        LeaveBalanceTransaction::create(['employee_leave_balance_id' => $balance->id, 'leave_request_id' => $leave->id, 'authorized_by_user_id' => $fresh->id, 'transaction_type' => 'approved_debit', 'amount' => -(float) $charge, 'reason' => 'Final Supervisor approval']);
+                        $debit = $this->balances->debitApproval($leave, $fresh, (float) $charge);
+                        $metadata['balance_transaction_id'] = $debit->id;
+                        $metadata['remaining_balance'] = $debit->balance()->value('available_days');
                     }
                     $signature = SupervisorSignature::activeFor($fresh)->first();
                     if (! $signature || $signature->version !== (int) ($data['signature_version'] ?? 0)) {
@@ -259,7 +260,9 @@ class LeaveService
                 $this->emails->decision($leave, $review, $document);
                 $this->audit->record('leave.'.$data['decision'], $leave, $metadata + ['employee_id' => $leave->employee_id]);
                 $message = $data['decision'] === 'approved'
-                    ? 'Your leave application was approved and signed. Your official form is available.'
+                    ? ($leave->type_snapshot['affects_balance']
+                        ? 'Your leave application was approved and signed. Remaining balance: '.LeaveDays::withUnit($this->balances->summary($leave->employee_id, $leave->leave_type_id, $leave->start_date->format('Y'))['available']).'.'
+                        : 'Your leave application was approved and signed. Your official form is available.')
                     : 'Your leave application was rejected.';
                 $this->notices->send($leave->employee->user, 'leave', $message, route('employee.leave.show', $leave), $leave->id);
 
@@ -301,15 +304,17 @@ class LeaveService
     {
         return $this->transactions->run($actor, function (User $fresh) use ($data) {
             abort_unless($fresh->isHr(), 403);
-            $balance = EmployeeLeaveBalance::firstOrCreate(['employee_id' => $data['employee_id'], 'leave_type_id' => $data['leave_type_id'], 'policy_period' => $data['policy_period']], ['available_days' => 0]);
-            $balance = EmployeeLeaveBalance::whereKey($balance->id)->lockForUpdate()->firstOrFail();
-            $units = (int) round((float) $balance->available_days * 2) + (int) round((float) $data['amount'] * 2);
-            if ($units < 0) {
-                $this->fail('amount', 'An adjustment cannot make the available balance negative.');
-            }
-            $balance->update(['available_days' => number_format($units / 2, 2, '.', '')]);
-            LeaveBalanceTransaction::create(['employee_leave_balance_id' => $balance->id, 'authorized_by_user_id' => $fresh->id, 'transaction_type' => 'hr_adjustment', 'amount' => $data['amount'], 'reason' => $data['reason']]);
-            $this->audit->record('leave.balance_adjusted', $balance, ['amount' => $data['amount'], 'period' => $data['policy_period']]);
+            $employee = Employee::whereKey($data['employee_id'])->lockForUpdate()->firstOrFail();
+            $type = LeaveType::whereKey($data['leave_type_id'])->where('affects_balance', true)->firstOrFail();
+            $balance = $this->balances->adjust($fresh, $employee, $type, $data['policy_period'], (float) $data['amount'], $data['reason']);
+            $this->audit->record('leave.balance_adjusted', $balance, [
+                'amount' => $data['amount'],
+                'period' => $data['policy_period'],
+                'previous_days' => $balance->getAttribute('adjustment_previous_days'),
+                'resulting_days' => $balance->available_days,
+                'transaction_id' => $balance->getAttribute('adjustment_transaction_id'),
+            ]);
+            $this->notices->send($employee->user, 'leave', 'HR recorded a leave-credit adjustment. Review your updated balance and ledger.', route('employee.leave.index'), $balance->id);
 
             return $balance;
         });

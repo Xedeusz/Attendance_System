@@ -45,11 +45,11 @@ class LeaveRequest extends Model
         };
     }
 
-    protected $fillable = ['employee_id', 'leave_type_id', 'assigned_supervisor_user_id', 'start_date', 'end_date', 'requested_duration', 'charged_duration', 'half_day', 'reason', 'type_snapshot', 'form_snapshot', 'status', 'submitted_at', 'reviewed_at', 'finalized_at', 'cancelled_at'];
+    protected $fillable = ['employee_id', 'leave_type_id', 'assigned_supervisor_user_id', 'start_date', 'end_date', 'requested_duration', 'reserved_duration', 'charged_duration', 'half_day', 'reason', 'type_snapshot', 'form_snapshot', 'status', 'submitted_at', 'reviewed_at', 'finalized_at', 'cancelled_at'];
 
     protected function casts(): array
     {
-        return ['start_date' => 'date', 'end_date' => 'date', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'finalized_at' => 'datetime', 'cancelled_at' => 'datetime', 'requested_duration' => 'decimal:2', 'charged_duration' => 'decimal:2', 'reason' => 'encrypted', 'type_snapshot' => 'array', 'form_snapshot' => 'encrypted:array'];
+        return ['start_date' => 'date', 'end_date' => 'date', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime', 'finalized_at' => 'datetime', 'cancelled_at' => 'datetime', 'requested_duration' => 'decimal:2', 'reserved_duration' => 'decimal:2', 'charged_duration' => 'decimal:2', 'reason' => 'encrypted', 'type_snapshot' => 'array', 'form_snapshot' => 'encrypted:array'];
     }
 
     public function employee(): BelongsTo
@@ -85,6 +85,11 @@ class LeaveRequest extends Model
     public function approvalDocument(): HasOne
     {
         return $this->hasOne(LeaveApprovalDocument::class)->latestOfMany('version');
+    }
+
+    public function balanceTransaction(): HasOne
+    {
+        return $this->hasOne(LeaveBalanceTransaction::class);
     }
 
     public function scopeForSupervisor(Builder $query, User $actor): Builder

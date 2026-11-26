@@ -4,7 +4,7 @@
 <div class="profile-row gap-4"><span class="muted">{{ $label }}</span><span class="min-w-0 break-words">{{ $value }}</span></div>
 @endforeach
 @if($hr)
-@foreach(['Contact number' => $employee->contact_number ?? 'Not provided', 'Date hired' => $employee->date_hired?->format('M j, Y') ?? 'Not recorded', 'Assigned Supervisor' => collect($supervisors)->pluck('name')->join(', ') ?: 'Unassigned'] as $label => $value)
+@foreach(['Sex' => $employee->sex ? ucfirst($employee->sex) : 'Requires HR completion', 'Contact number' => $employee->contact_number ?? 'Not provided', 'Date hired' => $employee->date_hired?->format('M j, Y') ?? 'Not recorded', 'Assigned Supervisor' => collect($supervisors)->pluck('name')->join(', ') ?: 'Unassigned'] as $label => $value)
 <div class="profile-row gap-4"><span class="muted">{{ $label }}</span><span class="min-w-0 break-words">{{ $value }}</span></div>
 @endforeach
 @endif

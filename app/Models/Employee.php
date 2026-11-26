@@ -12,7 +12,7 @@ class Employee extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['employee_number', 'first_name', 'middle_name', 'last_name', 'suffix', 'contact_number', 'department_id', 'position_title', 'date_hired', 'employment_status'];
+    protected $fillable = ['employee_number', 'first_name', 'middle_name', 'last_name', 'suffix', 'sex', 'contact_number', 'department_id', 'position_title', 'date_hired', 'employment_status'];
 
     protected function casts(): array
     {

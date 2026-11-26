@@ -19,6 +19,7 @@ class LeaveVerificationService
         private WorkflowTransaction $transactions,
         private AuditService $audit,
         private WorkflowNotices $notices,
+        private LeaveBalanceService $balances,
     ) {}
 
     public function canView(User $user, LeaveRequest $leave): bool
@@ -57,9 +58,10 @@ class LeaveVerificationService
             abort_unless($leave->status === 'approved' && $leave->approvalDocument?->id === $document->id && ! $document->revoked_at, 409);
 
             $revokedAt = now();
+            $reversal = $this->balances->reverseApproval($leave, $fresh, $reason);
             $document->update(['revoked_at' => $revokedAt, 'revoked_by_user_id' => $fresh->id]);
             $leave->update(['status' => 'revoked']);
-            $metadata = ['document_id' => $document->id, 'version' => $document->version, 'previous_status' => 'approved', 'status' => 'revoked'];
+            $metadata = ['document_id' => $document->id, 'version' => $document->version, 'previous_status' => 'approved', 'status' => 'revoked', 'balance_transaction_id' => $reversal?->id];
             $leave->reviews()->create([
                 'reviewer_user_id' => $fresh->id, 'action' => 'revoked', 'remarks' => $reason,
                 'metadata' => $metadata, 'reviewed_at' => $revokedAt,

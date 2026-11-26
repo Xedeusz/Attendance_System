@@ -8,6 +8,7 @@ use App\Mail\EssentialNotificationMail;
 use App\Models\EssentialEmail;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Support\LeaveDays;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -173,7 +174,7 @@ class EssentialEmailDelivery
                 message: 'An employee assigned to you submitted a leave application for your final decision.',
                 action: 'Review leave application',
                 url: $this->link('supervisor.leave.show', [$leave]),
-                fields: $fields + ['Days requested' => $leave->requested_duration, 'Submitted' => $this->timestamp($leave->submitted_at), 'Status' => 'Pending Supervisor approval'],
+                fields: $fields + ['Days requested' => LeaveDays::format($leave->requested_duration), 'Submitted' => $this->timestamp($leave->submitted_at), 'Status' => 'Pending Supervisor approval'],
             );
         }
 
@@ -240,7 +241,7 @@ class EssentialEmailDelivery
             message: 'Your leave application has been approved by your Supervisor. Your official approved Leave Application Form with the Supervisor’s electronic signature is attached as a PDF.',
             action: 'View leave application',
             url: $url,
-            fields: $fields + ['Approved leave days' => $leave->requested_duration, 'Approved by' => $document->approver_name, 'Approval date' => $this->timestamp($leave->finalized_at), 'Status' => 'Approved', 'Official PDF reference' => $document->document_reference],
+            fields: $fields + ['Approved leave days' => LeaveDays::format($leave->requested_duration), 'Approved by' => $document->approver_name, 'Approval date' => $this->timestamp($leave->finalized_at), 'Status' => 'Approved', 'Official PDF reference' => $document->document_reference],
             note: 'Please keep the attached PDF for your records.',
             pdf: $pdf,
             filename: 'LIMCOMA_Approved_Leave_'.$fileReference.'.pdf',

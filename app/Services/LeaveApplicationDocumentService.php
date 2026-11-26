@@ -8,6 +8,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\SupervisorSignature;
 use App\Models\User;
+use App\Support\LeaveDays;
 use BaconQrCode\Common\ErrorCorrectionLevel;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -50,7 +51,7 @@ class LeaveApplicationDocumentService
             'type' => $leave->type_snapshot['name'],
             'filed' => $leave->submitted_at->copy()->timezone(config('attendance.timezone'))->format('M j, Y'),
             'dates' => $leave->start_date->format('M j, Y').' – '.$leave->end_date->format('M j, Y'),
-            'days' => rtrim(rtrim($leave->requested_duration, '0'), '.').($leave->half_day ? ' ('.strtoupper($leave->half_day).')' : ''),
+            'days' => LeaveDays::format($leave->requested_duration).($leave->half_day ? ' ('.strtoupper($leave->half_day).')' : ''),
             'reason' => $leave->reason,
         ]);
     }
@@ -95,7 +96,7 @@ class LeaveApplicationDocumentService
                     'qr' => base64_encode($qr),
                     'verificationUrl' => $url,
                     'version' => $version,
-                    'chargedDays' => $leave->type_snapshot['affects_balance'] ? $leave->charged_duration : null,
+                    'chargedDays' => $leave->type_snapshot['affects_balance'] && $leave->charged_duration !== null ? LeaveDays::format($leave->charged_duration) : null,
                 ],
             ])->render();
             $pdf = $this->renderer->render($html);

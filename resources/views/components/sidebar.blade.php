@@ -5,7 +5,7 @@
             'Overview' => ['hr.dashboard' => ['Dashboard', 'grid']],
             'Workforce' => ['hr.employees.index'=>['Employee Management','users'],'hr.supervisors.index'=>['Supervisors','users'],'hr.branches.index'=>['Branch Management','building'],'hr.departments.index'=>['Departments','building']],
             'Attendance management' => ['attendance'=>['Attendance Records','clock'],'hr.schedules.index'=>['Schedules & Policies','clock'],'hr.holidays.index'=>['Holiday Management','calendar'],'hr.corrections.index'=>['Attendance Corrections','file'],'hr.attendance-reports.index'=>['Attendance Reports','chart']],
-            'Leave' => ['hr.leave.index'=>['Leave Management','calendar'],'hr.leave.calendar.index'=>['Leave Calendar','calendar']],
+            'Leave' => ['hr.leave.index'=>['Leave Management','calendar'],'hr.leave.eligibility.index'=>['Eligibility Verification','file'],'hr.leave.balances'=>['Leave Credits','chart'],'hr.leave.calendar.index'=>['Leave Calendar','calendar']],
             'Workspace' => ['settings'=>['Settings','settings']],
         ],
         $actor->isSupervisor() => [
@@ -13,7 +13,7 @@
             'My account' => array_filter(['employee.leave.index'=>$actor->employee ? ['My Leave','calendar'] : null,'settings'=>['My Account','settings'],'supervisor.signature.show'=>['Electronic Signature','file']]),
         ],
         default => [
-            'My workday' => ['employee.dashboard'=>['Dashboard','grid'],'attendance'=>['Time In / Time Out','clock'],'attendance.history'=>['Attendance History','file'],'employee.work-calendar'=>['My Work Calendar','calendar'],'employee.leave.index'=>['My Leave','calendar'],'employee.leave.calendar.index'=>['My Leave Calendar','calendar'],'employee.corrections.index'=>['Attendance Corrections','file']],
+            'My workday' => ['employee.dashboard'=>['Dashboard','grid'],'attendance'=>['Time In / Time Out','clock'],'attendance.history'=>['Attendance History','file'],'employee.work-calendar'=>['My Work Calendar','calendar'],'employee.leave.index'=>['My Leave','calendar'],'employee.leave.eligibility.index'=>['Special Leave Eligibility','file'],'employee.leave.calendar.index'=>['My Leave Calendar','calendar'],'employee.corrections.index'=>['Attendance Corrections','file']],
             'My account' => ['employee.profile'=>['My Profile','users'],'settings'=>['Account Settings','settings']],
         ],
     };
@@ -28,7 +28,8 @@ $active = match($name) {
 'hr.holidays.index' => request()->routeIs('hr.holidays.*', 'hr.holiday-import.*'),
 'attendance' => $actor->isHr() ? request()->routeIs('hr.attendance.*','attendance.show') && !request()->routeIs('hr.corrections.*') : request()->routeIs('employee.attendance','attendance.show'),
 'attendance.history'=>request()->routeIs('employee.attendance.history'),
-'hr.leave.index'=>request()->routeIs('hr.leave.*') && !request()->routeIs('hr.leave.calendar.*'),
+'hr.leave.index'=>request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.types*'),
+'hr.leave.balances'=>request()->routeIs('hr.leave.balances*','hr.leave.policies.*','hr.leave.event-entitlements.*'),
 'employee.leave.index'=>request()->routeIs('employee.leave.*') && !request()->routeIs('employee.leave.calendar.*'),
 'supervisor.leave.index'=>request()->routeIs('supervisor.leave.index','supervisor.leave.show'),
 default=>request()->routeIs(str_ends_with($name,'.index') ? substr($name,0,-6).'.*' : $name),

@@ -159,11 +159,11 @@ class OfficialLeaveFormTest extends TestCase
         $employee = $this->attendee();
         $supervisor = $this->assign($employee);
         $type = LeaveType::factory()->create(['name' => 'Vacation Leave', 'affects_balance' => true]);
-        $leave = $this->submit($employee, $type);
         $balance = EmployeeLeaveBalance::factory()->create([
             'employee_id' => $employee->id, 'leave_type_id' => $type->id,
-            'policy_period' => $leave->start_date->format('Y'), 'available_days' => 5,
+            'policy_period' => now()->addWeek()->format('Y'), 'available_days' => 5,
         ]);
+        $leave = $this->submit($employee, $type);
         $url = route('supervisor.leave.decide', $leave);
         $this->actingAs($supervisor)->postJson($url, $this->approval())->assertUnprocessable()->assertJsonValidationErrors('decision');
         $this->enroll($supervisor);
@@ -425,11 +425,11 @@ class OfficialLeaveFormTest extends TestCase
         $employee = $this->attendee();
         $supervisor = $this->assign($employee);
         $type = LeaveType::factory()->create(['affects_balance' => true]);
-        $leave = $this->submit($employee, $type);
         $balance = EmployeeLeaveBalance::factory()->create([
             'employee_id' => $employee->id, 'leave_type_id' => $type->id,
-            'policy_period' => $leave->start_date->format('Y'), 'available_days' => 5,
+            'policy_period' => now()->addWeek()->format('Y'), 'available_days' => 5,
         ]);
+        $leave = $this->submit($employee, $type);
         $this->enroll($supervisor);
         config(['mail.default' => 'smtp', 'mail.mailers.smtp.transport' => 'array']);
         Queue::fake([SendEssentialEmail::class]);

@@ -9,7 +9,39 @@
 </x-page-header>
 @if($scope === 'supervisor')<p class="small muted mb-5">Department: {{ auth()->user()->supervisorDepartment?->department_name ?? 'Not assigned' }}</p>@endif
 <dl class="operations-summary leave-summary" aria-label="Leave summary">@foreach(['pending_supervisor_approval'=>'Pending Supervisor approval','awaiting_supervisor_assignment'=>'Awaiting Supervisor assignment','approved'=>'Approved','rejected'=>'Rejected','cancelled'=>'Cancelled','revoked'=>'Revoked'] as $status => $label)<div><dt>{{ $label }}</dt><dd>{{ number_format($stats[$status] ?? 0) }}</dd></div>@endforeach</dl>
-@if($scope === 'employee')<section class="card mb-6"><div class="card-heading"><h2>My configured leave balances</h2></div><div class="card-body">@forelse($balances as $balance)<div class="profile-row"><span>{{ $balance->type->name }} · {{ $balance->policy_period }}</span><strong>{{ $balance->available_days }} days available</strong></div>@empty<p class="small muted">No balances configured. No default entitlement is assumed.</p>@endforelse</div></section>@endif
+@if($scope === 'employee')
+<section class="card mb-6" aria-labelledby="my-credit-balances">
+    <div class="card-heading"><h2 id="my-credit-balances">My leave credits</h2><span class="small muted">{{ now(config('attendance.timezone'))->format('Y') }}</span></div>
+    <div class="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+        @forelse($balances as $summary)
+            <article class="rounded-lg border border-slate-200 bg-white p-4">
+                <div class="flex flex-wrap items-start justify-between gap-2"><h3 class="font-semibold text-slate-900">{{ $summary['type']->name }}</h3>@if($summary['policy_basis'] !== 'event' || $summary['balance'])<span class="text-2xl font-bold text-slate-900">{{ \App\Support\LeaveDays::format($summary['available']) }}</span>@endif</div>
+                @if($summary['policy_basis'] === 'event' && ! $summary['balance'])<p class="small muted">Eligibility verification required</p>@else<p class="small muted">days available after pending requests</p>@endif
+                @if($summary['event_reference'])<p class="mt-2 text-xs font-semibold text-slate-700">Verified event entitlement · {{ $summary['event_reference'] }}</p>@endif
+                @if($summary['policy_basis'] !== 'event' || $summary['balance'])<dl class="mt-3 grid grid-cols-3 gap-2 text-sm">
+                    <div><dt class="muted">Entitled</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($summary['entitled']) }}</dd></div>
+                    <div><dt class="muted">Approved</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($summary['approved']) }}</dd></div>
+                    <div><dt class="muted">Pending</dt><dd class="font-semibold">{{ \App\Support\LeaveDays::format($summary['pending']) }}</dd></div>
+                </dl>@endif
+            </article>
+        @empty
+            <x-empty-state title="No leave credits configured" description="HR must allocate an entitlement before a balance-based request can be submitted." icon="calendar" />
+        @endforelse
+    </div>
+</section>
+@if($creditLedger->isNotEmpty())
+<section class="card mb-6" aria-labelledby="my-credit-activity">
+    <div class="card-heading"><h2 id="my-credit-activity">My credit activity</h2><span class="small muted">Latest 25 entries</span></div>
+    <div class="overflow-x-auto" tabindex="0" role="region" aria-label="My leave credit ledger">
+        <x-table :columns="['Date', 'Leave type', 'Activity', 'Days', 'Details']" caption="My leave credit activity">
+            @foreach($creditLedger as $transaction)
+                <tr><td>{{ ($transaction->effective_on ?? $transaction->created_at)->format('M j, Y') }}</td><td>{{ $transaction->balance->type->name }}</td><td>{{ str_replace('_', ' ', $transaction->transaction_type) }}</td><td class="font-semibold {{ (float) $transaction->amount >= 0 ? 'text-emerald-700' : 'text-red-700' }}">{{ (float) $transaction->amount >= 0 ? '+' : '' }}{{ \App\Support\LeaveDays::format($transaction->amount) }}</td><td>{{ $transaction->reason }}</td></tr>
+            @endforeach
+        </x-table>
+    </div>
+</section>
+@endif
+@endif
 <section class="card" aria-labelledby="leave-applications-heading">
 <div class="card-heading"><h2 id="leave-applications-heading">Leave applications</h2><span class="small muted">{{ number_format($leaves->total()) }} {{ $leaves->total() === 1 ? 'application' : 'applications' }}</span></div>
 <form method="GET" class="toolbar" aria-label="Leave filters">
@@ -17,13 +49,13 @@
 @if($scope !== 'hr')<x-input name="q" label="Employee search" :value="request('q')"/><x-input name="from" label="Dates from" type="date" :value="request('from')"/><x-input name="to" label="Dates to" type="date" :value="request('to')"/>@endif
 <x-select name="status" label="Status" :options="['awaiting_supervisor_assignment'=>'Awaiting Supervisor assignment','pending_supervisor_approval'=>'Pending Supervisor approval','approved'=>'Approved','rejected'=>'Rejected','cancelled'=>'Cancelled','revoked'=>'Revoked']" :value="request('status')" placeholder="All statuses" />@unless(request()->routeIs('supervisor.leave.pending'))<x-select name="period" label="Approved leave period" :options="\App\Models\LeaveRequest::PERIODS" :value="request('period')" placeholder="All periods" />@endunless<x-button type="submit">Apply filters</x-button></form>
 <x-table :columns="['Employee / branch','Leave type','Dates / requested days','Supervisor','Status','Submitted / decision','Details']" caption="Leave applications">
-@forelse($leaves as $leave)<tr><td>@if($scope === 'supervisor' && in_array($leave->employee_id, $profileEmployeeIds))<a class="text-link" href="{{ route('supervisor.leave.employees.profile', [$leave->employee, 'leave' => $leave->id]) }}">{{ $leave->employee->full_name }}</a>@elseif($scope === 'hr')<a class="text-link" href="{{ route('hr.employees.show', $leave->employee) }}">{{ $leave->employee->full_name }}</a>@else{{ $leave->employee->full_name }}@endif<br><span class="small muted">{{ $leave->employee->employee_number }}</span><br><span class="small muted">{{ $leave->employee->currentAssignment?->branch->branch_name ?? 'Unassigned' }} · {{ $leave->employee->department->department_name }}</span></td><td>{{ $leave->type_snapshot['name'] }}</td><td>{{ $leave->start_date->format('M j, Y') }} – {{ $leave->end_date->format('M j, Y') }}<br>{{ $leave->requested_duration }} days {{ strtoupper($leave->half_day ?? '') }}</td><td>{{ $leave->supervisor?->name ?? 'Awaiting assignment' }}</td><td><span class="inline-flex flex-wrap items-center gap-1.5"><x-state :value="$leave->status" /><x-leave-period :leave="$leave" /></span></td><td>{{ $leave->submitted_at->timezone(config('attendance.timezone'))->format('M j, Y H:i') }}<br><span class="small muted">{{ $leave->finalized_at?->timezone(config('attendance.timezone'))->format('M j, Y H:i') ?? 'Not finalized' }}</span></td><td><a class="text-link" href="{{ route($prefix.'.show',$leave) }}">View request</a></td></tr>@empty<tr><td colspan="7"><x-empty-state title="No leave applications in this view" description="Recorded applications and decisions will appear here." icon="calendar" /></td></tr>@endforelse
+@forelse($leaves as $leave)<tr><td>@if($scope === 'supervisor' && in_array($leave->employee_id, $profileEmployeeIds))<a class="text-link" href="{{ route('supervisor.leave.employees.profile', [$leave->employee, 'leave' => $leave->id]) }}">{{ $leave->employee->full_name }}</a>@elseif($scope === 'hr')<a class="text-link" href="{{ route('hr.employees.show', $leave->employee) }}">{{ $leave->employee->full_name }}</a>@else{{ $leave->employee->full_name }}@endif<br><span class="small muted">{{ $leave->employee->employee_number }}</span><br><span class="small muted">{{ $leave->employee->currentAssignment?->branch->branch_name ?? 'Unassigned' }} · {{ $leave->employee->department->department_name }}</span></td><td>{{ $leave->type_snapshot['name'] }}</td><td>{{ $leave->start_date->format('M j, Y') }} – {{ $leave->end_date->format('M j, Y') }}<br>{{ \App\Support\LeaveDays::withUnit($leave->requested_duration) }} {{ strtoupper($leave->half_day ?? '') }}</td><td>{{ $leave->supervisor?->name ?? 'Awaiting assignment' }}</td><td><span class="inline-flex flex-wrap items-center gap-1.5"><x-state :value="$leave->status" /><x-leave-period :leave="$leave" /></span></td><td>{{ $leave->submitted_at->timezone(config('attendance.timezone'))->format('M j, Y H:i') }}<br><span class="small muted">{{ $leave->finalized_at?->timezone(config('attendance.timezone'))->format('M j, Y H:i') ?? 'Not finalized' }}</span></td><td><a class="text-link" href="{{ route($prefix.'.show',$leave) }}">View request</a></td></tr>@empty<tr><td colspan="7"><x-empty-state title="No leave applications in this view" description="Recorded applications and decisions will appear here." icon="calendar" /></td></tr>@endforelse
 </x-table><div class="card-body">{{ $leaves->links() }}</div></section>
 @if($scope === 'supervisor')
 <section class="card mt-6"><div class="card-heading"><h2>Assigned Employees</h2></div>
-<x-table :columns="['Employee', 'Department', 'Branch', 'Profile']" caption="Currently assigned employees">
-@forelse($assignedEmployees as $employee)<tr><td><div class="flex items-center gap-3"><x-user-avatar :user="$employee->user" /><div><a class="text-link" href="{{ route('supervisor.leave.employees.profile', $employee) }}">{{ $employee->full_name }}</a><p class="small muted">{{ $employee->employee_number }}</p></div></div></td><td>{{ $employee->department?->department_name }}</td><td>{{ $employee->currentAssignment?->branch?->branch_name ?? 'Unassigned' }}</td><td><a class="text-link" href="{{ route('supervisor.leave.employees.profile', $employee) }}">View Profile</a></td></tr>
-@empty<tr><td colspan="4"><x-empty-state title="No currently assigned employees" description="Employees appear here after HR assigns them to you." icon="users" /></td></tr>@endforelse
+<x-table :columns="['Employee', 'Department', 'Branch', 'Leave credits', 'Profile']" caption="Currently assigned employees">
+@forelse($assignedEmployees as $employee)<tr><td><div class="flex items-center gap-3"><x-user-avatar :user="$employee->user" /><div><a class="text-link" href="{{ route('supervisor.leave.employees.profile', $employee) }}">{{ $employee->full_name }}</a><p class="small muted">{{ $employee->employee_number }}</p></div></div></td><td>{{ $employee->department?->department_name }}</td><td>{{ $employee->currentAssignment?->branch?->branch_name ?? 'Unassigned' }}</td><td>@forelse($teamBalances->get($employee->id, collect()) as $summary)<p class="text-sm"><span class="font-medium">{{ $summary['type']->name }}:</span> {{ \App\Support\LeaveDays::format($summary['available']) }} available <span class="muted">({{ \App\Support\LeaveDays::format($summary['pending']) }} pending)</span></p>@empty<span class="small muted">No applicable credits</span>@endforelse</td><td><a class="text-link" href="{{ route('supervisor.leave.employees.profile', $employee) }}">View Profile</a></td></tr>
+@empty<tr><td colspan="5"><x-empty-state title="No currently assigned employees" description="Employees appear here after HR assigns them to you." icon="users" /></td></tr>@endforelse
 </x-table><div class="card-body">{{ $assignedEmployees->links() }}</div></section>
 @endif
 </x-layouts.app>

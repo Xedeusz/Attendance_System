@@ -11,6 +11,7 @@ import initializeRealtime from "./realtime";
 import registerAttendance from "./attendance";
 import registerBranchLocationMap from "./branch-location-map";
 import registerAttendanceLocationMap from "./attendance-location-map";
+import { formatLeaveDays, formatLeaveDaysWithUnit } from "./leave-days";
 
 registerProfilePhoto(Alpine);
 registerNotificationDropdown(Alpine);
@@ -68,6 +69,8 @@ Alpine.data("displayClock", () => ({
         clearInterval(this.timer);
     },
 }));
+Alpine.magic("leaveDays", () => formatLeaveDays);
+Alpine.magic("leaveDaysWithUnit", () => formatLeaveDaysWithUnit);
 window.Alpine = Alpine;
 Alpine.start();
 initializeNotifications();
